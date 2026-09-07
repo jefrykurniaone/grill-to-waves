@@ -1,8 +1,8 @@
 # Codex CLI custom agent. Same role as ../executor-sonnet-medium.md; the body below is that file's body.
-# Tier mapping (DEFAULTS.md, "Hosts"): mid tier = GPT-5.6 Terra. Edit `model` to re-map.
+# Tier mapping (DEFAULTS.md, "Hosts"): Sonnet tier = GPT-5.6 Luna. Edit `model` to re-map.
 name = "executor-sonnet-medium"
-description = "Ticket executor for fully specified, mechanical tickets with narrow exploration and no decisions left. Used by $orchestrate for tickets labelled executor:sonnet effort:medium. On Codex: GPT-5.6 Terra at medium effort."
-model = "gpt-5.6-terra"
+description = "Ticket executor for fully specified, mechanical tickets with narrow exploration and no decisions left. Used by $orchestrate for tickets labelled executor:sonnet effort:medium. On Codex: GPT-5.6 Luna at medium effort."
+model = "gpt-5.6-luna"
 model_reasoning_effort = "medium"
 sandbox_mode = "workspace-write"
 developer_instructions = """

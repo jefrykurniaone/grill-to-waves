@@ -1,5 +1,5 @@
 # Codex CLI custom agent. Same role as ../scout-opus-medium.md; the body below is that file's body.
-# Cost-conscious scout mapping (DEFAULTS.md, "Hosts"): Opus scout tier = GPT-5.6 Terra.
+# Tier mapping (DEFAULTS.md, "Hosts"): Opus scout tier = GPT-5.6 Terra.
 name = "scout-opus-medium"
 description = "Read-only analyst for a precise judgment with a narrow evidence surface — evaluate one bounded claim, trace one known behavior, or answer one focused code question. On Codex: GPT-5.6 Terra at medium effort, read-only sandbox."
 model = "gpt-5.6-terra"

@@ -1,6 +1,5 @@
 # Codex CLI custom agent. Same role as ../scout-sonnet-medium.md; the body below is that file's body.
-# Tier mapping (DEFAULTS.md, "Hosts"): the one place the small tier is used — a one-grep locate is safe
-# on GPT-5.6 Luna. Set `model = "gpt-5.6-terra"` to keep every scout on the mid tier instead.
+# Tier mapping (DEFAULTS.md, "Hosts"): Sonnet scout tier = GPT-5.6 Luna.
 name = "scout-sonnet-medium"
 description = "Read-only scout for locating one known symbol, file or value — one grep, one read, cite file:line. Never edits, never suggests fixes. On Codex: GPT-5.6 Luna at medium effort, read-only sandbox."
 model = "gpt-5.6-luna"
