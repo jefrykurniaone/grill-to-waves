@@ -143,7 +143,7 @@ over an agent file; without either override, the full Fable model IDs below do n
 | In-flight ceiling | the map's (default three, hard maximum five) | the map's, and never above `agents.max_concurrent_threads_per_session` in `~/.codex/config.toml` |
 | Skill invocation | a slash command: the skill name after `/` | a skill mention: the skill name after `$` |
 | Agent directory in the repo | `.claude/` — `worktrees/<row>/<ticket>` and `scratch/` under it | `.codex/` — the same two paths under it, inside the workspace so a `workspace-write` sandbox can write there |
-| Required grill skills | the `mattpocock-skills` plugin, invoked as `mattpocock-skills:<name>` | `$grilling` and `$domain-modeling`, installed as skills under `~/.agents/skills/` |
+| Required Matt Pocock skills | the `mattpocock-skills` plugin, invoked as `mattpocock-skills:<name>` or `/setup-matt-pocock-skills` | `$grilling`, `$domain-modeling`, and `$setup-matt-pocock-skills`, installed under the project or user `.agents/skills/` directory |
 | Read-only scouts | by tool list in the frontmatter | by `sandbox_mode = "read-only"` |
 
 The skill text in this repo is written in Claude Code's vocabulary; the installer rewrites the

@@ -35,8 +35,8 @@ Commits and pull request bodies follow the repository's own convention.
    creating, reading, commenting, labelling, linking and closing.
 2. Otherwise detect: `git remote -v` at GitHub → `gh`; at GitLab → `glab`; no remote → local markdown
    under `.scratch/`. Confirm in one line with the user and suggest recording the choice in
-   `docs/agents/issue-tracker.md` so the next run does not re-detect it — on Claude Code,
-   `/setup-matt-pocock-skills` from the required plugin writes that file.
+   `docs/agents/issue-tracker.md` so the next run does not re-detect it —
+   `/setup-matt-pocock-skills` from the required Matt Pocock skills writes that file.
 
 Then make sure the repo carries the labels `meta:orchestration`, `ready-for-agent`,
 `executor:fable-five-one`, `executor:fable`, `executor:opus`, `executor:sonnet`, `effort:medium`,

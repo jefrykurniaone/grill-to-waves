@@ -13,8 +13,8 @@
 #   agents/codex/*.toml    ->  ~/.codex/agents/                    (or <project>/.codex/agents/)
 #
 # The skill text is written in Claude Code's vocabulary. For Codex the installer rewrites, and only
-# rewrites: the skill invocation prefix (/orchestrate -> $orchestrate), the agent directory
-# (.claude/worktrees, .claude/scratch -> .codex/...), the grill-skill names
+# rewrites: the skill invocation prefix (/orchestrate -> $orchestrate, including the setup skill),
+# the agent directory (.claude/worktrees, .claude/scratch -> .codex/...), the grill-skill names
 # (mattpocock-skills:grilling -> $grilling, likewise domain-modeling) and drops the
 # disable-model-invocation frontmatter line, whose Codex equivalent is the skill's agents/openai.yaml
 # (allow_implicit_invocation: false), shipped in the repo.
@@ -26,6 +26,12 @@ set -euo pipefail
 
 REPO="https://github.com/jefrykurniaone/grill-to-waves.git"
 SKILLS=(grill-to-waves orchestrate)
+REQUIRED_CODEX_SKILLS=(grilling domain-modeling setup-matt-pocock-skills)
+MATTPOCOCK_CODEX_INSTALL_COMMAND="npx skills@latest add mattpocock/skills"
+for skill in "${REQUIRED_CODEX_SKILLS[@]}"; do
+  MATTPOCOCK_CODEX_INSTALL_COMMAND+=" --skill $skill"
+done
+MATTPOCOCK_CODEX_INSTALL_COMMAND+=" -a codex"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
 TARGET=""
@@ -154,8 +160,8 @@ install_file() {          # $1 from, $2 to, $3 backup root
 codexify_skill_file() {   # $1 file
   local f="$1" tmp="$1.codex.$$"
   LC_ALL=C sed -E \
-    -e 's#(^|[^[:alnum:]_./\\-])/(orchestrate|grill-to-waves)([^[:alnum:]_/-]|$)#\1$\2\3#g' \
-    -e 's#(^|[^[:alnum:]_./\\-])/(orchestrate|grill-to-waves)([^[:alnum:]_/-]|$)#\1$\2\3#g' \
+    -e 's#(^|[^[:alnum:]_./\\-])/(orchestrate|grill-to-waves|setup-matt-pocock-skills)([^[:alnum:]_/-]|$)#\1$\2\3#g' \
+    -e 's#(^|[^[:alnum:]_./\\-])/(orchestrate|grill-to-waves|setup-matt-pocock-skills)([^[:alnum:]_/-]|$)#\1$\2\3#g' \
     -e 's#\.claude([/\\])(worktrees|scratch)#.codex\1\2#g' \
     -e 's#mattpocock-skills:grilling#$grilling#g' \
     -e 's#mattpocock-skills:domain-modeling#$domain-modeling#g' \
@@ -185,7 +191,7 @@ if [ "$DO_CODEX" = 1 ]; then
     dest="$CODEX_SKILLS_ROOT/$skill"
     install_dir "$SRC/skills/$skill" "$dest" "$CODEX_BACKUPS"
     for f in "$dest"/*.md; do codexify_skill_file "$f"; done
-    note "rewrote $skill for Codex (\$-mentions, .codex/ paths, \$grilling / \$domain-modeling)"
+    note "rewrote $skill for Codex (\$-mentions, .codex/ paths, and required Matt Pocock skills)"
   done
 
   count=0
@@ -221,7 +227,7 @@ step "Done."
 [ "$DO_CODEX" = 1 ] && note "Codex CLI: restart Codex, then run  \$grill-to-waves  and later  \$orchestrate"
 [ "$DO_CODEX" = 1 ] && note "Codex dispatches executors with spawn_agent; the custom agents pin model and reasoning effort per tier."
 
-# The pipeline calls grilling and domain-modeling (Stage 1) and, on Claude Code, setup-matt-pocock-skills (Stage 0).
+# The pipeline requires setup-matt-pocock-skills (Stage 0), grilling and domain-modeling (Stage 1).
 if [ "$DO_CLAUDE" = 1 ]; then
   if compgen -G "$HOME/.claude/plugins/cache/mattpocock*" > /dev/null; then
     note "Claude Code required plugin mattpocock-skills: found."
@@ -237,7 +243,7 @@ if [ "$DO_CLAUDE" = 1 ]; then
 fi
 if [ "$DO_CODEX" = 1 ]; then
   missing=""
-  for s in grilling domain-modeling; do
+  for s in "${REQUIRED_CODEX_SKILLS[@]}"; do
     if [ ! -f "$CODEX_SKILLS_ROOT/$s/SKILL.md" ] && \
        [ ! -f "$HOME/.agents/skills/$s/SKILL.md" ] && \
        [ ! -f "$PWD/.agents/skills/$s/SKILL.md" ]; then
@@ -245,12 +251,12 @@ if [ "$DO_CODEX" = 1 ]; then
     fi
   done
   if [ -z "$missing" ]; then
-    note "Codex required skills grilling and domain-modeling: found."
+    note "Codex required skills found: ${REQUIRED_CODEX_SKILLS[*]}."
   else
     echo ""
     step "Codex required skills missing:$missing"
-    note "Stage 1 needs \$grilling and \$domain-modeling. From the project where you will run the pipeline, use:"
-    note "  npx skills@latest add mattpocock/skills --skill grilling --skill domain-modeling -a codex"
+    note "Stage 0 needs \$setup-matt-pocock-skills; Stage 1 needs \$grilling and \$domain-modeling. From the project where you will run the pipeline, use:"
+    note "  $MATTPOCOCK_CODEX_INSTALL_COMMAND"
     note "Choose project scope if prompted, then restart Codex."
   fi
 fi

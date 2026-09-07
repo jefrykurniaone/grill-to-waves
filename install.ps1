@@ -15,8 +15,8 @@ Codex CLI:
   agents/codex/*.toml    ->  ~/.codex/agents/                     (or <project>/.codex/agents/)
 
 The skill text is written in Claude Code's vocabulary. For Codex the installer rewrites, and only
-rewrites: the skill invocation prefix (`/orchestrate` -> `$orchestrate`), the agent directory
-(`.claude/worktrees`, `.claude/scratch` -> `.codex/...`), the grill-skill names
+rewrites: the skill invocation prefix (`/orchestrate` -> `$orchestrate`, including the setup skill),
+the agent directory (`.claude/worktrees`, `.claude/scratch` -> `.codex/...`), the grill-skill names
 (`mattpocock-skills:grilling` -> `$grilling`, likewise domain-modeling) and drops the
 `disable-model-invocation` frontmatter line, whose Codex equivalent is the skill's
 `agents/openai.yaml` (`allow_implicit_invocation: false`), shipped in the repo.
@@ -53,6 +53,9 @@ Set-StrictMode -Version Latest
 
 $Repo = 'https://github.com/jefrykurniaone/grill-to-waves.git'
 $Skills = @('grill-to-waves', 'orchestrate')
+$RequiredCodexSkills = @('grilling', 'domain-modeling', 'setup-matt-pocock-skills')
+$MattPocockCodexInstallCommand = 'npx skills@latest add mattpocock/skills ' +
+    (($RequiredCodexSkills | ForEach-Object { "--skill $_" }) -join ' ') + ' -a codex'
 $Stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $Utf8NoBom = New-Object System.Text.UTF8Encoding $false
 
@@ -174,9 +177,9 @@ function Install-File([string]$From, [string]$To, [string]$BackupRoot) {
 # and out (no BOM), so non-ASCII prose survives Windows PowerShell 5.1.
 function Convert-SkillFileForCodex([string]$Path) {
     $text = [System.IO.File]::ReadAllText($Path, $Utf8NoBom)
-    # `/orchestrate` and `/grill-to-waves` as commands -> `$orchestrate`, `$grill-to-waves`.
+    # Slash commands -> Codex skill mentions.
     # A path segment (`../grill-to-waves/DEFAULTS.md`, `skills/grill-to-waves`) is left alone.
-    $text = [regex]::Replace($text, '(?<![\w./\\-])/(orchestrate|grill-to-waves)(?![\w/-])', '$$$1')
+    $text = [regex]::Replace($text, '(?<![\w./\\-])/(orchestrate|grill-to-waves|setup-matt-pocock-skills)(?![\w/-])', '$$$1')
     # The agent directory inside the repository.
     $text = [regex]::Replace($text, '\.claude([/\\])(worktrees|scratch)', '.codex$1$2')
     # The two required grill skills, plugin-namespaced on Claude Code, plain skills on Codex.
@@ -212,7 +215,7 @@ if ($doCodex) {
         foreach ($file in (Get-ChildItem $dest -Filter '*.md' -File)) {
             Convert-SkillFileForCodex $file.FullName
         }
-        Write-Note "rewrote $skill for Codex (`$-mentions, .codex/ paths, `$grilling / `$domain-modeling)"
+        Write-Note "rewrote $skill for Codex (`$-mentions, .codex/ paths, and required Matt Pocock skills)"
     }
 
     $agents = Get-ChildItem (Join-Path $sourceRoot 'agents/codex') -Filter '*.toml' -File
@@ -253,7 +256,7 @@ if ($doCodex) {
     Write-Note 'Codex dispatches executors with spawn_agent; the custom agents pin model and reasoning effort per tier.'
 }
 
-# The pipeline calls grilling and domain-modeling (Stage 1) and, on Claude Code, setup-matt-pocock-skills (Stage 0).
+# The pipeline requires setup-matt-pocock-skills (Stage 0), grilling and domain-modeling (Stage 1).
 if ($doClaude) {
     $mattpocockInstalled = @(
         Get-ChildItem (Join-Path $HOME '.claude/plugins/cache') -Directory -Filter 'mattpocock*' -ErrorAction SilentlyContinue
@@ -273,19 +276,19 @@ if ($doClaude) {
 }
 if ($doCodex) {
     $currentProjectSkillsRoot = Join-Path (Get-Location).Path '.agents/skills'
-    $missing = @(@('grilling', 'domain-modeling') | Where-Object {
+    $missing = @($RequiredCodexSkills | Where-Object {
         -not (Test-Path (Join-Path $codexSkillsRoot "$_/SKILL.md")) -and
         -not (Test-Path (Join-Path $HOME ".agents/skills/$_/SKILL.md")) -and
         -not (Test-Path (Join-Path $currentProjectSkillsRoot "$_/SKILL.md"))
     })
     if ($missing.Count -eq 0) {
-        Write-Note 'Codex required skills grilling and domain-modeling: found.'
+        Write-Note "Codex required skills found: $($RequiredCodexSkills -join ', ')."
     }
     else {
         Write-Host ''
         Write-Step "Codex required skills missing: $($missing -join ', ')"
-        Write-Note 'Stage 1 needs $grilling and $domain-modeling. From the project where you will run the pipeline, use:'
-        Write-Note '  npx skills@latest add mattpocock/skills --skill grilling --skill domain-modeling -a codex'
+        Write-Note 'Stage 0 needs $setup-matt-pocock-skills; Stage 1 needs $grilling and $domain-modeling. From the project where you will run the pipeline, use:'
+        Write-Note "  $MattPocockCodexInstallCommand"
         Write-Note 'Choose project scope if prompted, then restart Codex.'
     }
 }

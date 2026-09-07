@@ -31,10 +31,11 @@ docs mirror of each spec. Nothing depends on a local file that a context clear w
 
 ## Install
 
-### 1. Install the required grill skills first
+### 1. Install the required Matt Pocock skills first
 
-Stage 1 calls two skills from [mattpocock/skills](https://github.com/mattpocock/skills), so install
-them before the first run.
+The pipeline uses three skills from [mattpocock/skills](https://github.com/mattpocock/skills): one
+for repository setup in Stage 0 and two for grilling in Stage 1. Install all three before the first
+run.
 
 **Claude Code** — the plugin:
 
@@ -51,17 +52,19 @@ The marketplace is named `mattpocock`, not `skills`. Outside the session the sam
 |---|---|
 | `grilling` | Stage 1 — the grill itself. |
 | `domain-modeling` | Stage 1, whenever vocabulary is in play. |
-| `setup-matt-pocock-skills` | Stage 0 — records the tracker choice in `docs/agents/issue-tracker.md`, run once per repo. Claude Code only; on Codex, write that file by hand. |
+| `setup-matt-pocock-skills` | Stage 0 — records the tracker choice in `docs/agents/issue-tracker.md`, run once per repo. |
 
 **Codex CLI** — run this from the project where you will use the pipeline (Node.js/npm is required):
 
 ```bash
-npx skills@latest add mattpocock/skills --skill grilling --skill domain-modeling -a codex
+npx skills@latest add mattpocock/skills --skill grilling --skill domain-modeling --skill setup-matt-pocock-skills -a codex
 ```
 
-Choose **project scope** if prompted. This installs the two required skills under the project's
-`.agents/skills/` directory. Restart Codex afterwards so `$grilling` and `$domain-modeling` are
-available. The installer checks for these skills and prints the same command when they are missing.
+Choose **project scope** if prompted. This installs the three required skills under the project's
+`.agents/skills/` directory. Restart Codex afterwards so `$grilling`, `$domain-modeling`, and
+`$setup-matt-pocock-skills` are available. Run `$setup-matt-pocock-skills` once in each repository
+before its first `$grill-to-waves` run. The installer checks for all three skills and prints the same
+command when one is missing.
 
 ### 2. Install the skills and agents
 
@@ -113,8 +116,8 @@ legacy root and the installer warns if a copy is there too) and custom agents fr
 it is set, because a map's in-flight ceiling must stay under it.
 
 The skill text in this repo is written in Claude Code's vocabulary. For Codex the installer
-rewrites, and only rewrites: `/orchestrate` and `/grill-to-waves` to `$orchestrate` and
-`$grill-to-waves`; `.claude/worktrees` and `.claude/scratch` to `.codex/…`; the two grill-skill
+rewrites, and only rewrites: `/orchestrate`, `/grill-to-waves`, and `/setup-matt-pocock-skills` to
+Codex `$` mentions; `.claude/worktrees` and `.claude/scratch` to `.codex/…`; the two grill-skill
 names to `$grilling` and `$domain-modeling`; and it drops the `disable-model-invocation` line, whose
 Codex equivalent is each skill's `agents/openai.yaml` (`allow_implicit_invocation: false`).
 
@@ -170,8 +173,8 @@ copy:
   skills: the session executes tickets itself, one at a time, with the agent definitions read as
   role briefs (see *Hosts without subagent dispatch* in `skills/orchestrate/SKILL.md`).
 - **[mattpocock/skills](https://github.com/mattpocock/skills)**, required — `grilling` and
-  `domain-modeling` for Stage 1 on both hosts, `setup-matt-pocock-skills` for the Stage 0 tracker
-  record on Claude Code. Install step 1 above.
+  `domain-modeling` for Stage 1, and `setup-matt-pocock-skills` for the Stage 0 tracker record on
+  both hosts. Install step 1 above.
 - **Playwright MCP**, optional, for runtime verification of `runtime: dev-server` tickets. Without it
   the orchestrator falls back to scripted Playwright or plain HTTP, and says which it used.
 
