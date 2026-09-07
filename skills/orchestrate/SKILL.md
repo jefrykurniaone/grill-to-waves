@@ -118,19 +118,20 @@ line to run next. It writes nothing.
 
 [../grill-to-waves/DEFAULTS.md](../grill-to-waves/DEFAULTS.md) is the source of truth, overridden only
 by the repository's own `CLAUDE.md` or `AGENTS.md`. Executors are Fable, Opus or Sonnet at `medium`,
-`high` or `xhigh`, from the ticket's labels — Fable at `xhigh` only, for the tickets DEFAULTS.md's
-*Fable tier* describes; default `high` when unlabelled; re-grade only when the body contradicts the
-label (a `medium` ticket that touches money, a stored enum or a shared seam is dispatched at `xhigh`; an
-Opus `xhigh` ticket whose body carries a data rewrite, a contract later waves compose or a security
-boundary is dispatched to Fable — either way the label is corrected and one line says why). Dispatch
-the agent named `executor-<model>-<effort>` by the host's mechanism in DEFAULTS.md's *Hosts* table
+`high` or `xhigh`, from the ticket's labels. Select the axes independently: consequence and reach set
+the tier; exploration and unresolved decisions set the effort; default effort is `high` when
+unlabelled. Re-grade only when the body contradicts a label: a `medium` brief that leaves a design or
+correctness argument open moves to `high` or `xhigh`, while an Opus ticket whose failure would be
+irreversible, run-wide or adversarial moves to Fable without changing effort unless its workload also
+contradicts that label. Correct the affected label and say why in one line. Dispatch the agent named
+`executor-<tier>-<effort>` by the host's mechanism in DEFAULTS.md's *Hosts* table
 (Claude Code: `subagent_type`; Codex: `spawn_agent` naming that custom agent); scouts are
-`scout-sonnet-medium`, `scout-sonnet-high`, `scout-opus-high`, and there is no Fable scout. The tier
-names are tiers, not vendors — the *Hosts* table says which model each host runs them on. If
-`executor-fable-xhigh` is missing or the top-tier model is unavailable on this account, dispatch
-`executor-opus-xhigh` with the same brief and record the substitution on the ticket and in the wave
-report; if any other agent is missing, fall back to the host's general agent with the mapped model set
-and the effort stated in the prompt, and record that too.
+`scout-sonnet-medium`, `scout-sonnet-high`, `scout-opus-medium`, `scout-opus-high`, and there is no
+Fable scout. The tier names are tiers, not vendors — the *Hosts* table says which model each host runs
+them on. If the matching `executor-fable-<effort>` is missing or the top-tier model is unavailable on
+this account, dispatch `executor-opus-<effort>` with the same brief and record the substitution on the
+ticket and in the wave report; if any other agent is missing, fall back to the host's general agent
+with the mapped model set and the effort stated in the prompt, and record that too.
 
 ## Dispatch the whole wave at once
 

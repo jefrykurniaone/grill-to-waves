@@ -36,7 +36,7 @@ irm https://raw.githubusercontent.com/jefrykurniaone/grill-to-waves/main/install
 [CmdletBinding()]
 param(
     [ValidateSet('claude', 'codex', 'both', 'auto')]
-    [string]$Target = 'auto',
+    [string]$Target,
 
     # Install into a project instead of the user's home: <path>/.claude for Claude Code,
     # <path>/.agents/skills and <path>/.codex/agents for Codex.
@@ -59,6 +59,28 @@ $Utf8NoBom = New-Object System.Text.UTF8Encoding $false
 
 function Write-Step([string]$Message) { Write-Host "==> $Message" }
 function Write-Note([string]$Message) { Write-Host "    $Message" }
+
+function Select-InstallTarget {
+    Write-Step 'Choose an install target:'
+    Write-Note '[1] Claude Code'
+    Write-Note '[2] Codex CLI'
+    Write-Note '[3] Both'
+
+    while ($true) {
+        [string]$choice = Read-Host 'Enter 1, 2 or 3'
+        switch ($choice.Trim().ToLowerInvariant()) {
+            { $_ -in @('1', 'claude') } { return 'claude' }
+            { $_ -in @('2', 'codex') } { return 'codex' }
+            { $_ -in @('3', 'both') } { return 'both' }
+            default { Write-Note 'Invalid choice. Enter 1, 2 or 3.' }
+        }
+    }
+}
+
+if (-not $PSBoundParameters.ContainsKey('Target')) {
+    $Target = Select-InstallTarget
+}
+Write-Step "Install target: $Target"
 
 # --- 1. Locate the source tree -------------------------------------------------------------------
 # Run from a clone: use the script's own directory. Run through `irm | iex`: clone to a temp dir.

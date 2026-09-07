@@ -28,7 +28,7 @@ REPO="https://github.com/jefrykurniaone/grill-to-waves.git"
 SKILLS=(grill-to-waves orchestrate)
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
-TARGET="auto"
+TARGET=""
 PROJECT=""
 NO_BACKUP=0
 REF="main"
@@ -44,10 +44,34 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-case "$TARGET" in claude|codex|both|auto) ;; *) echo "--target must be claude, codex, both or auto" >&2; exit 2 ;; esac
+case "$TARGET" in ''|claude|codex|both|auto) ;; *) echo "--target must be claude, codex, both or auto" >&2; exit 2 ;; esac
 
 step() { printf '==> %s\n' "$1"; }
 note() { printf '    %s\n' "$1"; }
+
+select_install_target() {
+  step "Choose an install target:" >&2
+  note "[1] Claude Code" >&2
+  note "[2] Codex CLI" >&2
+  note "[3] Both" >&2
+
+  while true; do
+    printf 'Enter 1, 2 or 3: ' > /dev/tty
+    IFS= read -r choice < /dev/tty || {
+      echo "could not read a selection; pass --target claude, codex, both or auto" >&2
+      exit 2
+    }
+    case "$choice" in
+      1|claude) TARGET="claude"; return ;;
+      2|codex) TARGET="codex"; return ;;
+      3|both) TARGET="both"; return ;;
+      *) note "Invalid choice. Enter 1, 2 or 3." >&2 ;;
+    esac
+  done
+}
+
+if [ -z "$TARGET" ]; then select_install_target; fi
+step "Install target: $TARGET"
 
 # --- 1. Locate the source tree ------------------------------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd || true)"
