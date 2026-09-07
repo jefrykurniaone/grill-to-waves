@@ -6,14 +6,15 @@ something narrower, that wins — this file is the floor, not a ceiling.
 
 ## Model and effort
 
-- **Executors: three tiers, chosen by how far a wrong decision travels. Never the small/cheap tier.**
-  The mid tier (Sonnet) for tickets whose decisions were all made upstream; the frontier model (Opus)
-  for tickets that decide things inside a bounded blast radius; the top tier (Fable) for the hardest
-  tickets, where a wrong decision is irreversible, run-wide or adversarial — see *The Fable tier*
-  below. Follow the ticket's `executor:` label where one exists.
+- **Executors: three tiers, chosen by the consequence and reach of an incorrect implementation.
+  Never the small/cheap tier.** The mid tier (Sonnet) for bounded work whose decisions were all made
+  upstream; the frontier model (Opus) for judgment inside a bounded blast radius; the top tier
+  (Fable) where failure is irreversible, run-wide or adversarial — see *The Fable tier* below. Follow
+  the ticket's `executor:` label where one exists.
 - **Executor reasoning effort: `medium`, `high` or `xhigh`. Never `low`.** Follow the ticket's
   `effort:` label; default `high` when unlabelled. Two things set the level at ticketing time — how
-  much the executor must *explore* before it can edit, and how many *decisions* it makes alone.
+  much the executor must *explore* before it can edit, and how many *decisions* it makes alone. Tier
+  and effort are independent: risk selects the tier; workload selects the effort.
 - **The orchestrator and the verifier run on the most capable model available — Fable, or Opus if
   Fable is unavailable.** Verification of executor output is the orchestrator's job, never left to the
   executor that produced it. Executor and orchestrator may be the same model; they are never the same
@@ -23,22 +24,23 @@ something narrower, that wins — this file is the floor, not a ceiling.
 
 | Level | Use when | Typical pairing |
 |---|---|---|
-| `medium` | The target is fully specified upstream and the exploration is narrow: the files are named or trivially found, the edit is mechanical, and no decision is left to make — a rename, a dead column removed at enumerated sites, a copy change, a docs mirror, a restyle onto a settled component. | Sonnet `medium` |
-| `high` | **The default.** Judgment inside a bounded scope: a new surface on an existing seam, a route or form change, a multi-file feature whose decisions were made upstream but whose *placement* needs reading breadth, any ticket that must discover its own call sites. | Sonnet `high` when the decisions were all made upstream; Opus `high` when the executor decides anything a later ticket builds on |
-| `xhigh` | Judgment *is* the work, and a wrong decision propagates or loses data: anything touching money, capacity, stored enums, migrations that need a correctness argument, concurrency or row locks, a component seam several surfaces will compose, security boundaries, adversarial verification of subtle behaviour. | Opus `xhigh` while the blast radius stays bounded; Fable `xhigh` when the wrong decision would be irreversible, run-wide or adversarial (Sonnet `xhigh` is legal but rarely the right call) |
+| `medium` | The target is fully specified upstream and the exploration is narrow: the files are named or trivially found, the edit is mechanical, and no decision is left to make — a rename, a dead column removed at enumerated sites, a copy change, a docs mirror, a restyle onto a settled component. | Usually Sonnet `medium`; any tier may be `medium` when its tier criteria hold but its work is fully specified |
+| `high` | **The default.** Judgment inside a bounded scope: a new surface on an existing seam, a route or form change, a multi-file feature whose invariant was settled upstream but whose *placement* needs reading breadth, any ticket that must discover its own call sites. | Sonnet `high` when decisions were made upstream; Opus `high` for bounded decisions; Fable `high` for high-consequence work with a settled invariant |
+| `xhigh` | Judgment *is* the work: deriving a correctness argument, invariant, migration or security strategy, concurrency proof, or run-wide contract rather than implementing one already settled. | Sonnet `xhigh` is legal but rare; Opus `xhigh` for a bounded blast radius; Fable `xhigh` when the tier criteria also hold |
 
-Two axes, read together: **exploration need** (must the agent sweep many files, naming conventions or
-runtime behaviour before editing?) and **task complexity** (how many decisions does it make alone,
-and how far do they propagate?). Low on both → `medium`. High on either → `high`. Decisions that
-propagate or can lose data → `xhigh`, regardless of exploration. Never pick a level to save tokens on
-a ticket where the decisions are the deliverable; never pick `xhigh` for a mechanical edit — it does
-not make a rename more correct.
+Choose the axes separately. **Consequence and reach** select the executor tier. **Exploration need and
+unresolved decision complexity** select effort: narrow and decision-free → `medium`; broad reading or
+bounded implementation judgment → `high`; deriving the governing design or correctness argument →
+`xhigh`. High consequence never automatically raises effort, and a mechanical workload never lowers
+the tier required by its blast radius. Never pick a level merely to save tokens; never pick `xhigh`
+for a fully specified edit — it does not make that edit more correct.
 
 ### The Fable tier
 
-Fable exists for one class of ticket: judgment is the work **and** a wrong decision escapes the net the
-pipeline otherwise relies on — the gate, the orchestrator's verification, one hand-back. Grade a ticket
-`executor:fable effort:xhigh` when any of these holds:
+Fable exists for one class of ticket: an incorrect implementation can escape the net the pipeline
+otherwise relies on — the gate, the orchestrator's verification, one hand-back. Grade a ticket
+`executor:fable` when any of these holds, then select `medium`, `high` or `xhigh` independently from
+the effort ladder:
 
 - **Irreversible once landed.** A data migration or backfill, a rewrite of stored values, a destructive
   schema change — anything a reset of the branch does not undo because it ran against data.
@@ -48,22 +50,24 @@ pipeline otherwise relies on — the gate, the orchestrator's verification, one 
   concurrency argument (a race, a lock order, an idempotency key) that the test suite cannot prove and
   a reviewer must reason about.
 
-Everything else that is judgment-heavy stays Opus `xhigh`: a money rule inside one module, a stored
-enum consumed inside one spec, a lock on one table, an additive migration the gate proves. Exploration
+Everything else that is judgment-heavy stays Opus: a money rule inside one module, a stored enum
+consumed inside one spec, a lock on one table, an additive migration the gate proves. Exploration
 breadth alone never earns Fable — a large sweep is Opus at most.
 
 Rules that follow:
 
-- **Fable is `xhigh` only.** There is no `executor-fable-medium` or `executor-fable-high`: a ticket
-  whose decisions do not carry that weight does not need the tier, whatever its size.
+- **Fable supports every executor effort.** Use `medium` when the high-consequence operation and its
+  invariant are fully specified and narrowly located; `high` when the invariant is settled but its
+  placement needs broad reading or bounded judgment; `xhigh` when deriving the invariant, strategy or
+  correctness argument is itself the work.
 - **Name every Fable ticket in the map**, with the clause above that earned it. A wave normally holds
   one or two at most; a run where most tickets grade Fable has been split too coarsely, or its specs
   have left their decisions to the executors.
 - **Fable tickets sit early.** They are usually the seam others build on, so they belong in the wave
   that blocks the tickets composing them, never after those tickets.
-- **Fallback.** Where `executor-fable-xhigh` is missing or Fable is not available on the account,
-  dispatch `executor-opus-xhigh` with the same brief, keep the label, and record the substitution in
-  the ticket's closing comment and the wave report.
+- **Fallback.** Where the matching `executor-fable-<effort>` is missing or Fable is not available on
+  the account, dispatch `executor-opus-<effort>` with the same brief, keep both labels, and record the
+  substitution in the ticket's closing comment and the wave report.
 - **Fable is never a scout.** Locating and sweeping are breadth, not judgment; a judgement that needs
   Fable is made in the orchestrator session, which already runs on it.
 
@@ -73,10 +77,12 @@ Read-only sub-agents (fact-finding, code location, analysis) follow the same tie
 model and effort explicitly rather than inheriting:
 
 - **Locate a known symbol or file** (one grep, one read, cite `path:line`): `scout-sonnet-medium`.
+- **Judge one precise claim over a narrow evidence surface** (trace one known behaviour, answer one
+  focused code question): `scout-opus-medium`.
 - **Sweep many locations or naming conventions** (map a directory, list every caller, find where
   something lives when the name is unknown): `scout-sonnet-high`.
-- **Analyse, judge or audit inside the sub-agent** (root-cause analysis, security sweep, reviewing a
-  diff for defects): `scout-opus-high`.
+- **Analyse, judge or audit across a broad or uncertain surface** (root-cause analysis, security sweep,
+  reviewing a diff for defects): `scout-opus-high`.
 - **Adversarially verify subtle behaviour** (prove a race, a data-loss path, a money rule): do it in
   the orchestrator session, or dispatch an `executor-fable-xhigh` brief that writes nothing
   (`executor-opus-xhigh` where Fable is unavailable).
@@ -85,13 +91,13 @@ model and effort explicitly rather than inheriting:
 
 Effort is fixed in the agent definition, never passed per call: Claude Code's `Agent` tool has a
 `model` override but no effort parameter, and Codex's `spawn_agent` selects a custom agent whose file
-pins `model_reasoning_effort`. The definitions this repo installs are `executor-fable-xhigh` and
-`executor-{sonnet,opus}-{medium,high,xhigh}` (full tools) and `scout-sonnet-medium`,
-`scout-sonnet-high`, `scout-opus-high` (read-only) — one set per host, same names, same bodies.
-Dispatch the agent named `executor-<model>-<effort>` matching the ticket's labels. If
-`executor-fable-xhigh` is missing or the top-tier model is unavailable, dispatch `executor-opus-xhigh`
-instead; if any other agent is missing, fall back to the host's general agent with the mapped model
-set and the effort level stated in the prompt. Either substitution is said in the wave report.
+pins `model_reasoning_effort`. The definitions this repo installs are
+`executor-{fable,opus,sonnet}-{medium,high,xhigh}` (full tools), `scout-sonnet-{medium,high}` and
+`scout-opus-{medium,high}` (read-only) — one set per host, same names, same bodies. Dispatch the agent
+named `executor-<tier>-<effort>` matching the ticket's labels. If the matching Fable agent is missing
+or the top-tier model is unavailable, dispatch `executor-opus-<effort>` instead; if any other agent is
+missing, fall back to the host's general agent with the mapped model set and the effort level stated
+in the prompt. Either substitution is said in the wave report.
 
 ### Hosts
 
@@ -101,10 +107,11 @@ a map planned on one host executes on the other.
 
 | | Claude Code | Codex CLI |
 |---|---|---|
-| Top tier (`fable`) | Fable (`model: fable`) at `xhigh` | GPT-6 Astra (`gpt-6-astra`) at `xhigh` — the highest effort the Codex config reference documents; Astra also offers `max` and `ultra` at runtime |
+| Top tier (`fable`) | Fable (`model: fable`) at `medium` / `high` / `xhigh` | GPT-6 Astra (`gpt-6-astra`) at the same effort; Astra also offers `max` and `ultra` at runtime where a build accepts them |
 | Frontier tier (`opus`) | Opus at `medium` / `high` / `xhigh` | GPT-5.6 Sol (`gpt-5.6-sol`) at the same effort |
 | Mid tier (`sonnet`) | Sonnet at `medium` / `high` / `xhigh` | GPT-5.6 Terra (`gpt-5.6-terra`) at the same effort |
 | Narrow locator scout (`scout-sonnet-medium`) | Sonnet `medium` | GPT-5.6 Luna (`gpt-5.6-luna`) `medium` — the one place the small tier is used, because a one-grep locate is exactly the "fast, narrowly scoped" work Luna is positioned for; set `gpt-5.6-terra` in its file to keep every scout on the mid tier |
+| Analyst scouts (`scout-opus-*`) | Opus at `medium` / `high` | GPT-5.6 Terra (`gpt-5.6-terra`) at the same effort — a cost-conscious scout override; Opus executors remain on Sol |
 | Never | Haiku | GPT-5.6 Luna or GPT-5.4-mini as an executor |
 | Agent definitions | `~/.claude/agents/<name>.md` — YAML frontmatter `model`, `effort`, `tools` | `~/.codex/agents/<name>.toml` (or `.codex/agents/` in a project) — `model`, `model_reasoning_effort`, `sandbox_mode`, `developer_instructions` |
 | Dispatch | `Agent` tool with `subagent_type: <name>` | `spawn_agent` naming the custom agent; `wait_agent` to collect; `followup_task` for rework on the same executor |

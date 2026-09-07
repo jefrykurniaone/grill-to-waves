@@ -15,15 +15,15 @@ that execution starts on a fresh context window with the plan as its only input.
 
 | Piece | What it is |
 |---|---|
+| `CONTEXT.md` | Canonical distinction between executor tier and reasoning effort. |
 | `skills/grill-to-waves/SKILL.md` | The seven-stage pipeline (Stage 0 tracker → Stage 6 stop). |
 | `skills/grill-to-waves/SESSIONS.md` | Write surfaces, the collision rule, ownership, resume. The protocol both skills share. |
 | `skills/grill-to-waves/TRACKERS.md` | The five tracker operations for GitHub (`gh`), GitLab (`glab`) and local markdown. |
 | `skills/grill-to-waves/DEFAULTS.md` | Model/effort ladder, the Fable tier, scout tiering, and the junction-safe worktree teardown. |
 | `skills/orchestrate/SKILL.md` | Wave dispatch, verification, merge gate, closing upward, team shape. |
-| `agents/executor-fable-xhigh.md` | The top-tier executor, for tickets where a wrong decision is irreversible, run-wide or adversarial. |
-| `agents/executor-{opus,sonnet}-{medium,high,xhigh}.md` | Six more ticket executors, one per tier/effort pairing. |
-| `agents/scout-{sonnet-medium,sonnet-high,opus-high}.md` | Three read-only scouts: locate, sweep, judge. |
-| `agents/codex/*.toml` | The same ten agents as Codex CLI custom agents — same names, same bodies, Codex models per the `Hosts` table in `DEFAULTS.md`. |
+| `agents/executor-{fable,opus,sonnet}-{medium,high,xhigh}.md` | Nine ticket executors, one per tier/effort pairing. |
+| `agents/scout-{sonnet-medium,sonnet-high,opus-medium,opus-high}.md` | Four read-only scouts: locate, sweep, focused judgment, broad analysis. |
+| `agents/codex/*.toml` | The same thirteen agents as Codex CLI custom agents — same names, same bodies, Codex models per the `Hosts` table in `DEFAULTS.md`. |
 | `skills/*/agents/openai.yaml` | Codex skill metadata: user-invocation only, the equivalent of `disable-model-invocation`. Claude Code ignores it. |
 
 The tracker is the state store — specs, tickets and the map are issues, and the repo keeps a durable
@@ -70,6 +70,9 @@ irm https://raw.githubusercontent.com/jefrykurniaone/grill-to-waves/main/install
 curl -fsSL https://raw.githubusercontent.com/jefrykurniaone/grill-to-waves/main/install.sh | bash
 ```
 
+With no arguments, either installer asks whether to install for Claude Code, Codex CLI, or both.
+Use `-Target` / `--target` to skip the prompt in automation.
+
 Or from a clone, which is also how you get the flags:
 
 ```bash
@@ -80,7 +83,7 @@ cd grill-to-waves
 
 | Flag | Effect |
 |---|---|
-| `--target claude\|codex\|both\|auto` (`-Target`) | Which host to install for. `auto` (default) does Claude Code, and Codex too when `~/.codex` exists. |
+| `--target claude\|codex\|both\|auto` (`-Target`) | Skip the prompt and choose a host. `auto` does Claude Code, and Codex too when `~/.codex` exists. |
 | `--project PATH` (`-Project`) | Install into the project instead of the home directory: `PATH/.claude` for Claude Code; `PATH/.agents/skills` and `PATH/.codex/agents` for Codex. |
 | `--no-backup` (`-NoBackup`) | Do not move a replaced directory or file to `<backups>/<name>-<timestamp>` first (`~/.claude/backups`, `~/.codex/backups`). |
 | `--ref REF` (`-Ref`) | Branch, tag or commit to fetch when running without a local checkout. |
@@ -115,10 +118,11 @@ models; edit the `.toml` to re-map:
 
 | Tier (label) | Claude Code | Codex CLI |
 |---|---|---|
-| top (`executor:fable`) | Fable `xhigh` | `gpt-6-astra` `xhigh` |
+| top (`executor:fable`) | Fable at `medium` / `high` / `xhigh` | `gpt-6-astra` at the same effort |
 | frontier (`executor:opus`) | Opus | `gpt-5.6-sol` at the same effort |
 | mid (`executor:sonnet`) | Sonnet | `gpt-5.6-terra` at the same effort |
 | `scout-sonnet-medium` only | Sonnet `medium` | `gpt-5.6-luna` `medium` |
+| `scout-opus-*` | Opus at `medium` / `high` | `gpt-5.6-terra` at the same effort |
 
 Read-only scouts are read-only by `sandbox_mode = "read-only"`. Codex subagents share the parent's
 working directory, so the orchestrator names each executor's worktree path in its brief; an executor
@@ -177,10 +181,10 @@ re-detecting it every run.
   serial merges plus a whole-gate re-run after each merge is the only net.
 - **The orchestrator verifies; the executor does not self-certify.** An executor's account of its own
   work is a claim. The orchestrator reads the diff, runs the gate, and measures rather than eyeballs.
-- **The executor tier follows blast radius, not ticket size.** Sonnet when the decisions were made
-  upstream, Opus when the executor decides inside a bounded scope, Fable when a wrong decision would be
-  irreversible, run-wide or adversarial — the one class the gate and a hand-back cannot catch. Fable
-  runs at `xhigh` only, and falls back to Opus `xhigh` where it is unavailable.
+- **Executor tier and effort are separate axes.** Consequence and reach choose Sonnet, Opus or Fable;
+  exploration and unresolved decisions choose `medium`, `high` or `xhigh`. Fable covers failure that
+  would be irreversible, run-wide or adversarial at any effort, and falls back to Opus at the same
+  effort where it is unavailable.
 - **Two agent sessions never share one working copy.** They contend on the tree, the dev server and
   the dev database at once. Splitting a run means one developer per clone.
 - **Nothing is true until it is on the tracker.** Sessions share no context window, so a fact that

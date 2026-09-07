@@ -50,8 +50,8 @@ Invoke `mattpocock-skills:grilling` on the user's raw input, and `mattpocock-ski
 whenever vocabulary is in play. Both are **required** — see [README](../../README.md); if either is
 missing, stop and install it (the README says how on each host) rather than improvising a grill.
 Facts are yours to find: dispatch `scout-sonnet-medium` (one known thing), `scout-sonnet-high` (a
-sweep) or `scout-opus-high` (a judgement) for anything the codebase can answer, and put only
-decisions to the user.
+sweep), `scout-opus-medium` (one precise judgment over narrow evidence) or `scout-opus-high` (a broad
+or uncertain analysis) for anything the codebase can answer, and put only decisions to the user.
 
 Done when: no open question remains and the user has confirmed the consolidated understanding.
 
@@ -139,6 +139,7 @@ Each blocking ticket, or "None (can start immediately)".
 executor: fable | opus | sonnet · effort: medium | high | xhigh — one line saying which axis
 (exploration or decision weight) set the level, per the effort ladder in [DEFAULTS.md](./DEFAULTS.md);
 for `fable`, name the clause of the Fable tier the ticket meets (irreversible, run-wide or adversarial).
+Choose the tier and effort independently; Fable supports all three effort levels.
 
 ## Surface
 writes: …
