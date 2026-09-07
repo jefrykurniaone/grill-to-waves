@@ -34,11 +34,13 @@ Commits and pull request bodies follow the repository's own convention.
 1. Read `docs/agents/issue-tracker.md` in the repo. If it exists it is the answer: follow it for
    creating, reading, commenting, labelling, linking and closing.
 2. Otherwise detect: `git remote -v` at GitHub → `gh`; at GitLab → `glab`; no remote → local markdown
-   under `.scratch/`. Confirm in one line with the user and suggest `/setup-matt-pocock-skills`
-   afterwards, which writes `docs/agents/issue-tracker.md` so the next run does not re-detect it.
+   under `.scratch/`. Confirm in one line with the user and suggest recording the choice in
+   `docs/agents/issue-tracker.md` so the next run does not re-detect it — on Claude Code,
+   `/setup-matt-pocock-skills` from the required plugin writes that file.
 
-Then make sure the repo carries the labels `meta:orchestration`, `ready-for-agent`, `executor:opus`,
-`executor:sonnet`, `effort:medium`, `effort:high`, `effort:xhigh`. Create what is missing.
+Then make sure the repo carries the labels `meta:orchestration`, `ready-for-agent`, `executor:fable`,
+`executor:opus`, `executor:sonnet`, `effort:medium`, `effort:high`, `effort:xhigh`. Create what is
+missing.
 
 Done when: the tracker is named and the label vocabulary exists.
 
@@ -46,9 +48,10 @@ Done when: the tracker is named and the label vocabulary exists.
 
 Invoke `mattpocock-skills:grilling` on the user's raw input, and `mattpocock-skills:domain-modeling`
 whenever vocabulary is in play. Both are **required** — see [README](../../README.md); if either is
-missing, stop and install the plugin rather than improvising a grill. Facts are yours to find: dispatch `scout-sonnet-medium` (one known
-thing), `scout-sonnet-high` (a sweep) or `scout-opus-high` (a judgement) for anything the codebase
-can answer, and put only decisions to the user.
+missing, stop and install it (the README says how on each host) rather than improvising a grill.
+Facts are yours to find: dispatch `scout-sonnet-medium` (one known thing), `scout-sonnet-high` (a
+sweep) or `scout-opus-high` (a judgement) for anything the codebase can answer, and put only
+decisions to the user.
 
 Done when: no open question remains and the user has confirmed the consolidated understanding.
 
@@ -133,8 +136,9 @@ The end-to-end behaviour this ticket makes work, from the user's perspective.
 Each blocking ticket, or "None (can start immediately)".
 
 ## Execution
-executor: opus | sonnet · effort: medium | high | xhigh — one line saying which axis (exploration
-or decision weight) set the level, per the effort ladder in [DEFAULTS.md](./DEFAULTS.md).
+executor: fable | opus | sonnet · effort: medium | high | xhigh — one line saying which axis
+(exploration or decision weight) set the level, per the effort ladder in [DEFAULTS.md](./DEFAULTS.md);
+for `fable`, name the clause of the Fable tier the ticket meets (irreversible, run-wide or adversarial).
 
 ## Surface
 writes: …
@@ -165,8 +169,9 @@ surface, and has its edges recorded.
 
 Run the collision check of SESSIONS.md §3 over the tickets and resolve every collision by its three
 remedies, saying which you applied and why. Then compute, for the solo path, a **wave order**: no two
-tickets in one wave share a surface, blocking edges respected. Nothing is committed and no tooling is
-added to the repo.
+tickets in one wave share a surface, blocking edges respected. A `fable` ticket is usually the seam
+later tickets compose, so it sits in the wave that blocks them; check the edges say so. Nothing is
+committed and no tooling is added to the repo.
 
 Emit the **Sessions table** — one row per session with its specs, tickets, cross-row blocking edges
 it may idle on, and the exact `/orchestrate` launch line — the **tail** row, present even when empty,
@@ -230,7 +235,8 @@ repo's most recent map (search `map in:title`) for shape. It carries, in order:
    fallback or plain HTTP named only where the check does not need a DOM, or where the check produces
    an artifact rather than a page and is settled by fetching it.
 6. **Why the executors split this way** — one paragraph naming every ticket not at `high` and the
-   axis that moved it.
+   axis that moved it, and every `executor:fable` ticket with the clause of the Fable tier that earned
+   it (irreversible, run-wide or adversarial).
 7. **Completion gate** — the repo's one-shot gate commands and quality bars, from its `CLAUDE.md` or `AGENTS.md`.
 8. **Rework protocol** — hand-backs to the introducing executor, at most twice; gate re-runs whole;
    post-merge defects become new issues; the mirror pass from Stage 2 runs before the map closes.

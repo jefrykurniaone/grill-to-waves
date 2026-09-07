@@ -117,13 +117,20 @@ line to run next. It writes nothing.
 ## Model and effort
 
 [../grill-to-waves/DEFAULTS.md](../grill-to-waves/DEFAULTS.md) is the source of truth, overridden only
-by the repository's own `CLAUDE.md` or `AGENTS.md`. Executors are Opus or Sonnet at `medium`,
-`high` or `xhigh`, from the ticket's labels; default `high` when unlabelled; re-grade only when the body
-contradicts the label (a `medium` ticket that touches money, a stored enum or a shared seam is
-dispatched at `xhigh`, the label corrected, one line saying why). Dispatch with
-`subagent_type: executor-<model>-<effort>`; scouts are `scout-sonnet-medium`, `scout-sonnet-high`,
-`scout-opus-high`. If a type is missing, fall back to `general-purpose` with `model` set and the effort
-stated in the prompt, and record the fallback in the report.
+by the repository's own `CLAUDE.md` or `AGENTS.md`. Executors are Fable, Opus or Sonnet at `medium`,
+`high` or `xhigh`, from the ticket's labels — Fable at `xhigh` only, for the tickets DEFAULTS.md's
+*Fable tier* describes; default `high` when unlabelled; re-grade only when the body contradicts the
+label (a `medium` ticket that touches money, a stored enum or a shared seam is dispatched at `xhigh`; an
+Opus `xhigh` ticket whose body carries a data rewrite, a contract later waves compose or a security
+boundary is dispatched to Fable — either way the label is corrected and one line says why). Dispatch
+the agent named `executor-<model>-<effort>` by the host's mechanism in DEFAULTS.md's *Hosts* table
+(Claude Code: `subagent_type`; Codex: `spawn_agent` naming that custom agent); scouts are
+`scout-sonnet-medium`, `scout-sonnet-high`, `scout-opus-high`, and there is no Fable scout. The tier
+names are tiers, not vendors — the *Hosts* table says which model each host runs them on. If
+`executor-fable-xhigh` is missing or the top-tier model is unavailable on this account, dispatch
+`executor-opus-xhigh` with the same brief and record the substitution on the ticket and in the wave
+report; if any other agent is missing, fall back to the host's general agent with the mapped model set
+and the effort stated in the prompt, and record that too.
 
 ## Dispatch the whole wave at once
 
@@ -210,9 +217,10 @@ merge sha and the review request. Then close it, and drop the assignee if the tr
 wave, **one comment on the map**: the tickets with their shas, the decisions taken, the defects filed,
 and what the next wave waits on. **That is the entire tracker footprint of a run.**
 
-Rework goes back to the introducing executor — by `SendMessage` where the host has it, otherwise as a
-fresh dispatch carrying the original brief plus the finding — at most twice; the third failure is a stop
-and a report. A defect found in code a ticket did not own is **filed as its own item**, never an
+Rework goes back to the introducing executor — by a follow-up message to the same executor where the
+host has one (`SendMessage` on Claude Code, `followup_task` on Codex), otherwise as a fresh dispatch
+carrying the original brief plus the finding — at most twice; the third failure is a stop and a
+report. A defect found in code a ticket did not own is **filed as its own item**, never an
 opportunistic fix and never a hot fix on `main`.
 
 Tear down every worktree of the wave in one pass, by the junction-safe procedure in
@@ -307,12 +315,19 @@ the tracker cannot arbitrate.
 
 ## Hosts without subagent dispatch
 
-Where the host has no subagent tool (Codex CLI today), everything above holds except the fan-out: the
-session **is** the executor, one ticket at a time, in the ticket's own worktree, and the agent
-definitions under `agents/` are read as role briefs rather than dispatched. The in-flight ceiling is
-then 1, so a wave is executed serially in wave order. Verification does not become optional because
-the same session did the work — read the diff, run the gate, walk the runtime, and say in the report
-that executor and verifier were the same context.
+Where the host has no subagent tool — a Codex CLI too old to expose `spawn_agent`, a Codex
+configuration with agents disabled, or another agent CLI — everything above holds except the fan-out:
+the session **is** the executor, one ticket at a time, in the ticket's own worktree, and the installed
+agent definitions are read as role briefs rather than dispatched. The in-flight ceiling is then 1, so
+a wave is executed serially in wave order. Verification does not become optional because the same
+session did the work — read the diff, run the gate, walk the runtime, and say in the report that
+executor and verifier were the same context.
+
+Where the host does dispatch but its sub-agents share the parent's working directory (Codex), every
+executor brief names the worktree's absolute path and tells the executor to work only there; the
+worktree sits inside the repository (`.codex/worktrees/…` on Codex) precisely so a workspace-scoped
+sandbox can write to it. An executor whose sandbox has no network cannot push or open a review
+request: the orchestrator does both from the executor's branch, and the ticket's record says so.
 
 **A spec row closes** by posting the spec's completion record and closing the spec item; the closed
 spec item is the signal every other row reads, and the report names it. The map itself closes in the

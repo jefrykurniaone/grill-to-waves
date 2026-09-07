@@ -18,20 +18,25 @@ that execution starts on a fresh context window with the plan as its only input.
 | `skills/grill-to-waves/SKILL.md` | The seven-stage pipeline (Stage 0 tracker → Stage 6 stop). |
 | `skills/grill-to-waves/SESSIONS.md` | Write surfaces, the collision rule, ownership, resume. The protocol both skills share. |
 | `skills/grill-to-waves/TRACKERS.md` | The five tracker operations for GitHub (`gh`), GitLab (`glab`) and local markdown. |
-| `skills/grill-to-waves/DEFAULTS.md` | Model/effort ladder, scout tiering, and the junction-safe worktree teardown. |
+| `skills/grill-to-waves/DEFAULTS.md` | Model/effort ladder, the Fable tier, scout tiering, and the junction-safe worktree teardown. |
 | `skills/orchestrate/SKILL.md` | Wave dispatch, verification, merge gate, closing upward, team shape. |
-| `agents/executor-{opus,sonnet}-{medium,high,xhigh}.md` | Six ticket executors, one per model/effort pairing. |
+| `agents/executor-fable-xhigh.md` | The top-tier executor, for tickets where a wrong decision is irreversible, run-wide or adversarial. |
+| `agents/executor-{opus,sonnet}-{medium,high,xhigh}.md` | Six more ticket executors, one per tier/effort pairing. |
 | `agents/scout-{sonnet-medium,sonnet-high,opus-high}.md` | Three read-only scouts: locate, sweep, judge. |
+| `agents/codex/*.toml` | The same ten agents as Codex CLI custom agents — same names, same bodies, Codex models per the `Hosts` table in `DEFAULTS.md`. |
+| `skills/*/agents/openai.yaml` | Codex skill metadata: user-invocation only, the equivalent of `disable-model-invocation`. Claude Code ignores it. |
 
 The tracker is the state store — specs, tickets and the map are issues, and the repo keeps a durable
 docs mirror of each spec. Nothing depends on a local file that a context clear would lose.
 
 ## Install
 
-### 1. Install the required plugin first
+### 1. Install the required grill skills first
 
-The pipeline calls three skills from [mattpocock/skills](https://github.com/mattpocock/skills), so
-install that plugin before the first run. In Claude Code:
+Stage 1 calls two skills from [mattpocock/skills](https://github.com/mattpocock/skills), so install
+them before the first run.
+
+**Claude Code** — the plugin:
 
 ```
 /plugin marketplace add mattpocock/skills
@@ -46,7 +51,12 @@ The marketplace is named `mattpocock`, not `skills`. Outside the session the sam
 |---|---|
 | `grilling` | Stage 1 — the grill itself. |
 | `domain-modeling` | Stage 1, whenever vocabulary is in play. |
-| `setup-matt-pocock-skills` | Stage 0 — records the tracker choice in `docs/agents/issue-tracker.md`, run once per repo. |
+| `setup-matt-pocock-skills` | Stage 0 — records the tracker choice in `docs/agents/issue-tracker.md`, run once per repo. Claude Code only; on Codex, write that file by hand. |
+
+**Codex CLI** — the same two skills as plain skill folders. Copy `skills/grilling` and
+`skills/domain-modeling` from a clone of that repo into `~/.agents/skills/`, so that
+`~/.agents/skills/grilling/SKILL.md` and `~/.agents/skills/domain-modeling/SKILL.md` exist. The
+installer checks for them and prints this step when they are missing.
 
 ### 2. Install the skills and agents
 
@@ -71,27 +81,59 @@ cd grill-to-waves
 | Flag | Effect |
 |---|---|
 | `--target claude\|codex\|both\|auto` (`-Target`) | Which host to install for. `auto` (default) does Claude Code, and Codex too when `~/.codex` exists. |
-| `--project PATH` (`-Project`) | Install into `PATH/.claude` instead of the home directory. Claude Code only — Codex has no project skill scope. |
-| `--no-backup` (`-NoBackup`) | Do not move a replaced directory to `<target>/backups/<name>-<timestamp>` first. |
+| `--project PATH` (`-Project`) | Install into the project instead of the home directory: `PATH/.claude` for Claude Code; `PATH/.agents/skills` and `PATH/.codex/agents` for Codex. |
+| `--no-backup` (`-NoBackup`) | Do not move a replaced directory or file to `<backups>/<name>-<timestamp>` first (`~/.claude/backups`, `~/.codex/backups`). |
 | `--ref REF` (`-Ref`) | Branch, tag or commit to fetch when running without a local checkout. |
 
 Where it lands:
 
 ```
-~/.claude/skills/grill-to-waves/     ~/.codex/skills/grill-to-waves/
-~/.claude/skills/orchestrate/        ~/.codex/skills/orchestrate/
-~/.claude/agents/*.md                ~/.codex/skills/grill-to-waves/agents/*.md
+Claude Code                          Codex CLI
+~/.claude/skills/grill-to-waves/     ~/.agents/skills/grill-to-waves/
+~/.claude/skills/orchestrate/        ~/.agents/skills/orchestrate/
+~/.claude/agents/*.md                ~/.codex/agents/*.toml
 ```
 
 Restart the session afterwards so the host re-reads its skill and agent directories.
 
+### Codex CLI specifics
+
+Codex reads skills from `~/.agents/skills/` (the agent-skills standard; `~/.codex/skills/` is its
+legacy root and the installer warns if a copy is there too) and custom agents from
+`~/.codex/agents/*.toml`. Subagents are on by default (`agents.enabled`); the installer warns if
+`~/.codex/config.toml` turns them off, and prints `agents.max_concurrent_threads_per_session` when
+it is set, because a map's in-flight ceiling must stay under it.
+
+The skill text in this repo is written in Claude Code's vocabulary. For Codex the installer
+rewrites, and only rewrites: `/orchestrate` and `/grill-to-waves` to `$orchestrate` and
+`$grill-to-waves`; `.claude/worktrees` and `.claude/scratch` to `.codex/…`; the two grill-skill
+names to `$grilling` and `$domain-modeling`; and it drops the `disable-model-invocation` line, whose
+Codex equivalent is each skill's `agents/openai.yaml` (`allow_implicit_invocation: false`).
+
+The tier names in the labels and agent names are tiers, not vendors. The Codex agents pin these
+models; edit the `.toml` to re-map:
+
+| Tier (label) | Claude Code | Codex CLI |
+|---|---|---|
+| top (`executor:fable`) | Fable `xhigh` | `gpt-6-astra` `xhigh` |
+| frontier (`executor:opus`) | Opus | `gpt-5.6-sol` at the same effort |
+| mid (`executor:sonnet`) | Sonnet | `gpt-5.6-terra` at the same effort |
+| `scout-sonnet-medium` only | Sonnet `medium` | `gpt-5.6-luna` `medium` |
+
+Read-only scouts are read-only by `sandbox_mode = "read-only"`. Codex subagents share the parent's
+working directory, so the orchestrator names each executor's worktree path in its brief; an executor
+whose sandbox has no network reports its branch and the orchestrator pushes and opens the review
+request itself. The full table, including dispatch tool names, is the `Hosts` section of
+`skills/grill-to-waves/DEFAULTS.md`.
+
 ## Use
 
 ```
-/grill-to-waves <the idea, in whatever shape it is in>
+/grill-to-waves <the idea, in whatever shape it is in>      # Claude Code
+$grill-to-waves <the idea, in whatever shape it is in>      # Codex CLI
 ```
 
-It stops at Stage 6 and prints the launch lines, solo first:
+It stops at Stage 6 and prints the launch lines, solo first (on Codex the prefix is `$`):
 
 ```
 /orchestrate map <map> + check      # read-only preflight, writes nothing
@@ -113,12 +155,13 @@ copy:
 
 - **A git repository with a remote**, and an issue tracker CLI for it: `gh` (GitHub) or `glab`
   (GitLab). With no remote, the pipeline falls back to local markdown under `.scratch/`.
-- **A host with subagent dispatch** for the parallel path — Claude Code. On Codex the skills still
-  run: the session executes tickets itself, one at a time, with the agent definitions read as role
-  briefs (see the *Hosts without subagent dispatch* section of `skills/orchestrate/SKILL.md`).
+- **A host with subagent dispatch** for the parallel path — Claude Code's `Agent` tool, or Codex
+  CLI's `spawn_agent` with the custom agents this repo installs. A host without one still runs the
+  skills: the session executes tickets itself, one at a time, with the agent definitions read as
+  role briefs (see *Hosts without subagent dispatch* in `skills/orchestrate/SKILL.md`).
 - **[mattpocock/skills](https://github.com/mattpocock/skills)**, required — `grilling` and
-  `domain-modeling` for Stage 1, `setup-matt-pocock-skills` for the Stage 0 tracker record. Install
-  step 1 above.
+  `domain-modeling` for Stage 1 on both hosts, `setup-matt-pocock-skills` for the Stage 0 tracker
+  record on Claude Code. Install step 1 above.
 - **Playwright MCP**, optional, for runtime verification of `runtime: dev-server` tickets. Without it
   the orchestrator falls back to scripted Playwright or plain HTTP, and says which it used.
 
@@ -134,6 +177,10 @@ re-detecting it every run.
   serial merges plus a whole-gate re-run after each merge is the only net.
 - **The orchestrator verifies; the executor does not self-certify.** An executor's account of its own
   work is a claim. The orchestrator reads the diff, runs the gate, and measures rather than eyeballs.
+- **The executor tier follows blast radius, not ticket size.** Sonnet when the decisions were made
+  upstream, Opus when the executor decides inside a bounded scope, Fable when a wrong decision would be
+  irreversible, run-wide or adversarial — the one class the gate and a hand-back cannot catch. Fable
+  runs at `xhigh` only, and falls back to Opus `xhigh` where it is unavailable.
 - **Two agent sessions never share one working copy.** They contend on the tree, the dev server and
   the dev database at once. Splitting a run means one developer per clone.
 - **Nothing is true until it is on the tracker.** Sessions share no context window, so a fact that

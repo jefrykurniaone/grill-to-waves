@@ -1,0 +1,10 @@
+# Codex CLI skill metadata. Claude Code ignores this file; it reads only SKILL.md.
+# `allow_implicit_invocation: false` is the Codex equivalent of SKILL.md's
+# `disable-model-invocation: true`: the skill runs only when the user types `$orchestrate`.
+interface:
+  display_name: "Orchestrate"
+  short_description: "Execute a planned delivery map with subagents"
+  default_prompt: "Use $orchestrate to execute this delivery map wave by wave."
+
+policy:
+  allow_implicit_invocation: false

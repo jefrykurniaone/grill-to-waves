@@ -2,10 +2,22 @@
 # Install the grill-to-waves + orchestrate skills and their executor/scout agents for
 # Claude Code and/or Codex CLI.
 #
-#   skills/grill-to-waves  ->  <target>/skills/grill-to-waves
-#   skills/orchestrate     ->  <target>/skills/orchestrate
-#   agents/*.md            ->  <target>/agents                          (Claude Code)
-#                          ->  <target>/skills/grill-to-waves/agents    (Codex, role briefs)
+# Claude Code:
+#   skills/grill-to-waves  ->  ~/.claude/skills/grill-to-waves     (or <project>/.claude/skills/...)
+#   skills/orchestrate     ->  ~/.claude/skills/orchestrate
+#   agents/*.md            ->  ~/.claude/agents/
+#
+# Codex CLI:
+#   skills/grill-to-waves  ->  ~/.agents/skills/grill-to-waves     (or <project>/.agents/skills/...)
+#   skills/orchestrate     ->  ~/.agents/skills/orchestrate
+#   agents/codex/*.toml    ->  ~/.codex/agents/                    (or <project>/.codex/agents/)
+#
+# The skill text is written in Claude Code's vocabulary. For Codex the installer rewrites, and only
+# rewrites: the skill invocation prefix (/orchestrate -> $orchestrate), the agent directory
+# (.claude/worktrees, .claude/scratch -> .codex/...), the grill-skill names
+# (mattpocock-skills:grilling -> $grilling, likewise domain-modeling) and drops the
+# disable-model-invocation frontmatter line, whose Codex equivalent is the skill's agents/openai.yaml
+# (allow_implicit_invocation: false), shipped in the repo.
 #
 # Usage:
 #   ./install.sh [--target claude|codex|both|auto] [--project PATH] [--no-backup] [--ref REF]
@@ -27,7 +39,7 @@ while [ $# -gt 0 ]; do
     --project) PROJECT="${2:?--project needs a path}"; shift 2 ;;
     --no-backup) NO_BACKUP=1; shift ;;
     --ref) REF="${2:?--ref needs a value}"; shift 2 ;;
-    -h|--help) sed -n '2,16p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,24p' "$0"; exit 0 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
@@ -52,15 +64,15 @@ fi
 for skill in "${SKILLS[@]}"; do
   [ -f "$SRC/skills/$skill/SKILL.md" ] || { echo "Source tree is incomplete: $SRC/skills/$skill/SKILL.md is missing." >&2; exit 1; }
 done
+[ -d "$SRC/agents/codex" ] || { echo "Source tree is incomplete: $SRC/agents/codex is missing." >&2; exit 1; }
 
 # --- 2. Decide the targets ----------------------------------------------------------------------
+PROJECT_ROOT=""
 if [ -n "$PROJECT" ]; then
   [ -d "$PROJECT" ] || { echo "--project path does not exist: $PROJECT. Point it at an existing repository." >&2; exit 2; }
-  CLAUDE_HOME="$(cd "$PROJECT" && pwd)/.claude"
-else
-  CLAUDE_HOME="$HOME/.claude"
+  PROJECT_ROOT="$(cd "$PROJECT" && pwd)"
 fi
-CODEX_HOME="$HOME/.codex"
+CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
 
 DO_CLAUDE=0
 DO_CODEX=0
@@ -71,16 +83,20 @@ case "$TARGET" in
   auto)   DO_CLAUDE=1; [ -d "$CODEX_HOME" ] && DO_CODEX=1 || true ;;
 esac
 
-if [ -n "$PROJECT" ] && [ "$TARGET" = "codex" ]; then
-  echo "--project applies to Claude Code only. Drop --project, or use --target claude." >&2
-  exit 2
+# Claude Code paths.
+if [ -n "$PROJECT_ROOT" ]; then CLAUDE_HOME="$PROJECT_ROOT/.claude"; else CLAUDE_HOME="$HOME/.claude"; fi
+# Codex paths: skills follow the agent-skills standard (~/.agents/skills, <repo>/.agents/skills);
+# custom agents live under the Codex home (~/.codex/agents) or the project's .codex/agents.
+if [ -n "$PROJECT_ROOT" ]; then
+  CODEX_SKILLS_ROOT="$PROJECT_ROOT/.agents/skills"
+  CODEX_AGENTS_DIR="$PROJECT_ROOT/.codex/agents"
+else
+  CODEX_SKILLS_ROOT="$HOME/.agents/skills"
+  CODEX_AGENTS_DIR="$CODEX_HOME/agents"
 fi
-if [ -n "$PROJECT" ] && [ "$DO_CODEX" = 1 ]; then
-  note "Codex has no project skill scope; skipping Codex because --project was given."
-  DO_CODEX=0
-fi
+CODEX_BACKUPS="$CODEX_HOME/backups"
 
-# --- 3. Copy ------------------------------------------------------------------------------------
+# --- 3. Helpers ---------------------------------------------------------------------------------
 install_dir() {           # $1 from, $2 to, $3 backup root
   local from="$1" to="$2" backup_root="$3"
   if [ -e "$to" ]; then
@@ -98,51 +114,116 @@ install_dir() {           # $1 from, $2 to, $3 backup root
   note "installed $to"
 }
 
+install_file() {          # $1 from, $2 to, $3 backup root
+  local from="$1" to="$2" backup_root="$3"
+  if [ -f "$to" ] && [ "$NO_BACKUP" != 1 ]; then
+    mkdir -p "$backup_root"
+    cp "$to" "$backup_root/$(basename "$to")-$STAMP"
+  fi
+  mkdir -p "$(dirname "$to")"
+  cp "$from" "$to"
+}
+
+# Rewrite one installed skill file from Claude Code's vocabulary to Codex's. LC_ALL=C keeps sed
+# byte-oriented, so non-ASCII prose passes through untouched. The first substitution runs twice
+# because it consumes the character before a match and two mentions can sit close together.
+codexify_skill_file() {   # $1 file
+  local f="$1" tmp="$1.codex.$$"
+  LC_ALL=C sed -E \
+    -e 's#(^|[^[:alnum:]_./\\-])/(orchestrate|grill-to-waves)([^[:alnum:]_/-]|$)#\1$\2\3#g' \
+    -e 's#(^|[^[:alnum:]_./\\-])/(orchestrate|grill-to-waves)([^[:alnum:]_/-]|$)#\1$\2\3#g' \
+    -e 's#\.claude([/\\])(worktrees|scratch)#.codex\1\2#g' \
+    -e 's#mattpocock-skills:grilling#$grilling#g' \
+    -e 's#mattpocock-skills:domain-modeling#$domain-modeling#g' \
+    -e '/^disable-model-invocation: true[[:space:]]*$/d' \
+    "$f" > "$tmp"
+  mv "$tmp" "$f"
+}
+
+# --- 4. Claude Code -----------------------------------------------------------------------------
 if [ "$DO_CLAUDE" = 1 ]; then
   step "Claude Code -> $CLAUDE_HOME"
   for skill in "${SKILLS[@]}"; do
     install_dir "$SRC/skills/$skill" "$CLAUDE_HOME/skills/$skill" "$CLAUDE_HOME/backups"
   done
-  mkdir -p "$CLAUDE_HOME/agents"
   count=0
   for agent in "$SRC"/agents/*.md; do
-    dest="$CLAUDE_HOME/agents/$(basename "$agent")"
-    if [ -f "$dest" ] && [ "$NO_BACKUP" != 1 ]; then
-      mkdir -p "$CLAUDE_HOME/backups"
-      cp "$dest" "$CLAUDE_HOME/backups/$(basename "$agent")-$STAMP"
-    fi
-    cp "$agent" "$dest"
+    install_file "$agent" "$CLAUDE_HOME/agents/$(basename "$agent")" "$CLAUDE_HOME/backups"
     count=$((count + 1))
   done
   note "installed $count agent definitions into $CLAUDE_HOME/agents"
 fi
 
+# --- 5. Codex CLI -------------------------------------------------------------------------------
 if [ "$DO_CODEX" = 1 ]; then
-  step "Codex CLI -> $CODEX_HOME"
+  step "Codex CLI -> skills in $CODEX_SKILLS_ROOT, agents in $CODEX_AGENTS_DIR"
   for skill in "${SKILLS[@]}"; do
-    install_dir "$SRC/skills/$skill" "$CODEX_HOME/skills/$skill" "$CODEX_HOME/backups"
+    dest="$CODEX_SKILLS_ROOT/$skill"
+    install_dir "$SRC/skills/$skill" "$dest" "$CODEX_BACKUPS"
+    for f in "$dest"/*.md; do codexify_skill_file "$f"; done
+    note "rewrote $skill for Codex (\$-mentions, .codex/ paths, \$grilling / \$domain-modeling)"
   done
-  # Codex has no subagent dispatch, so the definitions install beside the skill as role briefs.
-  mkdir -p "$CODEX_HOME/skills/grill-to-waves/agents"
-  cp "$SRC"/agents/*.md "$CODEX_HOME/skills/grill-to-waves/agents/"
-  note "installed agent role briefs into $CODEX_HOME/skills/grill-to-waves/agents"
+
+  count=0
+  for agent in "$SRC"/agents/codex/*.toml; do
+    install_file "$agent" "$CODEX_AGENTS_DIR/$(basename "$agent")" "$CODEX_BACKUPS"
+    count=$((count + 1))
+  done
+  note "installed $count custom agent definitions into $CODEX_AGENTS_DIR"
+
+  # A copy under the legacy root would register a second skill with the same name.
+  for skill in "${SKILLS[@]}"; do
+    if [ -e "$CODEX_HOME/skills/$skill" ]; then
+      note "WARNING: $CODEX_HOME/skills/$skill also exists. ~/.codex/skills is Codex's legacy root; remove that copy or both will be listed."
+    fi
+  done
+
+  # Multi-agent tools are on by default; say so if the user's config turns them off.
+  config="$CODEX_HOME/config.toml"
+  if [ -f "$config" ]; then
+    if grep -Eq '^[[:space:]]*\[agents\]' "$config" && grep -Eq '^[[:space:]]*enabled[[:space:]]*=[[:space:]]*false' "$config"; then
+      note "WARNING: [agents] enabled = false in $config. \$orchestrate needs spawn_agent; set it to true."
+    fi
+    ceiling="$(sed -nE 's/^[[:space:]]*max_concurrent_threads_per_session[[:space:]]*=[[:space:]]*([0-9]+).*/\1/p' "$config" | head -n 1)"
+    if [ -n "$ceiling" ]; then
+      note "agents.max_concurrent_threads_per_session = $ceiling; the map's in-flight ceiling must not exceed it."
+    fi
+  fi
 fi
 
-# --- 4. Report ----------------------------------------------------------------------------------
+# --- 6. Report ----------------------------------------------------------------------------------
 step "Done."
 [ "$DO_CLAUDE" = 1 ] && note "Claude Code: restart the session, then run  /grill-to-waves  and later  /orchestrate"
-[ "$DO_CODEX" = 1 ] && note "Codex CLI: restart the session; the skills trigger by name (grill-to-waves, orchestrate)."
-[ "$DO_CODEX" = 1 ] && note "Codex has no subagent dispatch: the session executes tickets itself, one at a time."
+[ "$DO_CODEX" = 1 ] && note "Codex CLI: restart Codex, then run  \$grill-to-waves  and later  \$orchestrate"
+[ "$DO_CODEX" = 1 ] && note "Codex dispatches executors with spawn_agent; the custom agents pin model and reasoning effort per tier."
 
-# The pipeline calls grilling and domain-modeling (Stage 1) and setup-matt-pocock-skills (Stage 0).
-if compgen -G "$HOME/.claude/plugins/cache/mattpocock*" > /dev/null; then
-  note "Required plugin mattpocock-skills: found."
-else
-  echo ""
-  step "Required plugin missing: mattpocock-skills"
-  note "Stage 1 needs grilling and domain-modeling; Stage 0 needs setup-matt-pocock-skills."
-  note "In Claude Code, run:"
-  note "  /plugin marketplace add mattpocock/skills"
-  note "  /plugin install mattpocock-skills@mattpocock"
-  note "The marketplace is named mattpocock, not skills. Restart the session afterwards."
+# The pipeline calls grilling and domain-modeling (Stage 1) and, on Claude Code, setup-matt-pocock-skills (Stage 0).
+if [ "$DO_CLAUDE" = 1 ]; then
+  if compgen -G "$HOME/.claude/plugins/cache/mattpocock*" > /dev/null; then
+    note "Claude Code required plugin mattpocock-skills: found."
+  else
+    echo ""
+    step "Claude Code required plugin missing: mattpocock-skills"
+    note "Stage 1 needs grilling and domain-modeling; Stage 0 suggests setup-matt-pocock-skills."
+    note "In Claude Code, run:"
+    note "  /plugin marketplace add mattpocock/skills"
+    note "  /plugin install mattpocock-skills@mattpocock"
+    note "The marketplace is named mattpocock, not skills. Restart the session afterwards."
+  fi
+fi
+if [ "$DO_CODEX" = 1 ]; then
+  missing=""
+  for s in grilling domain-modeling; do
+    if [ ! -f "$CODEX_SKILLS_ROOT/$s/SKILL.md" ] && [ ! -f "$HOME/.agents/skills/$s/SKILL.md" ]; then
+      missing="$missing $s"
+    fi
+  done
+  if [ -z "$missing" ]; then
+    note "Codex required skills grilling and domain-modeling: found."
+  else
+    echo ""
+    step "Codex required skills missing:$missing"
+    note "Stage 1 needs \$grilling and \$domain-modeling. Copy them from https://github.com/mattpocock/skills"
+    note "(the skills/grilling and skills/domain-modeling folders) into $CODEX_SKILLS_ROOT, then restart Codex."
+  fi
 fi

@@ -4,21 +4,30 @@ Install the grill-to-waves + orchestrate skills and their executor/scout agents 
 and/or Codex CLI.
 
 .DESCRIPTION
-Copies:
-  skills/grill-to-waves  ->  <target>/skills/grill-to-waves
-  skills/orchestrate     ->  <target>/skills/orchestrate
-  agents/*.md            ->  <target>/agents            (Claude Code only)
-                         ->  <target>/skills/grill-to-waves/agents  (Codex, as role briefs)
+Claude Code:
+  skills/grill-to-waves  ->  ~/.claude/skills/grill-to-waves      (or <project>/.claude/skills/...)
+  skills/orchestrate     ->  ~/.claude/skills/orchestrate
+  agents/*.md            ->  ~/.claude/agents/
 
-Targets:
-  claude  ~/.claude            or <project>/.claude with -Project
-  codex   ~/.codex             (user scope only; Codex has no project skill scope)
+Codex CLI:
+  skills/grill-to-waves  ->  ~/.agents/skills/grill-to-waves      (or <project>/.agents/skills/...)
+  skills/orchestrate     ->  ~/.agents/skills/orchestrate
+  agents/codex/*.toml    ->  ~/.codex/agents/                     (or <project>/.codex/agents/)
 
-Any directory it is about to replace is first moved to <target>/backups/<name>-<timestamp>,
-unless -NoBackup is given.
+The skill text is written in Claude Code's vocabulary. For Codex the installer rewrites, and only
+rewrites: the skill invocation prefix (`/orchestrate` -> `$orchestrate`), the agent directory
+(`.claude/worktrees`, `.claude/scratch` -> `.codex/...`), the grill-skill names
+(`mattpocock-skills:grilling` -> `$grilling`, likewise domain-modeling) and drops the
+`disable-model-invocation` frontmatter line, whose Codex equivalent is the skill's
+`agents/openai.yaml` (`allow_implicit_invocation: false`), shipped in the repo.
+
+Any directory it is about to replace is first moved to <backups>/<name>-<timestamp>, unless
+-NoBackup is given. Backups: ~/.claude/backups for Claude Code, ~/.codex/backups for Codex.
 
 .EXAMPLE
 ./install.ps1
+.EXAMPLE
+./install.ps1 -Target codex
 .EXAMPLE
 ./install.ps1 -Target claude -Project D:\WORK\PROJECT\my-repo
 .EXAMPLE
@@ -29,10 +38,11 @@ param(
     [ValidateSet('claude', 'codex', 'both', 'auto')]
     [string]$Target = 'auto',
 
-    # Install the skills into <path>/.claude instead of the user's home. Claude Code only.
+    # Install into a project instead of the user's home: <path>/.claude for Claude Code,
+    # <path>/.agents/skills and <path>/.codex/agents for Codex.
     [string]$Project,
 
-    # Skip the backup of a directory being replaced.
+    # Skip the backup of a directory or file being replaced.
     [switch]$NoBackup,
 
     # Branch, tag or commit to fetch when the script is run without a local checkout.
@@ -45,6 +55,7 @@ Set-StrictMode -Version Latest
 $Repo = 'https://github.com/jefrykurniaone/grill-to-waves.git'
 $Skills = @('grill-to-waves', 'orchestrate')
 $Stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+$Utf8NoBom = New-Object System.Text.UTF8Encoding $false
 
 function Write-Step([string]$Message) { Write-Host "==> $Message" }
 function Write-Note([string]$Message) { Write-Host "    $Message" }
@@ -70,13 +81,16 @@ foreach ($skill in $Skills) {
     $manifest = Join-Path $sourceRoot "skills/$skill/SKILL.md"
     if (-not (Test-Path $manifest)) { throw "Source tree is incomplete: $manifest is missing." }
 }
+if (-not (Test-Path (Join-Path $sourceRoot 'agents/codex'))) {
+    throw 'Source tree is incomplete: agents/codex is missing.'
+}
 
 # --- 2. Decide the targets -----------------------------------------------------------------------
 if ($Project -and -not (Test-Path $Project)) {
     throw "-Project path does not exist: $Project. Point it at an existing repository."
 }
-$claudeHome = if ($Project) { Join-Path (Resolve-Path $Project) '.claude' } else { Join-Path $HOME '.claude' }
-$codexHome = Join-Path $HOME '.codex'
+$projectRoot = if ($Project) { (Resolve-Path $Project).Path } else { $null }
+$codexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $HOME '.codex' }
 
 $doClaude = $false
 $doCodex = $false
@@ -89,15 +103,16 @@ switch ($Target) {
         $doCodex = Test-Path $codexHome
     }
 }
-if ($Project -and $doCodex -and $Target -ne 'codex') {
-    Write-Note 'Codex has no project skill scope; skipping Codex because -Project was given.'
-    $doCodex = $false
-}
-if ($Project -and $Target -eq 'codex') {
-    throw '-Project applies to Claude Code only. Drop -Project, or use -Target claude.'
-}
 
-# --- 3. Copy ------------------------------------------------------------------------------------
+# Claude Code paths.
+$claudeHome = if ($projectRoot) { Join-Path $projectRoot '.claude' } else { Join-Path $HOME '.claude' }
+# Codex paths: skills follow the agent-skills standard (~/.agents/skills, <repo>/.agents/skills);
+# custom agents live under the Codex home (~/.codex/agents) or the project's .codex/agents.
+$codexSkillsRoot = if ($projectRoot) { Join-Path $projectRoot '.agents/skills' } else { Join-Path $HOME '.agents/skills' }
+$codexAgentsDir = if ($projectRoot) { Join-Path $projectRoot '.codex/agents' } else { Join-Path $codexHome 'agents' }
+$codexBackups = Join-Path $codexHome 'backups'
+
+# --- 3. Helpers ---------------------------------------------------------------------------------
 function Install-Directory([string]$From, [string]$To, [string]$BackupRoot) {
     if (Test-Path $To) {
         if ($NoBackup) {
@@ -116,6 +131,34 @@ function Install-Directory([string]$From, [string]$To, [string]$BackupRoot) {
     Write-Note "installed $To"
 }
 
+function Install-File([string]$From, [string]$To, [string]$BackupRoot) {
+    if ((Test-Path $To) -and -not $NoBackup) {
+        New-Item -ItemType Directory -Force -Path $BackupRoot | Out-Null
+        Copy-Item -LiteralPath $To -Destination (Join-Path $BackupRoot ("{0}-{1}" -f (Split-Path $To -Leaf), $Stamp))
+    }
+    New-Item -ItemType Directory -Force -Path (Split-Path $To -Parent) | Out-Null
+    Copy-Item -LiteralPath $From -Destination $To -Force
+}
+
+# Rewrite one installed skill file from Claude Code's vocabulary to Codex's. Byte-exact UTF-8 in
+# and out (no BOM), so non-ASCII prose survives Windows PowerShell 5.1.
+function Convert-SkillFileForCodex([string]$Path) {
+    $text = [System.IO.File]::ReadAllText($Path, $Utf8NoBom)
+    # `/orchestrate` and `/grill-to-waves` as commands -> `$orchestrate`, `$grill-to-waves`.
+    # A path segment (`../grill-to-waves/DEFAULTS.md`, `skills/grill-to-waves`) is left alone.
+    $text = [regex]::Replace($text, '(?<![\w./\\-])/(orchestrate|grill-to-waves)(?![\w/-])', '$$$1')
+    # The agent directory inside the repository.
+    $text = [regex]::Replace($text, '\.claude([/\\])(worktrees|scratch)', '.codex$1$2')
+    # The two required grill skills, plugin-namespaced on Claude Code, plain skills on Codex.
+    $text = $text.Replace('mattpocock-skills:grilling', '$grilling')
+    $text = $text.Replace('mattpocock-skills:domain-modeling', '$domain-modeling')
+    # Codex reads only `name` and `description` from the frontmatter; agents/openai.yaml carries the
+    # user-invocation-only policy instead.
+    $text = [regex]::Replace($text, '(?m)^disable-model-invocation: true\r?\n', '')
+    [System.IO.File]::WriteAllText($Path, $text, $Utf8NoBom)
+}
+
+# --- 4. Claude Code ------------------------------------------------------------------------------
 if ($doClaude) {
     Write-Step "Claude Code -> $claudeHome"
     $backups = Join-Path $claudeHome 'backups'
@@ -123,55 +166,93 @@ if ($doClaude) {
         Install-Directory (Join-Path $sourceRoot "skills/$skill") (Join-Path $claudeHome "skills/$skill") $backups
     }
     $agentsDir = Join-Path $claudeHome 'agents'
-    New-Item -ItemType Directory -Force -Path $agentsDir | Out-Null
-    $agents = Get-ChildItem (Join-Path $sourceRoot 'agents') -Filter '*.md'
+    $agents = Get-ChildItem (Join-Path $sourceRoot 'agents') -Filter '*.md' -File
     foreach ($agent in $agents) {
-        $dest = Join-Path $agentsDir $agent.Name
-        if ((Test-Path $dest) -and -not $NoBackup) {
-            New-Item -ItemType Directory -Force -Path $backups | Out-Null
-            Copy-Item -LiteralPath $dest -Destination (Join-Path $backups ("{0}-{1}" -f $agent.Name, $Stamp))
-        }
-        Copy-Item -LiteralPath $agent.FullName -Destination $dest -Force
+        Install-File $agent.FullName (Join-Path $agentsDir $agent.Name) $backups
     }
     Write-Note "installed $($agents.Count) agent definitions into $agentsDir"
 }
 
+# --- 5. Codex CLI --------------------------------------------------------------------------------
 if ($doCodex) {
-    Write-Step "Codex CLI -> $codexHome"
-    $backups = Join-Path $codexHome 'backups'
+    Write-Step "Codex CLI -> skills in $codexSkillsRoot, agents in $codexAgentsDir"
     foreach ($skill in $Skills) {
-        Install-Directory (Join-Path $sourceRoot "skills/$skill") (Join-Path $codexHome "skills/$skill") $backups
+        $dest = Join-Path $codexSkillsRoot $skill
+        Install-Directory (Join-Path $sourceRoot "skills/$skill") $dest $codexBackups
+        foreach ($file in (Get-ChildItem $dest -Filter '*.md' -File)) {
+            Convert-SkillFileForCodex $file.FullName
+        }
+        Write-Note "rewrote $skill for Codex (`$-mentions, .codex/ paths, `$grilling / `$domain-modeling)"
     }
-    # Codex has no subagent dispatch, so the definitions install beside the skill as role briefs.
-    $agentsDir = Join-Path $codexHome 'skills/grill-to-waves/agents'
-    New-Item -ItemType Directory -Force -Path $agentsDir | Out-Null
-    Copy-Item (Join-Path $sourceRoot 'agents/*.md') -Destination $agentsDir -Force
-    Write-Note "installed agent role briefs into $agentsDir"
+
+    $agents = Get-ChildItem (Join-Path $sourceRoot 'agents/codex') -Filter '*.toml' -File
+    foreach ($agent in $agents) {
+        Install-File $agent.FullName (Join-Path $codexAgentsDir $agent.Name) $codexBackups
+    }
+    Write-Note "installed $($agents.Count) custom agent definitions into $codexAgentsDir"
+
+    # A copy under the legacy root would register a second skill with the same name.
+    foreach ($skill in $Skills) {
+        $legacy = Join-Path $codexHome "skills/$skill"
+        if (Test-Path $legacy) {
+            Write-Note "WARNING: $legacy also exists. ~/.codex/skills is Codex's legacy root; remove that copy or both will be listed."
+        }
+    }
+
+    # Multi-agent tools are on by default; say so if the user's config turns them off.
+    $configPath = Join-Path $codexHome 'config.toml'
+    if (Test-Path $configPath) {
+        $config = [System.IO.File]::ReadAllText($configPath, $Utf8NoBom)
+        if ($config -match '(?m)^\s*enabled\s*=\s*false' -and $config -match '(?m)^\s*\[agents\]') {
+            Write-Note "WARNING: [agents] enabled = false in $configPath. /orchestrate needs spawn_agent; set it to true."
+        }
+        $ceiling = [regex]::Match($config, '(?m)^\s*max_concurrent_threads_per_session\s*=\s*(\d+)')
+        if ($ceiling.Success) {
+            Write-Note "agents.max_concurrent_threads_per_session = $($ceiling.Groups[1].Value); the map's in-flight ceiling must not exceed it."
+        }
+    }
 }
 
-# --- 4. Report ----------------------------------------------------------------------------------
+# --- 6. Report ----------------------------------------------------------------------------------
 Write-Step 'Done.'
 if ($doClaude) {
     Write-Note 'Claude Code: restart the session, then run  /grill-to-waves  and later  /orchestrate'
 }
 if ($doCodex) {
-    Write-Note 'Codex CLI: restart the session; the skills trigger by name (grill-to-waves, orchestrate).'
-    Write-Note 'Codex has no subagent dispatch: the session executes tickets itself, one at a time.'
+    Write-Note 'Codex CLI: restart Codex, then run  $grill-to-waves  and later  $orchestrate'
+    Write-Note 'Codex dispatches executors with spawn_agent; the custom agents pin model and reasoning effort per tier.'
 }
 
-# The pipeline calls grilling and domain-modeling (Stage 1) and setup-matt-pocock-skills (Stage 0).
-$mattpocockInstalled = @(
-    Get-ChildItem (Join-Path $HOME '.claude/plugins/cache') -Directory -Filter 'mattpocock*' -ErrorAction SilentlyContinue
-).Count -gt 0
-if ($mattpocockInstalled) {
-    Write-Note 'Required plugin mattpocock-skills: found.'
+# The pipeline calls grilling and domain-modeling (Stage 1) and, on Claude Code, setup-matt-pocock-skills (Stage 0).
+if ($doClaude) {
+    $mattpocockInstalled = @(
+        Get-ChildItem (Join-Path $HOME '.claude/plugins/cache') -Directory -Filter 'mattpocock*' -ErrorAction SilentlyContinue
+    ).Count -gt 0
+    if ($mattpocockInstalled) {
+        Write-Note 'Claude Code required plugin mattpocock-skills: found.'
+    }
+    else {
+        Write-Host ''
+        Write-Step 'Claude Code required plugin missing: mattpocock-skills'
+        Write-Note 'Stage 1 needs grilling and domain-modeling; Stage 0 suggests setup-matt-pocock-skills.'
+        Write-Note 'In Claude Code, run:'
+        Write-Note '  /plugin marketplace add mattpocock/skills'
+        Write-Note '  /plugin install mattpocock-skills@mattpocock'
+        Write-Note 'The marketplace is named mattpocock, not skills. Restart the session afterwards.'
+    }
 }
-else {
-    Write-Host ''
-    Write-Step 'Required plugin missing: mattpocock-skills'
-    Write-Note 'Stage 1 needs grilling and domain-modeling; Stage 0 needs setup-matt-pocock-skills.'
-    Write-Note 'In Claude Code, run:'
-    Write-Note '  /plugin marketplace add mattpocock/skills'
-    Write-Note '  /plugin install mattpocock-skills@mattpocock'
-    Write-Note 'The marketplace is named mattpocock, not skills. Restart the session afterwards.'
+if ($doCodex) {
+    $missing = @(@('grilling', 'domain-modeling') | Where-Object {
+        -not (Test-Path (Join-Path $codexSkillsRoot "$_/SKILL.md")) -and
+        -not (Test-Path (Join-Path $HOME ".agents/skills/$_/SKILL.md"))
+    })
+    if ($missing.Count -eq 0) {
+        Write-Note 'Codex required skills grilling and domain-modeling: found.'
+    }
+    else {
+        Write-Host ''
+        Write-Step "Codex required skills missing: $($missing -join ', ')"
+        Write-Note 'Stage 1 needs $grilling and $domain-modeling. Copy them from https://github.com/mattpocock/skills'
+        Write-Note "(the skills/grilling and skills/domain-modeling folders) into $codexSkillsRoot, then restart Codex."
+    }
 }

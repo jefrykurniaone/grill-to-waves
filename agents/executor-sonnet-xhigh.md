@@ -1,6 +1,6 @@
 ---
 name: executor-sonnet-xhigh
-description: Ticket executor — Sonnet at x-high reasoning effort. Rarely the right pairing (a ticket needing xhigh usually needs Opus); used by /orchestrate only when a ticket is labelled executor:sonnet effort:xhigh.
+description: Ticket executor — Sonnet at x-high reasoning effort. Rarely the right pairing (a ticket needing xhigh usually needs Opus, and one whose wrong decision is irreversible, run-wide or adversarial needs Fable); used by /orchestrate only when a ticket is labelled executor:sonnet effort:xhigh.
 model: sonnet
 effort: xhigh
 ---
