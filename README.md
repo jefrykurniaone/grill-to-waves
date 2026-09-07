@@ -122,6 +122,7 @@ models; edit the `.toml` to re-map:
 | frontier (`executor:opus`) | Opus | `gpt-5.6-sol` at the same effort |
 | mid (`executor:sonnet`) | Sonnet | `gpt-5.6-terra` at the same effort |
 | `scout-sonnet-medium` only | Sonnet `medium` | `gpt-5.6-luna` `medium` |
+| `scout-opus-*` | Opus at `medium` / `high` | `gpt-5.6-terra` at the same effort |
 
 Read-only scouts are read-only by `sandbox_mode = "read-only"`. Codex subagents share the parent's
 working directory, so the orchestrator names each executor's worktree path in its brief; an executor

@@ -111,7 +111,7 @@ a map planned on one host executes on the other.
 | Frontier tier (`opus`) | Opus at `medium` / `high` / `xhigh` | GPT-5.6 Sol (`gpt-5.6-sol`) at the same effort |
 | Mid tier (`sonnet`) | Sonnet at `medium` / `high` / `xhigh` | GPT-5.6 Terra (`gpt-5.6-terra`) at the same effort |
 | Narrow locator scout (`scout-sonnet-medium`) | Sonnet `medium` | GPT-5.6 Luna (`gpt-5.6-luna`) `medium` — the one place the small tier is used, because a one-grep locate is exactly the "fast, narrowly scoped" work Luna is positioned for; set `gpt-5.6-terra` in its file to keep every scout on the mid tier |
-| Frontier analyst scouts (`scout-opus-*`) | Opus at `medium` / `high` | GPT-5.6 Sol (`gpt-5.6-sol`) at the same effort |
+| Analyst scouts (`scout-opus-*`) | Opus at `medium` / `high` | GPT-5.6 Terra (`gpt-5.6-terra`) at the same effort — a cost-conscious scout override; Opus executors remain on Sol |
 | Never | Haiku | GPT-5.6 Luna or GPT-5.4-mini as an executor |
 | Agent definitions | `~/.claude/agents/<name>.md` — YAML frontmatter `model`, `effort`, `tools` | `~/.codex/agents/<name>.toml` (or `.codex/agents/` in a project) — `model`, `model_reasoning_effort`, `sandbox_mode`, `developer_instructions` |
 | Dispatch | `Agent` tool with `subagent_type: <name>` | `spawn_agent` naming the custom agent; `wait_agent` to collect; `followup_task` for rework on the same executor |
