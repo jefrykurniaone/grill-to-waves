@@ -238,7 +238,9 @@ fi
 if [ "$DO_CODEX" = 1 ]; then
   missing=""
   for s in grilling domain-modeling; do
-    if [ ! -f "$CODEX_SKILLS_ROOT/$s/SKILL.md" ] && [ ! -f "$HOME/.agents/skills/$s/SKILL.md" ]; then
+    if [ ! -f "$CODEX_SKILLS_ROOT/$s/SKILL.md" ] && \
+       [ ! -f "$HOME/.agents/skills/$s/SKILL.md" ] && \
+       [ ! -f "$PWD/.agents/skills/$s/SKILL.md" ]; then
       missing="$missing $s"
     fi
   done
@@ -247,7 +249,8 @@ if [ "$DO_CODEX" = 1 ]; then
   else
     echo ""
     step "Codex required skills missing:$missing"
-    note "Stage 1 needs \$grilling and \$domain-modeling. Copy them from https://github.com/mattpocock/skills"
-    note "(the skills/grilling and skills/domain-modeling folders) into $CODEX_SKILLS_ROOT, then restart Codex."
+    note "Stage 1 needs \$grilling and \$domain-modeling. From the project where you will run the pipeline, use:"
+    note "  npx skills@latest add mattpocock/skills --skill grilling --skill domain-modeling -a codex"
+    note "Choose project scope if prompted, then restart Codex."
   fi
 fi

@@ -53,10 +53,15 @@ The marketplace is named `mattpocock`, not `skills`. Outside the session the sam
 | `domain-modeling` | Stage 1, whenever vocabulary is in play. |
 | `setup-matt-pocock-skills` | Stage 0 — records the tracker choice in `docs/agents/issue-tracker.md`, run once per repo. Claude Code only; on Codex, write that file by hand. |
 
-**Codex CLI** — the same two skills as plain skill folders. Copy `skills/grilling` and
-`skills/domain-modeling` from a clone of that repo into `~/.agents/skills/`, so that
-`~/.agents/skills/grilling/SKILL.md` and `~/.agents/skills/domain-modeling/SKILL.md` exist. The
-installer checks for them and prints this step when they are missing.
+**Codex CLI** — run this from the project where you will use the pipeline (Node.js/npm is required):
+
+```bash
+npx skills@latest add mattpocock/skills --skill grilling --skill domain-modeling -a codex
+```
+
+Choose **project scope** if prompted. This installs the two required skills under the project's
+`.agents/skills/` directory. Restart Codex afterwards so `$grilling` and `$domain-modeling` are
+available. The installer checks for these skills and prints the same command when they are missing.
 
 ### 2. Install the skills and agents
 

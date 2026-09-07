@@ -35,7 +35,6 @@ irm https://raw.githubusercontent.com/jefrykurniaone/grill-to-waves/main/install
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('claude', 'codex', 'both', 'auto')]
     [string]$Target,
 
     # Install into a project instead of the user's home: <path>/.claude for Claude Code,
@@ -77,7 +76,16 @@ function Select-InstallTarget {
     }
 }
 
-if (-not $PSBoundParameters.ContainsKey('Target')) {
+# Validate here instead of using [ValidateSet] on the parameter. Windows PowerShell 5.1 applies
+# attributes to a null variable when a script is evaluated through `irm ... | iex`, which fails
+# before the installer can prompt for an optional target.
+$validTargets = @('claude', 'codex', 'both', 'auto')
+if ($PSBoundParameters.ContainsKey('Target')) {
+    if ($validTargets -notcontains $Target) {
+        throw "-Target must be one of: $($validTargets -join ', ')."
+    }
+}
+else {
     $Target = Select-InstallTarget
 }
 Write-Step "Install target: $Target"
@@ -264,9 +272,11 @@ if ($doClaude) {
     }
 }
 if ($doCodex) {
+    $currentProjectSkillsRoot = Join-Path (Get-Location).Path '.agents/skills'
     $missing = @(@('grilling', 'domain-modeling') | Where-Object {
         -not (Test-Path (Join-Path $codexSkillsRoot "$_/SKILL.md")) -and
-        -not (Test-Path (Join-Path $HOME ".agents/skills/$_/SKILL.md"))
+        -not (Test-Path (Join-Path $HOME ".agents/skills/$_/SKILL.md")) -and
+        -not (Test-Path (Join-Path $currentProjectSkillsRoot "$_/SKILL.md"))
     })
     if ($missing.Count -eq 0) {
         Write-Note 'Codex required skills grilling and domain-modeling: found.'
@@ -274,7 +284,8 @@ if ($doCodex) {
     else {
         Write-Host ''
         Write-Step "Codex required skills missing: $($missing -join ', ')"
-        Write-Note 'Stage 1 needs $grilling and $domain-modeling. Copy them from https://github.com/mattpocock/skills'
-        Write-Note "(the skills/grilling and skills/domain-modeling folders) into $codexSkillsRoot, then restart Codex."
+        Write-Note 'Stage 1 needs $grilling and $domain-modeling. From the project where you will run the pipeline, use:'
+        Write-Note '  npx skills@latest add mattpocock/skills --skill grilling --skill domain-modeling -a codex'
+        Write-Note 'Choose project scope if prompted, then restart Codex.'
     }
 }
