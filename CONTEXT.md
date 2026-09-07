@@ -14,7 +14,12 @@ The depth allocated to an executor from the exploration required and the decisio
 make. It is independent of executor tier.
 _Avoid_: Model tier, executor tier
 
+**Fable 5.1 tier**:
+The highest executor tier, reserved for demanding long-horizon work where the Fable tier at higher
+effort is known or expected to fall short. It is independent of reasoning effort.
+_Avoid_: Latest tier, xhigh tier
+
 **Fable tier**:
-The top executor tier for work whose failure is irreversible, run-wide, or adversarial. A host maps
-this tier to its own top-capability model.
-_Avoid_: xhigh tier, Fable model
+The executor tier for work whose failure is irreversible, run-wide, or adversarial, below the Fable
+5.1 tier. It is independent of reasoning effort.
+_Avoid_: Fable model, xhigh tier
