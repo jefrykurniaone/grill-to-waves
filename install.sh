@@ -27,11 +27,7 @@ set -euo pipefail
 REPO="https://github.com/jefrykurniaone/grill-to-waves.git"
 SKILLS=(grill-to-waves orchestrate)
 REQUIRED_CODEX_SKILLS=(grilling domain-modeling setup-matt-pocock-skills)
-MATTPOCOCK_CODEX_INSTALL_COMMAND="npx skills@latest add mattpocock/skills"
-for skill in "${REQUIRED_CODEX_SKILLS[@]}"; do
-  MATTPOCOCK_CODEX_INSTALL_COMMAND+=" --skill $skill"
-done
-MATTPOCOCK_CODEX_INSTALL_COMMAND+=" -a codex"
+MATTPOCOCK_CODEX_INSTALL_COMMAND="npx skills@latest add mattpocock/skills --skill '*' -a codex"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
 TARGET=""
@@ -255,7 +251,7 @@ if [ "$DO_CODEX" = 1 ]; then
   else
     echo ""
     step "Codex required skills missing:$missing"
-    note "Stage 0 needs \$setup-matt-pocock-skills; Stage 1 needs \$grilling and \$domain-modeling. From the project where you will run the pipeline, use:"
+    note "Stage 0 needs \$setup-matt-pocock-skills; Stage 1 needs \$grilling and \$domain-modeling. Install the full collection to match Claude Code:"
     note "  $MATTPOCOCK_CODEX_INSTALL_COMMAND"
     note "Choose project scope if prompted, then restart Codex."
   fi

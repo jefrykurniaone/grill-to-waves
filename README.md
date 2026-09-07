@@ -31,11 +31,11 @@ docs mirror of each spec. Nothing depends on a local file that a context clear w
 
 ## Install
 
-### 1. Install the required Matt Pocock skills first
+### 1. Install the Matt Pocock skill collection first
 
-The pipeline uses three skills from [mattpocock/skills](https://github.com/mattpocock/skills): one
-for repository setup in Stage 0 and two for grilling in Stage 1. Install all three before the first
-run.
+Install the complete [mattpocock/skills](https://github.com/mattpocock/skills) collection on both
+hosts. The pipeline directly requires three of them: one for repository setup in Stage 0 and two for
+grilling in Stage 1.
 
 **Claude Code** — the plugin:
 
@@ -57,14 +57,15 @@ The marketplace is named `mattpocock`, not `skills`. Outside the session the sam
 **Codex CLI** — run this from the project where you will use the pipeline (Node.js/npm is required):
 
 ```bash
-npx skills@latest add mattpocock/skills --skill grilling --skill domain-modeling --skill setup-matt-pocock-skills -a codex
+npx skills@latest add mattpocock/skills --skill '*' -a codex
 ```
 
-Choose **project scope** if prompted. This installs the three required skills under the project's
-`.agents/skills/` directory. Restart Codex afterwards so `$grilling`, `$domain-modeling`, and
-`$setup-matt-pocock-skills` are available. Run `$setup-matt-pocock-skills` once in each repository
-before its first `$grill-to-waves` run. The installer checks for all three skills and prints the same
-command when one is missing.
+Choose **project scope** if prompted. This installs the full collection under the project's
+`.agents/skills/` directory, matching the collection provided by the Claude Code plugin. Restart
+Codex afterwards. Run `$setup-matt-pocock-skills` once in each repository before its first
+`$grill-to-waves` run. The installer verifies the three pipeline requirements—`$grilling`,
+`$domain-modeling`, and `$setup-matt-pocock-skills`—and prints the full-collection command when one
+is missing.
 
 ### 2. Install the skills and agents
 

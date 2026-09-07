@@ -54,8 +54,7 @@ Set-StrictMode -Version Latest
 $Repo = 'https://github.com/jefrykurniaone/grill-to-waves.git'
 $Skills = @('grill-to-waves', 'orchestrate')
 $RequiredCodexSkills = @('grilling', 'domain-modeling', 'setup-matt-pocock-skills')
-$MattPocockCodexInstallCommand = 'npx skills@latest add mattpocock/skills ' +
-    (($RequiredCodexSkills | ForEach-Object { "--skill $_" }) -join ' ') + ' -a codex'
+$MattPocockCodexInstallCommand = "npx skills@latest add mattpocock/skills --skill '*' -a codex"
 $Stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $Utf8NoBom = New-Object System.Text.UTF8Encoding $false
 
@@ -287,7 +286,7 @@ if ($doCodex) {
     else {
         Write-Host ''
         Write-Step "Codex required skills missing: $($missing -join ', ')"
-        Write-Note 'Stage 0 needs $setup-matt-pocock-skills; Stage 1 needs $grilling and $domain-modeling. From the project where you will run the pipeline, use:'
+        Write-Note 'Stage 0 needs $setup-matt-pocock-skills; Stage 1 needs $grilling and $domain-modeling. Install the full collection to match Claude Code:'
         Write-Note "  $MattPocockCodexInstallCommand"
         Write-Note 'Choose project scope if prompted, then restart Codex.'
     }
