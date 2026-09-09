@@ -1,7 +1,7 @@
 # grill-to-waves
 
-A two-skill delivery pipeline for coding agents, plus the executor and scout agent definitions it
-dispatches.
+A two-skill delivery pipeline for coding agents, plus the executor, scout and scribe agent
+definitions it dispatches.
 
 - **`/grill-to-waves`** plans: it grills the idea, writes one spec per shippable slice, tickets each
   spec, proves the specs write-disjoint, publishes an execution map — then stops.
@@ -23,7 +23,8 @@ that execution starts on a fresh context window with the plan as its only input.
 | `skills/orchestrate/SKILL.md` | Wave dispatch, verification, merge gate, closing upward, team shape. |
 | `agents/executor-{fable-five-one,fable,opus,sonnet}-{medium,high,xhigh}.md` | Twelve ticket executors, one per tier/effort pairing. |
 | `agents/scout-{sonnet-medium,sonnet-high,opus-medium,opus-high}.md` | Four read-only scouts: locate, sweep, focused judgment, broad analysis. |
-| `agents/codex/*.toml` | The same sixteen agents as Codex CLI custom agents — same names, same bodies, Codex models per the `Hosts` table in `DEFAULTS.md`. |
+| `agents/vault-scribe.md` | Optional Obsidian scribe. Owns every vault read and write so the orchestrator's session spends no context on note prose. Claude Code only — see below. |
+| `agents/codex/*.toml` | The same sixteen executor and scout agents as Codex CLI custom agents — same names, same bodies, Codex models per the `Hosts` table in `DEFAULTS.md`. |
 | `skills/*/agents/openai.yaml` | Codex skill metadata: user-invocation only, the equivalent of `disable-model-invocation`. Claude Code ignores it. |
 
 The tracker is the state store — specs, tickets and the map are issues, and the repo keeps a durable
@@ -134,6 +135,11 @@ models; edit the `.toml` to re-map:
 | `scout-sonnet-*` | Sonnet at `medium` / `high` | `gpt-5.6-luna` at the same effort |
 | `scout-opus-*` | Opus at `medium` / `high` | `gpt-5.6-terra` at the same effort |
 
+`vault-scribe` has **no Codex counterpart**, deliberately. A Codex subagent's sandbox is scoped to
+the workspace, and a knowledge vault lives outside it, so the agent would need
+`danger-full-access` to write a single note. Shipping an agent that silently cannot write is worse
+than not shipping it; on Codex, record to the vault from the main session or not at all.
+
 Read-only scouts are read-only by `sandbox_mode = "read-only"`. Codex subagents share the parent's
 working directory, so the orchestrator names each executor's worktree path in its brief; an executor
 whose sandbox has no network reports its branch and the orchestrator pushes and opens the review
@@ -178,6 +184,10 @@ copy:
   both hosts. Install step 1 above.
 - **Playwright MCP**, optional, for runtime verification of `runtime: dev-server` tickets. Without it
   the orchestrator falls back to scripted Playwright or plain HTTP, and says which it used.
+- **Obsidian**, optional, for `vault-scribe`. The desktop app has to be running for the official CLI;
+  the agent falls back to reading the vault from disk when it is not. It takes the vault path from
+  the calling session's brief, then `OBSIDIAN_VAULT`, then whatever vault the CLI already has open,
+  and stops rather than guessing. Nothing in the pipeline depends on it.
 
 Per-repository conventions — the completion gate, the seams, the hard rules an executor brief has to
 carry — are read from the repository's own `CLAUDE.md` or `AGENTS.md`, and override `DEFAULTS.md`
@@ -197,8 +207,13 @@ re-detecting it every run.
   when Fable at higher effort is known or expected to fall short. Fallback preserves effort.
 - **Two agent sessions never share one working copy.** They contend on the tree, the dev server and
   the dev database at once. Splitting a run means one developer per clone.
-- **Nothing is true until it is on the tracker.** Sessions share no context window, so a fact that
-  was never posted did not happen.
+- **Nothing is true until it is on the tracker** — and the map's *body* is where a resuming session
+  looks first. Sessions share no context window, so a fact that was never posted did not happen, and
+  a fact posted only as a comment on a long thread is a fact the next session acts without.
+- **A knowledge base is not the tracker.** The tracker carries what a run needs in order to resume;
+  a vault carries what the *next* run needs in order not to relearn — the decisions and why, the
+  traps, the environment quirks that cost an hour once. `vault-scribe` exists so recording those
+  costs a Sonnet subagent's context instead of the orchestrator's.
 
 ## License
 

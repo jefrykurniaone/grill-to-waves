@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install the grill-to-waves + orchestrate skills and their executor/scout agents for
+# Install the grill-to-waves + orchestrate skills and their executor/scout/scribe agents for
 # Claude Code and/or Codex CLI.
 #
 # Claude Code:
