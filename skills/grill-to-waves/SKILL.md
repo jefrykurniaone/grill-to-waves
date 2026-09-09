@@ -213,37 +213,42 @@ Author one execution map for the run as its own item, titled
 `map: <run-slug> delivery - execution plan for run <run-slug>`, labelled `run:<slug>`. Mirror the
 repo's most recent map (search `map in:title`) for shape. It carries, in order:
 
-1. **Parent** — the spec items, their docs mirrors, binding ADRs and seams, and any
+1. **Execution progress** — first, above everything else, because it is the first thing a resuming
+   session reads. At publication it is one line: the run has not started, wave 1 is next, and this
+   section is rewritten in the map's body by `/orchestrate` after every wave. Leaving the slot empty
+   invites the progress to live in the comment thread instead, where the next session acts without
+   it.
+2. **Parent** — the spec items, their docs mirrors, binding ADRs and seams, and any
    cross-run gate ("must not start until run X closes"), each gate naming the tickets whose closed
    state satisfies it and carrying a real blocking edge on the tickets it gates.
-2. **How this is executed** — point at the tickets' labels for model and effort; one worktree per
+3. **How this is executed** — point at the tickets' labels for model and effort; one worktree per
    ticket at `.claude/worktrees/<row>/<ticket>`; `deps: shared` worktrees never install or generate;
    serial merge-commit-only merges on a quiescent tree, and teardown likewise; no dev server from
    executors; check-versus-fix ownership; the per-wave in-flight ceiling (default three, hard maximum
    five — raise it to four or five only for a named reason, and never past five; lower it below three
    for a named reason such as heavy installs or a rate limit); one agent session per working copy; the
    write-through rule — every fact the next session needs is posted the moment it becomes true.
-3. **Known shared-file contention** — the files parallel branches will collide on inside a session
+4. **Known shared-file contention** — the files parallel branches will collide on inside a session
    and how each collision is handled (append-plus-append catalogue, wave separation, stop-and-report).
-4. **Sessions** — Stage 4's table, tail row, verdict line and **Execution shape** line verbatim,
+5. **Sessions** — Stage 4's table, tail row, verdict line and **Execution shape** line verbatim,
    heading text beginning `Sessions` (admission matches on the word). Where the shape is team, this
    section is also where the row-to-developer assignment and the **serial owner** are written down, so
    a session that picks up an `exclusive: run` ticket can see in one read whether it may run it.
-5. **Waves** — the solo order, numbered globally; every ticket line carries its spec. Orchestrator-only
+6. **Waves** — the solo order, numbered globally; every ticket line carries its spec. Orchestrator-only
    work pinned to a wave (a baseline, a runtime check) names its owner: a session row, or `tail`. A
    pinned runtime check states **how it is driven**: Playwright MCP (`mcp__playwright__*`) is the
    default — `browser_navigate`, `browser_snapshot`, `browser_evaluate` for a `getComputedStyle`
    measurement, `browser_console_messages` for the console-error count — with the scripted Playwright
    fallback or plain HTTP named only where the check does not need a DOM, or where the check produces
    an artifact rather than a page and is settled by fetching it.
-6. **Why the executors split this way** — one paragraph naming every ticket not at `high` and the
+7. **Why the executors split this way** — one paragraph naming every ticket not at `high` and the
    axis that moved it, every `executor:fable` ticket with the clause of the Fable tier that earned it
    (irreversible, run-wide or adversarial), and every `executor:fable-five-one` ticket with the evidence
    that Fable at higher effort is insufficient.
-7. **Completion gate** — the repo's one-shot gate commands and quality bars, from its `CLAUDE.md` or `AGENTS.md`.
-8. **Rework protocol** — hand-backs to the introducing executor, at most twice; gate re-runs whole;
+8. **Completion gate** — the repo's one-shot gate commands and quality bars, from its `CLAUDE.md` or `AGENTS.md`.
+9. **Rework protocol** — hand-backs to the introducing executor, at most twice; gate re-runs whole;
    post-merge defects become new issues; the mirror pass from Stage 2 runs before the map closes.
-9. **Out of scope** — carried from the specs so no executor picks it up opportunistically.
+10. **Out of scope** — carried from the specs so no executor picks it up opportunistically.
 
 Update each spec mirror's header with the map reference. Done when: the map item exists and every
 ticket appears in exactly one wave and one session row.

@@ -63,7 +63,9 @@ Four reads, then work. This is the whole resume, and it is enough after a contex
 because the tracker and git already carry the state that matters.
 
 1. **The map** — wave order, the contention table, the completion gate, what is out of scope, and any
-   orchestrator-only checks pinned to a wave. Binding.
+   orchestrator-only checks pinned to a wave. Binding. Its execution-progress section is the state
+   the last wave left behind and is kept current by *Record, close, tear down*, so trust it over a
+   comment thread — and rewrite it when this wave ends.
 2. **One frontier listing** of every open item under `run:<slug>` — state, labels, bodies, open blocker
    counts.
 3. **Git ground truth** — `git fetch --prune`, `git status --porcelain`, `git log --merges` on `main`,
@@ -103,7 +105,11 @@ it. An unsatisfied gate is a wait, not a failure: say what it waits on and stop.
 before every step:
 
 1. `git fetch --prune` exits 0 (retry a few times; a persistent failure is a wait, never a pass).
-2. `git status --porcelain` is empty.
+2. `git status --porcelain` is empty. When it is not and a dispatch has just finished, suspect
+   **executor leakage** before anything else: an executor that wrote outside its worktree leaves
+   exactly this, and the merge is what catches it. Read the file, prove the branch is a strict
+   superset of what it holds, then discard it and name the breach in the wave report. Never discard
+   unread — a partial copy of the branch's own edit is safe to drop, and anything else is not.
 3. No `MERGE_HEAD`, `rebase-merge`, `rebase-apply` or `CHERRY_PICK_HEAD` under `.git`.
 4. `HEAD` equals `origin/main`, on branch `main`.
 5. Where the repo generates a database client or other build-time artifact into the dependency tree,
@@ -216,9 +222,27 @@ A red gate after the last merge points at that merge first; reset, re-merge the 
 ## Record, close, tear down
 
 Per ticket, **one comment**: what landed, the gate result with its start time, the runtime finding, the
-merge sha and the review request. Then close it, and drop the assignee if the tracker set one. Per
-wave, **one comment on the map**: the tickets with their shas, the decisions taken, the defects filed,
-and what the next wave waits on. **That is the entire tracker footprint of a run.**
+merge sha and the review request. Then close it, and drop the assignee if the tracker set one.
+
+Per wave, **two writes on the map, and the body is the one that matters**:
+
+- **Rewrite the map's execution-progress section in its body.** The waves table with what landed and
+  its sha, how many tickets remain, the next dispatchable tickets from a live blocking-edge read, the
+  open items still blocking the close, the tree state, and anything a later executor would otherwise
+  rediscover. Stage 1 reads the body first and calls it binding, so a body still saying "wave 5 is
+  next" after wave 5 landed aims the next session at a closed ticket. A comment does not correct
+  that: it is one entry in a thread nobody reads before acting. Where the map has no such section
+  yet, add one at the top.
+- **One comment**: the tickets with their shas, the decisions taken, the defects filed, and what the
+  next wave waits on. The comment is the append-only log of *how* the run went; the body is the state
+  the next session resumes *from*. Neither replaces the other.
+
+**That is the entire tracker footprint of a run.**
+
+Where a knowledge-base scribe agent is installed (`vault-scribe`), hand it the wave's durable facts
+once those tracker writes are done — the decisions taken and why, the traps found, the environment
+quirks — and name the notes it wrote in the report. It is a companion to the tracker, never a
+substitute for it, and where no such agent exists this step does not exist either.
 
 Rework goes back to the introducing executor — by a follow-up message to the same executor where the
 host has one (`SendMessage` on Claude Code, `followup_task` on Codex), otherwise as a fresh dispatch
