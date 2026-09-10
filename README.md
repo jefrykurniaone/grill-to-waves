@@ -23,8 +23,8 @@ that execution starts on a fresh context window with the plan as its only input.
 | `skills/orchestrate/SKILL.md` | Wave dispatch, verification, merge gate, closing upward, team shape. |
 | `agents/executor-{fable-five-one,fable,opus,sonnet}-{medium,high,xhigh}.md` | Twelve ticket executors, one per tier/effort pairing. |
 | `agents/scout-{sonnet-medium,sonnet-high,opus-medium,opus-high}.md` | Four read-only scouts: locate, sweep, focused judgment, broad analysis. |
-| `agents/vault-scribe.md` | Optional Obsidian scribe. Owns every vault read and write so the orchestrator's session spends no context on note prose. Claude Code only — see below. |
-| `agents/codex/*.toml` | The same sixteen executor and scout agents as Codex CLI custom agents — same names, same bodies, Codex models per the `Hosts` table in `DEFAULTS.md`. |
+| `agents/vault-scribe.md` | Optional Obsidian scribe. Owns every vault read and write so the orchestrator's session spends no context on note prose. Available on both hosts. |
+| `agents/codex/*.toml` | The same seventeen executor, scout and scribe agents as Codex custom agents — same names, same bodies, Codex models per the `Hosts` table in `DEFAULTS.md`. |
 | `skills/*/agents/openai.yaml` | Codex skill metadata: user-invocation only, the equivalent of `disable-model-invocation`. Claude Code ignores it. |
 
 The tracker is the state store — specs, tickets and the map are issues, and the repo keeps a durable
@@ -135,10 +135,16 @@ models; edit the `.toml` to re-map:
 | `scout-sonnet-*` | Sonnet at `medium` / `high` | `gpt-5.6-luna` at the same effort |
 | `scout-opus-*` | Opus at `medium` / `high` | `gpt-5.6-terra` at the same effort |
 
-`vault-scribe` has **no Codex counterpart**, deliberately. A Codex subagent's sandbox is scoped to
-the workspace, and a knowledge vault lives outside it, so the agent would need
-`danger-full-access` to write a single note. Shipping an agent that silently cannot write is worse
-than not shipping it; on Codex, record to the vault from the main session or not at all.
+`vault-scribe` is installed on both hosts. Its Codex definition uses `workspace-write` and the
+Sonnet-tier model at `medium` effort, as defined in `DEFAULTS.md`. Pass the vault's absolute path
+in the dispatch brief. Writing requires the session's permissions to cover that path; when access
+is denied, the scribe reports the target and proposed note to the calling session for permission
+handling. The installer does not grant vault access or disable the sandbox.
+
+To update an existing Codex installation, rerun `./install.ps1 -Target codex` on Windows or
+`./install.sh --target codex` on macOS/Linux, then restart Codex. Both installers copy the complete
+current skills and every Codex agent, backing up the previous installation by default. Host-specific
+rewrites preserve the workflow, including execution-progress updates in the map body after each wave.
 
 Read-only scouts are read-only by `sandbox_mode = "read-only"`. Codex subagents share the parent's
 working directory, so the orchestrator names each executor's worktree path in its brief; an executor

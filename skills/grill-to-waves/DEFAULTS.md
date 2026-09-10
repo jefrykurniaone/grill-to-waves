@@ -137,6 +137,7 @@ over an agent file; without either override, the full Fable model IDs below do n
 | Mid tier (`sonnet`) | Sonnet at `medium` / `high` / `xhigh` | GPT-5.6 Luna (`gpt-5.6-luna`) at the same effort |
 | Sonnet scouts (`scout-sonnet-*`) | Sonnet at `medium` / `high` | GPT-5.6 Luna (`gpt-5.6-luna`) at the same effort |
 | Opus scouts (`scout-opus-*`) | Opus at `medium` / `high` | GPT-5.6 Terra (`gpt-5.6-terra`) at the same effort |
+| Optional vault scribe (`vault-scribe`) | Sonnet at `medium` | GPT-5.6 Luna (`gpt-5.6-luna`) at `medium`, `workspace-write`; vault writes require session permission for the target path |
 | Agent definitions | `~/.claude/agents/<name>.md` — YAML frontmatter `model`, `effort`, `tools` | `~/.codex/agents/<name>.toml` (or `.codex/agents/` in a project) — `model`, `model_reasoning_effort`, `sandbox_mode`, `developer_instructions` |
 | Dispatch | `Agent` tool with `subagent_type: <name>` | `spawn_agent` naming the custom agent; `wait_agent` to collect; `followup_task` for rework on the same executor |
 | Message a running executor | `SendMessage` | `send_message` |
