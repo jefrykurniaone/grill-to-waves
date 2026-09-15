@@ -1,0 +1,10 @@
+# Codex CLI skill metadata. Claude Code ignores this file; it reads only SKILL.md.
+# `allow_implicit_invocation: false` is the Codex equivalent of SKILL.md's
+# `disable-model-invocation: true`: the skill runs only when the user types `$ship-it-to`.
+interface:
+  display_name: "Ship it to"
+  short_description: "Promote the integration branch to staging or production"
+  default_prompt: "Use $ship-it-to to promote this branch — pass stg or prd."
+
+policy:
+  allow_implicit_invocation: false

@@ -1,15 +1,20 @@
 # grill-to-waves
 
-A two-skill delivery pipeline for coding agents, plus the executor, scout and scribe agent
+A three-skill delivery pipeline for coding agents, plus the executor, scout and scribe agent
 definitions it dispatches.
 
 - **`/grill-to-waves`** plans: it grills the idea, writes one spec per shippable slice, tickets each
   spec, proves the specs write-disjoint, publishes an execution map — then stops.
 - **`/orchestrate`** executes that map: it dispatches ticket executors as subagents, verifies their
   work itself, merges a whole wave under one gate, and closes the specs and the map.
+- **`/ship-it-to stg|prd`** promotes what landed: it reads the repo's own promotion contract and the
+  forge's branch protections, cuts a pivot, gates it, names whose commits are travelling, opens the
+  request — and stops where the rules say someone else must merge.
 
 Planning and execution are deliberately separate sessions. The pipeline ends at a published map so
-that execution starts on a fresh context window with the plan as its only input.
+that execution starts on a fresh context window with the plan as its only input. Promotion is
+separate again: it happens once per release rather than once per wave, and its failure mode is a
+production deploy rather than a handed-back ticket.
 
 ## What it gives you
 
@@ -21,6 +26,7 @@ that execution starts on a fresh context window with the plan as its only input.
 | `skills/grill-to-waves/TRACKERS.md` | The five tracker operations for GitHub (`gh`), GitLab (`glab`) and local markdown. |
 | `skills/grill-to-waves/DEFAULTS.md` | Model/effort ladder, both Fable tiers, scout tiering, and the junction-safe worktree teardown. |
 | `skills/orchestrate/SKILL.md` | Wave dispatch, verification, merge gate, closing upward, team shape. |
+| `skills/ship-it-to/SKILL.md` | Promotion to staging or production: contract resolution, branch protections, the pivot, the gate on the pivot, authorship of what travels, the request body, and where the run stops. |
 | `agents/executor-{fable-five-one,fable,opus,sonnet}-{medium,high,xhigh}.md` | Twelve ticket executors, one per tier/effort pairing. |
 | `agents/scout-{sonnet-medium,sonnet-high,opus-medium,opus-high}.md` | Four read-only scouts: locate, sweep, focused judgment, broad analysis. |
 | `agents/vault-scribe.md` | Optional Obsidian scribe. Owns every vault read and write so the orchestrator's session spends no context on note prose. Available on both hosts. |
@@ -104,6 +110,7 @@ Where it lands:
 Claude Code                          Codex CLI
 ~/.claude/skills/grill-to-waves/     ~/.agents/skills/grill-to-waves/
 ~/.claude/skills/orchestrate/        ~/.agents/skills/orchestrate/
+~/.claude/skills/ship-it-to/         ~/.agents/skills/ship-it-to/
 ~/.claude/agents/*.md                ~/.codex/agents/*.toml
 ```
 
@@ -118,7 +125,8 @@ legacy root and the installer warns if a copy is there too) and custom agents fr
 it is set, because a map's in-flight ceiling must stay under it.
 
 The skill text in this repo is written in Claude Code's vocabulary. For Codex the installer
-rewrites, and only rewrites: `/orchestrate`, `/grill-to-waves`, and `/setup-matt-pocock-skills` to
+rewrites, and only rewrites: `/orchestrate`, `/grill-to-waves`, `/ship-it-to`, and
+`/setup-matt-pocock-skills` to
 Codex `$` mentions; `.claude/worktrees` and `.claude/scratch` to `.codex/…`; the two grill-skill
 names to `$grilling` and `$domain-modeling`; and it drops the `disable-model-invocation` line, whose
 Codex equivalent is each skill's `agents/openai.yaml` (`allow_implicit_invocation: false`).
@@ -176,6 +184,17 @@ copy:
 /orchestrate map <map> + spec <spec-a> + team
 /orchestrate map <map> + tail        # the serial owner, once every row is closed
 ```
+
+Once a wave is merged into the integration branch, promoting it is its own session:
+
+```
+/ship-it-to stg      # to the staging branch
+/ship-it-to prd      # to the production branch
+```
+
+It reads the repository's own promotion contract rather than assuming one, so it fits a repo that
+promotes through a pivot branch and a repo that fast-forwards. It stops at the opened request
+wherever the forge reserves the merge to a role you do not hold, and says who must finish it.
 
 ## Requirements
 

@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
-# Install the grill-to-waves + orchestrate skills and their executor/scout/scribe agents for
-# Claude Code and/or Codex CLI.
+# Install the grill-to-waves, orchestrate and ship-it-to skills and their executor/scout/scribe
+# agents for Claude Code and/or Codex CLI.
 #
 # Claude Code:
 #   skills/grill-to-waves  ->  ~/.claude/skills/grill-to-waves     (or <project>/.claude/skills/...)
 #   skills/orchestrate     ->  ~/.claude/skills/orchestrate
+#   skills/ship-it-to      ->  ~/.claude/skills/ship-it-to
 #   agents/*.md            ->  ~/.claude/agents/
 #
 # Codex CLI:
 #   skills/grill-to-waves  ->  ~/.agents/skills/grill-to-waves     (or <project>/.agents/skills/...)
 #   skills/orchestrate     ->  ~/.agents/skills/orchestrate
+#   skills/ship-it-to      ->  ~/.agents/skills/ship-it-to
 #   agents/codex/*.toml    ->  ~/.codex/agents/                    (or <project>/.codex/agents/)
 #
 # The skill text is written in Claude Code's vocabulary. For Codex the installer rewrites, and only
@@ -25,7 +27,7 @@
 set -euo pipefail
 
 REPO="https://github.com/jefrykurniaone/grill-to-waves.git"
-SKILLS=(grill-to-waves orchestrate)
+SKILLS=(grill-to-waves orchestrate ship-it-to)
 REQUIRED_CODEX_SKILLS=(grilling domain-modeling setup-matt-pocock-skills)
 MATTPOCOCK_CODEX_INSTALL_COMMAND="npx skills@latest add mattpocock/skills --skill '*' -a codex"
 STAMP="$(date +%Y%m%d-%H%M%S)"
@@ -156,8 +158,8 @@ install_file() {          # $1 from, $2 to, $3 backup root
 codexify_skill_file() {   # $1 file
   local f="$1" tmp="$1.codex.$$"
   LC_ALL=C sed -E \
-    -e 's#(^|[^[:alnum:]_./\\-])/(orchestrate|grill-to-waves|setup-matt-pocock-skills)([^[:alnum:]_/-]|$)#\1$\2\3#g' \
-    -e 's#(^|[^[:alnum:]_./\\-])/(orchestrate|grill-to-waves|setup-matt-pocock-skills)([^[:alnum:]_/-]|$)#\1$\2\3#g' \
+    -e 's#(^|[^[:alnum:]_./\\-])/(orchestrate|grill-to-waves|ship-it-to|setup-matt-pocock-skills)([^[:alnum:]_/-]|$)#\1$\2\3#g' \
+    -e 's#(^|[^[:alnum:]_./\\-])/(orchestrate|grill-to-waves|ship-it-to|setup-matt-pocock-skills)([^[:alnum:]_/-]|$)#\1$\2\3#g' \
     -e 's#\.claude([/\\])(worktrees|scratch)#.codex\1\2#g' \
     -e 's#mattpocock-skills:grilling#$grilling#g' \
     -e 's#mattpocock-skills:domain-modeling#$domain-modeling#g' \
@@ -219,8 +221,8 @@ fi
 
 # --- 6. Report ----------------------------------------------------------------------------------
 step "Done."
-[ "$DO_CLAUDE" = 1 ] && note "Claude Code: restart the session, then run  /grill-to-waves  and later  /orchestrate"
-[ "$DO_CODEX" = 1 ] && note "Codex CLI: restart Codex, then run  \$grill-to-waves  and later  \$orchestrate"
+[ "$DO_CLAUDE" = 1 ] && note "Claude Code: restart the session, then run  /grill-to-waves , later  /orchestrate , and  /ship-it-to stg|prd  to promote"
+[ "$DO_CODEX" = 1 ] && note "Codex CLI: restart Codex, then run  \$grill-to-waves , later  \$orchestrate , and  \$ship-it-to stg|prd  to promote"
 [ "$DO_CODEX" = 1 ] && note "Codex dispatches executors with spawn_agent; the custom agents pin model and reasoning effort per tier."
 
 # The pipeline requires setup-matt-pocock-skills (Stage 0), grilling and domain-modeling (Stage 1).

@@ -1,17 +1,19 @@
 <#
 .SYNOPSIS
-Install the grill-to-waves + orchestrate skills and their executor/scout/scribe agents for Claude Code
-and/or Codex CLI.
+Install the grill-to-waves, orchestrate and ship-it-to skills and their executor/scout/scribe agents
+for Claude Code and/or Codex CLI.
 
 .DESCRIPTION
 Claude Code:
   skills/grill-to-waves  ->  ~/.claude/skills/grill-to-waves      (or <project>/.claude/skills/...)
   skills/orchestrate     ->  ~/.claude/skills/orchestrate
+  skills/ship-it-to      ->  ~/.claude/skills/ship-it-to
   agents/*.md            ->  ~/.claude/agents/
 
 Codex CLI:
   skills/grill-to-waves  ->  ~/.agents/skills/grill-to-waves      (or <project>/.agents/skills/...)
   skills/orchestrate     ->  ~/.agents/skills/orchestrate
+  skills/ship-it-to      ->  ~/.agents/skills/ship-it-to
   agents/codex/*.toml    ->  ~/.codex/agents/                     (or <project>/.codex/agents/)
 
 The skill text is written in Claude Code's vocabulary. For Codex the installer rewrites, and only
@@ -52,7 +54,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $Repo = 'https://github.com/jefrykurniaone/grill-to-waves.git'
-$Skills = @('grill-to-waves', 'orchestrate')
+$Skills = @('grill-to-waves', 'orchestrate', 'ship-it-to')
 $RequiredCodexSkills = @('grilling', 'domain-modeling', 'setup-matt-pocock-skills')
 $MattPocockCodexInstallCommand = "npx skills@latest add mattpocock/skills --skill '*' -a codex"
 $Stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
@@ -178,7 +180,7 @@ function Convert-SkillFileForCodex([string]$Path) {
     $text = [System.IO.File]::ReadAllText($Path, $Utf8NoBom)
     # Slash commands -> Codex skill mentions.
     # A path segment (`../grill-to-waves/DEFAULTS.md`, `skills/grill-to-waves`) is left alone.
-    $text = [regex]::Replace($text, '(?<![\w./\\-])/(orchestrate|grill-to-waves|setup-matt-pocock-skills)(?![\w/-])', '$$$1')
+    $text = [regex]::Replace($text, '(?<![\w./\\-])/(orchestrate|grill-to-waves|ship-it-to|setup-matt-pocock-skills)(?![\w/-])', '$$$1')
     # The agent directory inside the repository.
     $text = [regex]::Replace($text, '\.claude([/\\])(worktrees|scratch)', '.codex$1$2')
     # The two required grill skills, plugin-namespaced on Claude Code, plain skills on Codex.
@@ -248,10 +250,10 @@ if ($doCodex) {
 # --- 6. Report ----------------------------------------------------------------------------------
 Write-Step 'Done.'
 if ($doClaude) {
-    Write-Note 'Claude Code: restart the session, then run  /grill-to-waves  and later  /orchestrate'
+    Write-Note 'Claude Code: restart the session, then run  /grill-to-waves , later  /orchestrate , and  /ship-it-to stg|prd  to promote'
 }
 if ($doCodex) {
-    Write-Note 'Codex CLI: restart Codex, then run  $grill-to-waves  and later  $orchestrate'
+    Write-Note 'Codex CLI: restart Codex, then run  $grill-to-waves , later  $orchestrate , and  $ship-it-to stg|prd  to promote'
     Write-Note 'Codex dispatches executors with spawn_agent; the custom agents pin model and reasoning effort per tier.'
 }
 

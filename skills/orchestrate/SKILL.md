@@ -282,6 +282,11 @@ without saying so by name. The report names the tickets closed with their merge 
 review requests, the hand-backs, the defects filed, anything outstanding for the user, and the next
 wave with what it waits on.
 
+**This run ends at the integration branch.** Promoting what landed to staging or production is
+`/ship-it-to stg` or `/ship-it-to prd`, in its own session: it reads the repository's promotion
+contract and the forge's protections rather than inheriting anything from this run. Name it in the
+report when a wave is worth promoting; never promote from here.
+
 ## Team shape — `+ team`
 
 **Scope is one spec row; mechanics are solo's.** A developer on another machine shares no filesystem,
