@@ -122,7 +122,7 @@ Code a per-invocation model override takes precedence over the agent file, and t
 | Skill invocation | a slash command: the skill name after `/` | a skill mention: the skill name after `$` |
 | Agent directory in the repo | `.claude/` — `worktrees/<row>/<ticket>` and `scratch/` under it | `.codex/` — the same two paths under it, inside the workspace so a `workspace-write` sandbox can write there |
 | Required Matt Pocock skills | the `mattpocock-skills` plugin, invoked as `mattpocock-skills:<name>` or `/setup-matt-pocock-skills` | `$grilling`, `$domain-modeling`, and `$setup-matt-pocock-skills`, installed under the project or user `.agents/skills/` directory |
-| Read-only scouts | by tool list in the frontmatter | by `sandbox_mode = "read-only"` |
+| Read-only scouts | `permissionMode: plan` in the frontmatter (Write and Edit denied by the host; a shell command outside the built-in read-only set is reviewed or prompted, never silently run) plus the tool list | by `sandbox_mode = "read-only"` |
 
 The skill text in this repo is written in Claude Code's vocabulary; the installer rewrites the
 invocation prefix, the agent directory and the grill-skill names when it installs for Codex, and

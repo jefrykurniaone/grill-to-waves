@@ -154,7 +154,8 @@ To update an existing Codex installation, rerun `./install.ps1 -Target codex` on
 current skills and every Codex agent, backing up the previous installation by default. Host-specific
 rewrites preserve the workflow, including execution-progress updates in the map body after each wave.
 
-Read-only scouts are read-only by `sandbox_mode = "read-only"`. Codex subagents share the parent's
+Read-only scouts are read-only by `sandbox_mode = "read-only"` (on Claude Code, by
+`permissionMode: plan`). Codex subagents share the parent's
 working directory, so the orchestrator names each executor's worktree path in its brief; an executor
 whose sandbox has no network reports its branch and the orchestrator pushes and opens the review
 request itself. The full table, including dispatch tool names, is the `Hosts` section of
