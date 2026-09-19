@@ -123,20 +123,18 @@ line to run next. It writes nothing.
 ## Model and effort
 
 [../grill-to-waves/DEFAULTS.md](../grill-to-waves/DEFAULTS.md) is the source of truth, overridden only
-by the repository's own `CLAUDE.md` or `AGENTS.md`. Executors are Fable 5.1, Fable, Opus or Sonnet at
+by the repository's own `CLAUDE.md` or `AGENTS.md`. Executors are Fable, Opus or Sonnet at
 `medium`, `high` or `xhigh`, from the ticket's labels. Select the axes independently: consequence and
 reach set the tier; exploration and unresolved decisions set the effort; default effort is `high`
 when unlabelled. Re-grade only when the body contradicts a label: a `medium` brief that leaves a design
 or correctness argument open moves to `high` or `xhigh`; an Opus ticket whose failure would be
-irreversible, run-wide or adversarial moves to Fable; and a Fable ticket moves to Fable 5.1 only when
-the ticket records evidence that Fable at higher effort is insufficient. Do not change effort unless
-the workload also contradicts that label. Correct the affected label and say why in one line.
+irreversible, run-wide or adversarial moves to Fable. Do not change effort unless the workload also
+contradicts that label. Correct the affected label and say why in one line.
 Dispatch `executor-<tier>-<effort>` by the host's mechanism in DEFAULTS.md's *Hosts* table (Claude
 Code: `subagent_type`; Codex: `spawn_agent` naming that custom agent). Scouts are
-`scout-sonnet-medium`, `scout-sonnet-high`, `scout-opus-medium`, `scout-opus-high`; neither Fable tier
-has a scout. The *Hosts* table says which exact model each host runs. If the matching
-`executor-fable-five-one-<effort>` is missing or its model is unavailable, dispatch
-`executor-fable-<effort>`; if that agent or Fable 5 is unavailable, dispatch
+`scout-sonnet-medium`, `scout-sonnet-high`, `scout-opus-medium`, `scout-opus-high`; the Fable tier
+has no scout. The *Hosts* table says which model each host runs. If the matching
+`executor-fable-<effort>` is missing or the Fable model is unavailable, dispatch
 `executor-opus-<effort>`. Record every substitution on the ticket and in the wave report. If any
 other agent is missing, fall back to the host's general agent with the mapped model and effort stated
 in the prompt, and record that too.

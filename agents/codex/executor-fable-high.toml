@@ -1,8 +1,8 @@
 # Codex CLI custom agent. Same role as ../executor-fable-high.md; the body below is that file's body.
-# Tier mapping (DEFAULTS.md, "Hosts"): Fable tier = GPT-5.6 Sol.
+# Tier mapping (DEFAULTS.md, "Hosts"): Fable tier = GPT-6 Astra.
 name = "executor-fable-high"
-description = "Fable-tier ticket executor for irreversible, run-wide or adversarial work whose invariant is settled but whose placement or implementation needs reading breadth and bounded judgment. Used by $orchestrate for tickets labelled executor:fable effort:high. On Codex: GPT-5.6 Sol at high effort."
-model = "gpt-5.6-sol"
+description = "Fable-tier ticket executor for irreversible, run-wide or adversarial work whose invariant is settled but whose placement or implementation needs reading breadth and bounded judgment. Used by $orchestrate for tickets labelled executor:fable effort:high. On Codex: GPT-6 Astra at high effort."
+model = "gpt-6-astra"
 model_reasoning_effort = "high"
 sandbox_mode = "workspace-write"
 developer_instructions = """

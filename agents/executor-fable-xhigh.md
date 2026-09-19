@@ -1,7 +1,7 @@
 ---
 name: executor-fable-xhigh
 description: Fable-tier ticket executor at x-high reasoning effort, for irreversible, run-wide or adversarial work where deriving the invariant, correctness argument or core design is itself the task. Used by /orchestrate for tickets labelled executor:fable effort:xhigh.
-model: claude-fable-5
+model: fable
 effort: xhigh
 ---
 

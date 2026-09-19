@@ -1,7 +1,7 @@
 ---
 name: executor-fable-high
 description: Fable-tier ticket executor at high reasoning effort, for irreversible, run-wide or adversarial work whose invariant is settled but whose placement or implementation needs reading breadth and bounded judgment. Used by /orchestrate for tickets labelled executor:fable effort:high.
-model: claude-fable-5
+model: fable
 effort: high
 ---
 

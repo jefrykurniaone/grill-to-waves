@@ -1,7 +1,7 @@
 ---
 name: executor-fable-medium
 description: Fable-tier ticket executor at medium reasoning effort, for fully specified and narrowly located work whose failure would still be irreversible, run-wide or adversarial. Used by /orchestrate for tickets labelled executor:fable effort:medium.
-model: claude-fable-5
+model: fable
 effort: medium
 ---
 

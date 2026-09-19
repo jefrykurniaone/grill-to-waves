@@ -24,13 +24,13 @@ production deploy rather than a handed-back ticket.
 | `skills/grill-to-waves/SKILL.md` | The seven-stage pipeline (Stage 0 tracker → Stage 6 stop). |
 | `skills/grill-to-waves/SESSIONS.md` | Write surfaces, the collision rule, ownership, resume. The protocol both skills share. |
 | `skills/grill-to-waves/TRACKERS.md` | The five tracker operations for GitHub (`gh`), GitLab (`glab`) and local markdown. |
-| `skills/grill-to-waves/DEFAULTS.md` | Model/effort ladder, both Fable tiers, scout tiering, and the junction-safe worktree teardown. |
+| `skills/grill-to-waves/DEFAULTS.md` | Model/effort ladder, the Fable tier, scout tiering, and the junction-safe worktree teardown. |
 | `skills/orchestrate/SKILL.md` | Wave dispatch, verification, merge gate, closing upward, team shape. |
 | `skills/ship-it-to/SKILL.md` | Promotion to staging or production: contract resolution, branch protections, the pivot, the gate on the pivot, authorship of what travels, the request body, and where the run stops. |
-| `agents/executor-{fable-five-one,fable,opus,sonnet}-{medium,high,xhigh}.md` | Twelve ticket executors, one per tier/effort pairing. |
+| `agents/executor-{fable,opus,sonnet}-{medium,high,xhigh}.md` | Nine ticket executors, one per tier/effort pairing. |
 | `agents/scout-{sonnet-medium,sonnet-high,opus-medium,opus-high}.md` | Four read-only scouts: locate, sweep, focused judgment, broad analysis. |
 | `agents/vault-scribe.md` | Optional Obsidian scribe. Owns every vault read and write so the orchestrator's session spends no context on note prose. Available on both hosts. |
-| `agents/codex/*.toml` | The same seventeen executor, scout and scribe agents as Codex custom agents — same names, same bodies, Codex models per the `Hosts` table in `DEFAULTS.md`. |
+| `agents/codex/*.toml` | The same fourteen executor, scout and scribe agents as Codex custom agents — same names, same bodies, Codex models per the `Hosts` table in `DEFAULTS.md`. |
 | `skills/*/agents/openai.yaml` | Codex skill metadata: user-invocation only, the equivalent of `disable-model-invocation`. Claude Code ignores it. |
 
 The tracker is the state store — specs, tickets and the map are issues, and the repo keeps a durable
@@ -131,13 +131,13 @@ Codex `$` mentions; `.claude/worktrees` and `.claude/scratch` to `.codex/…`; t
 names to `$grilling` and `$domain-modeling`; and it drops the `disable-model-invocation` line, whose
 Codex equivalent is each skill's `agents/openai.yaml` (`allow_implicit_invocation: false`).
 
-The tier names in the labels and agent names are tiers, not vendors. The Codex agents pin these
-models; edit the `.toml` to re-map:
+The tier names in the labels and agent names are tiers, not vendors or model generations. Claude
+Code agents use the host's aliases (`fable`, `opus`, `sonnet`), so each tier follows the current
+generation without an edit. The Codex agents pin these models; edit the `.toml` to re-map:
 
 | Tier (label) | Claude Code | Codex CLI |
 |---|---|---|
-| highest (`executor:fable-five-one`) | Fable 5.1 (`claude-fable-5-1`) at `medium` / `high` / `xhigh` | `gpt-6-astra` at the same effort |
-| Fable (`executor:fable`) | Fable 5 (`claude-fable-5`) at `medium` / `high` / `xhigh` | `gpt-5.6-sol` at the same effort |
+| Fable (`executor:fable`) | Fable (alias `fable`) at `medium` / `high` / `xhigh` | `gpt-6-astra` at the same effort |
 | frontier (`executor:opus`) | Opus at `medium` / `high` / `xhigh` | `gpt-5.6-terra` at the same effort |
 | mid (`executor:sonnet`) | Sonnet at `medium` / `high` / `xhigh` | `gpt-5.6-luna` at the same effort |
 | `scout-sonnet-*` | Sonnet at `medium` / `high` | `gpt-5.6-luna` at the same effort |
@@ -226,10 +226,9 @@ re-detecting it every run.
   serial merges plus a whole-gate re-run after each merge is the only net.
 - **The orchestrator verifies; the executor does not self-certify.** An executor's account of its own
   work is a claim. The orchestrator reads the diff, runs the gate, and measures rather than eyeballs.
-- **Executor tier and effort are separate axes.** Consequence and reach choose Sonnet, Opus, Fable or
-  Fable 5.1; exploration and unresolved decisions choose `medium`, `high` or `xhigh`. Fable covers
-  failure that would be irreversible, run-wide or adversarial; Fable 5.1 is the explicit escalation
-  when Fable at higher effort is known or expected to fall short. Fallback preserves effort.
+- **Executor tier and effort are separate axes.** Consequence and reach choose Sonnet, Opus or Fable;
+  exploration and unresolved decisions choose `medium`, `high` or `xhigh`. Fable covers failure that
+  would be irreversible, run-wide or adversarial. Fallback preserves effort.
 - **Two agent sessions never share one working copy.** They contend on the tree, the dev server and
   the dev database at once. Splitting a run means one developer per clone.
 - **Nothing is true until it is on the tracker** — and the map's *body* is where a resuming session
