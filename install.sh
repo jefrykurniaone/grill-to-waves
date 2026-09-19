@@ -29,6 +29,9 @@ set -euo pipefail
 REPO="https://github.com/jefrykurniaone/grill-to-waves.git"
 SKILLS=(grill-to-waves orchestrate ship-it-to)
 REQUIRED_CODEX_SKILLS=(grilling domain-modeling setup-matt-pocock-skills)
+# Agent definitions this repo used to ship and no longer does. A copy left in the agent directory
+# would keep registering a tier the skills no longer dispatch, so the installer removes it.
+RETIRED_AGENTS=(executor-fable-five-one-medium executor-fable-five-one-high executor-fable-five-one-xhigh)
 MATTPOCOCK_CODEX_INSTALL_COMMAND="npx skills@latest add mattpocock/skills --skill '*' -a codex"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
@@ -152,6 +155,20 @@ install_file() {          # $1 from, $2 to, $3 backup root
   cp "$from" "$to"
 }
 
+retire_agents() {         # $1 agents dir, $2 extension, $3 backup root
+  local dir="$1" ext="$2" backup_root="$3" name path
+  for name in "${RETIRED_AGENTS[@]}"; do
+    path="$dir/$name.$ext"
+    [ -f "$path" ] || continue
+    if [ "$NO_BACKUP" != 1 ]; then
+      mkdir -p "$backup_root"
+      cp "$path" "$backup_root/$name.$ext-$STAMP"
+    fi
+    rm -f "$path"
+    note "removed retired agent $path"
+  done
+}
+
 # Rewrite one installed skill file from Claude Code's vocabulary to Codex's. LC_ALL=C keeps sed
 # byte-oriented, so non-ASCII prose passes through untouched. The first substitution runs twice
 # because it consumes the character before a match and two mentions can sit close together.
@@ -180,6 +197,7 @@ if [ "$DO_CLAUDE" = 1 ]; then
     count=$((count + 1))
   done
   note "installed $count agent definitions into $CLAUDE_HOME/agents"
+  retire_agents "$CLAUDE_HOME/agents" md "$CLAUDE_HOME/backups"
 fi
 
 # --- 5. Codex CLI -------------------------------------------------------------------------------
@@ -198,6 +216,7 @@ if [ "$DO_CODEX" = 1 ]; then
     count=$((count + 1))
   done
   note "installed $count custom agent definitions into $CODEX_AGENTS_DIR"
+  retire_agents "$CODEX_AGENTS_DIR" toml "$CODEX_BACKUPS"
 
   # A copy under the legacy root would register a second skill with the same name.
   for skill in "${SKILLS[@]}"; do
@@ -227,7 +246,10 @@ step "Done."
 
 # The pipeline requires setup-matt-pocock-skills (Stage 0), grilling and domain-modeling (Stage 1).
 if [ "$DO_CLAUDE" = 1 ]; then
-  if compgen -G "$HOME/.claude/plugins/cache/mattpocock*" > /dev/null; then
+  # The plugin cache is laid out <marketplace>/<plugin>; the marketplace name depends on how the
+  # plugin was added (mattpocock, claude-plugins-official, ...), so match the plugin one level down.
+  if compgen -G "$HOME/.claude/plugins/cache/*/mattpocock-skills" > /dev/null || \
+     compgen -G "$HOME/.claude/plugins/cache/mattpocock*" > /dev/null; then
     note "Claude Code required plugin mattpocock-skills: found."
   else
     echo ""

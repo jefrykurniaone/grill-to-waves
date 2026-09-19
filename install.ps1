@@ -56,6 +56,9 @@ Set-StrictMode -Version Latest
 $Repo = 'https://github.com/jefrykurniaone/grill-to-waves.git'
 $Skills = @('grill-to-waves', 'orchestrate', 'ship-it-to')
 $RequiredCodexSkills = @('grilling', 'domain-modeling', 'setup-matt-pocock-skills')
+# Agent definitions this repo used to ship and no longer does. A copy left in the agent directory
+# would keep registering a tier the skills no longer dispatch, so the installer removes it.
+$RetiredAgents = @('executor-fable-five-one-medium', 'executor-fable-five-one-high', 'executor-fable-five-one-xhigh')
 $MattPocockCodexInstallCommand = "npx skills@latest add mattpocock/skills --skill '*' -a codex"
 $Stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $Utf8NoBom = New-Object System.Text.UTF8Encoding $false
@@ -174,6 +177,19 @@ function Install-File([string]$From, [string]$To, [string]$BackupRoot) {
     Copy-Item -LiteralPath $From -Destination $To -Force
 }
 
+function Remove-RetiredAgents([string]$Dir, [string]$Extension, [string]$BackupRoot) {
+    foreach ($name in $RetiredAgents) {
+        $path = Join-Path $Dir "$name.$Extension"
+        if (-not (Test-Path -LiteralPath $path)) { continue }
+        if (-not $NoBackup) {
+            New-Item -ItemType Directory -Force -Path $BackupRoot | Out-Null
+            Copy-Item -LiteralPath $path -Destination (Join-Path $BackupRoot ("{0}.{1}-{2}" -f $name, $Extension, $Stamp))
+        }
+        Remove-Item -LiteralPath $path -Force
+        Write-Note "removed retired agent $path"
+    }
+}
+
 # Rewrite one installed skill file from Claude Code's vocabulary to Codex's. Byte-exact UTF-8 in
 # and out (no BOM), so non-ASCII prose survives Windows PowerShell 5.1.
 function Convert-SkillFileForCodex([string]$Path) {
@@ -205,6 +221,7 @@ if ($doClaude) {
         Install-File $agent.FullName (Join-Path $agentsDir $agent.Name) $backups
     }
     Write-Note "installed $($agents.Count) agent definitions into $agentsDir"
+    Remove-RetiredAgents $agentsDir 'md' $backups
 }
 
 # --- 5. Codex CLI --------------------------------------------------------------------------------
@@ -224,6 +241,7 @@ if ($doCodex) {
         Install-File $agent.FullName (Join-Path $codexAgentsDir $agent.Name) $codexBackups
     }
     Write-Note "installed $($agents.Count) custom agent definitions into $codexAgentsDir"
+    Remove-RetiredAgents $codexAgentsDir 'toml' $codexBackups
 
     # A copy under the legacy root would register a second skill with the same name.
     foreach ($skill in $Skills) {
@@ -259,9 +277,15 @@ if ($doCodex) {
 
 # The pipeline requires setup-matt-pocock-skills (Stage 0), grilling and domain-modeling (Stage 1).
 if ($doClaude) {
-    $mattpocockInstalled = @(
-        Get-ChildItem (Join-Path $HOME '.claude/plugins/cache') -Directory -Filter 'mattpocock*' -ErrorAction SilentlyContinue
-    ).Count -gt 0
+    # The plugin cache is laid out <marketplace>/<plugin>; the marketplace name depends on how the
+    # plugin was added (mattpocock, claude-plugins-official, ...), so match the plugin one level down.
+    $pluginCache = Join-Path $HOME '.claude/plugins/cache'
+    $mattpocockInstalled = (@(
+        Get-ChildItem $pluginCache -Directory -Filter 'mattpocock*' -ErrorAction SilentlyContinue
+    ).Count -gt 0) -or (@(
+        Get-ChildItem $pluginCache -Directory -ErrorAction SilentlyContinue |
+            ForEach-Object { Get-ChildItem $_.FullName -Directory -Filter 'mattpocock-skills' -ErrorAction SilentlyContinue }
+    ).Count -gt 0)
     if ($mattpocockInstalled) {
         Write-Note 'Claude Code required plugin mattpocock-skills: found.'
     }
