@@ -1,8 +1,8 @@
 # Codex CLI custom agent. Same role as ../executor-opus-high.md; the body below is that file's body.
-# Tier mapping (DEFAULTS.md, "Hosts"): Opus tier = GPT-5.6 Terra. Edit `model` to re-map.
+# Tier mapping (DEFAULTS.md, "Hosts"): Opus tier = GPT-5.6 Sol. Edit `model` to re-map.
 name = "executor-opus-high"
-description = "Ticket executor for tickets where the executor decides things a later ticket builds on. Used by $orchestrate for tickets labelled executor:opus effort:high. On Codex: GPT-5.6 Terra at high effort."
-model = "gpt-5.6-terra"
+description = "Ticket executor for tickets where the executor decides things a later ticket builds on. Used by $orchestrate for tickets labelled executor:opus effort:high. On Codex: GPT-5.6 Sol at high effort."
+model = "gpt-5.6-sol"
 model_reasoning_effort = "high"
 sandbox_mode = "workspace-write"
 developer_instructions = """

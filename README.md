@@ -138,10 +138,18 @@ generation without an edit. The Codex agents pin these models; edit the `.toml` 
 | Tier (label) | Claude Code | Codex CLI |
 |---|---|---|
 | Fable (`executor:fable`) | Fable (alias `fable`) at `medium` / `high` / `xhigh` | `gpt-6-astra` at the same effort |
-| frontier (`executor:opus`) | Opus at `medium` / `high` / `xhigh` | `gpt-5.6-terra` at the same effort |
-| mid (`executor:sonnet`) | Sonnet at `medium` / `high` / `xhigh` | `gpt-5.6-luna` at the same effort |
-| `scout-sonnet-*` | Sonnet at `medium` / `high` | `gpt-5.6-luna` at the same effort |
-| `scout-opus-*` | Opus at `medium` / `high` | `gpt-5.6-terra` at the same effort |
+| frontier (`executor:opus`) | Opus at `medium` / `high` / `xhigh` | `gpt-5.6-sol` at the same effort |
+| mid (`executor:sonnet`) | Sonnet at `medium` / `high` / `xhigh` | `gpt-5.6-terra` at the same effort |
+| `scout-sonnet-high` | Sonnet at `high` | `gpt-5.6-terra` at `high` |
+| `scout-sonnet-medium` | Sonnet at `medium` | `gpt-5.6-luna` at `medium` |
+| `scout-opus-*` | Opus at `medium` / `high` | `gpt-5.6-sol` at the same effort |
+
+Codex positions the four models as Astra "our most capable", Sol "the most capable GPT-5.6 model
+for complex coding", Terra "balanced ... for everyday work" and Luna "fast and affordable ... lowest
+cost in the family" (`learn.chatgpt.com/docs/models`), so the three tiers land on Astra, Sol and
+Terra, and Luna takes only the two narrowly scoped agents. A plan without access to a pinned model
+may be served a cheaper one without an error (openai/codex#46632); check the plan before trusting
+the Fable tier on Codex.
 
 `vault-scribe` is installed on both hosts. Its Codex definition uses `workspace-write` and the
 Sonnet-tier model at `medium` effort, as defined in `DEFAULTS.md`. Pass the vault's absolute path

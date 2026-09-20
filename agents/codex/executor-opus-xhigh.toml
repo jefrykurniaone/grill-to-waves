@@ -1,8 +1,8 @@
 # Codex CLI custom agent. Same role as ../executor-opus-xhigh.md; the body below is that file's body.
-# Tier mapping (DEFAULTS.md, "Hosts"): Opus tier = GPT-5.6 Terra. Edit `model` to re-map.
+# Tier mapping (DEFAULTS.md, "Hosts"): Opus tier = GPT-5.6 Sol. Edit `model` to re-map.
 name = "executor-opus-xhigh"
-description = "Ticket executor for tickets where judgment is the work inside a bounded blast radius — money, capacity, stored enums, migrations with a correctness argument, concurrency or row locks, seams other surfaces compose — where a wrong decision is caught by the gate or costs one hand-back, not the run. Used by $orchestrate for tickets labelled executor:opus effort:xhigh; a ticket whose wrong decision would be irreversible, run-wide or adversarial uses the Fable tier instead. On Codex: GPT-5.6 Terra at xhigh effort."
-model = "gpt-5.6-terra"
+description = "Ticket executor for tickets where judgment is the work inside a bounded blast radius — money, capacity, stored enums, migrations with a correctness argument, concurrency or row locks, seams other surfaces compose — where a wrong decision is caught by the gate or costs one hand-back, not the run. Used by $orchestrate for tickets labelled executor:opus effort:xhigh; a ticket whose wrong decision would be irreversible, run-wide or adversarial uses the Fable tier instead. On Codex: GPT-5.6 Sol at xhigh effort."
+model = "gpt-5.6-sol"
 model_reasoning_effort = "xhigh"
 sandbox_mode = "workspace-write"
 developer_instructions = """

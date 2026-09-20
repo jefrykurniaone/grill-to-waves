@@ -102,18 +102,21 @@ the wave report.
 
 The names in the labels (`fable`, `opus`, `sonnet`) and agent names are stable executor tiers, not
 model generations. Claude Code agents use the host's model aliases (`fable`, `opus`, `sonnet`), so
-each tier follows the current generation without an edit; Codex maps the three tiers to Astra, Terra
-and Luna. The labels stay the same so a map planned on one host executes on the other. On Claude
-Code a per-invocation model override takes precedence over the agent file, and the agent file over
-`CLAUDE_CODE_SUBAGENT_MODEL`.
+each tier follows the current generation without an edit; Codex maps the three tiers to Astra, Sol
+and Terra, with Luna reserved for the two narrowly scoped agents. The labels stay the same so a map
+planned on one host executes on the other. On Claude Code a per-invocation model override takes
+precedence over the agent file, and the agent file over `CLAUDE_CODE_SUBAGENT_MODEL`. On Codex a
+plan without access to a pinned model may be served a cheaper one silently (openai/codex#46632
+reports `gpt-6-astra` answered by `gpt-5.6-luna` on a Plus plan); a Fable-tier ticket on such a
+plan is running one tier lower than its label says, so check the plan before trusting the tier.
 
 | | Claude Code | Codex CLI |
 |---|---|---|
 | Fable tier (`fable`) | Fable (alias `fable`, currently Fable 5.1) at `medium` / `high` / `xhigh` | GPT-6 Astra (`gpt-6-astra`) at the same effort |
-| Frontier tier (`opus`) | Opus at `medium` / `high` / `xhigh` | GPT-5.6 Terra (`gpt-5.6-terra`) at the same effort |
-| Mid tier (`sonnet`) | Sonnet at `medium` / `high` / `xhigh` | GPT-5.6 Luna (`gpt-5.6-luna`) at the same effort |
-| Sonnet scouts (`scout-sonnet-*`) | Sonnet at `medium` / `high` | GPT-5.6 Luna (`gpt-5.6-luna`) at the same effort |
-| Opus scouts (`scout-opus-*`) | Opus at `medium` / `high` | GPT-5.6 Terra (`gpt-5.6-terra`) at the same effort |
+| Frontier tier (`opus`) | Opus at `medium` / `high` / `xhigh` | GPT-5.6 Sol (`gpt-5.6-sol`) at the same effort |
+| Mid tier (`sonnet`) | Sonnet at `medium` / `high` / `xhigh` | GPT-5.6 Terra (`gpt-5.6-terra`) at the same effort |
+| Sonnet scouts (`scout-sonnet-*`) | Sonnet at `medium` / `high` | `scout-sonnet-high`: GPT-5.6 Terra (`gpt-5.6-terra`); `scout-sonnet-medium`: GPT-5.6 Luna (`gpt-5.6-luna`), the one-grep locate being the narrowly scoped work Luna is positioned for |
+| Opus scouts (`scout-opus-*`) | Opus at `medium` / `high` | GPT-5.6 Sol (`gpt-5.6-sol`) at the same effort |
 | Optional vault scribe (`vault-scribe`) | Sonnet at `medium` | GPT-5.6 Luna (`gpt-5.6-luna`) at `medium`, `workspace-write`; vault writes require session permission for the target path |
 | Agent definitions | `~/.claude/agents/<name>.md` — YAML frontmatter `model`, `effort`, `tools` | `~/.codex/agents/<name>.toml` (or `.codex/agents/` in a project) — `model`, `model_reasoning_effort`, `sandbox_mode`, `developer_instructions` |
 | Dispatch | `Agent` tool with `subagent_type: <name>` | `spawn_agent` naming the custom agent; `wait_agent` to collect; `followup_task` for rework on the same executor |
