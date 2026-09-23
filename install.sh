@@ -7,6 +7,8 @@
 #   skills/orchestrate     ->  ~/.claude/skills/orchestrate
 #   skills/ship-it-to      ->  ~/.claude/skills/ship-it-to
 #   agents/*.md            ->  ~/.claude/agents/
+#   "attribution": { "commit": "", "pr": "" }  ->  ~/.claude/settings.json   (always user scope;
+#                             an existing attribution key is kept)
 #
 # Codex CLI:
 #   skills/grill-to-waves  ->  ~/.agents/skills/grill-to-waves     (or <project>/.agents/skills/...)
@@ -46,7 +48,7 @@ while [ $# -gt 0 ]; do
     --project) PROJECT="${2:?--project needs a path}"; shift 2 ;;
     --no-backup) NO_BACKUP=1; shift ;;
     --ref) REF="${2:?--ref needs a value}"; shift 2 ;;
-    -h|--help) sed -n '2,24p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,28p' "$0"; exit 0 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
@@ -169,6 +171,63 @@ retire_agents() {         # $1 agents dir, $2 extension, $3 backup root
   done
 }
 
+# Claude Code writes a Co-Authored-By trailer into every commit and a "Generated with Claude Code"
+# line into every pull request body unless `attribution` hides them. The key goes in as text right
+# after the opening brace, so the rest of settings.json keeps its formatting; an existing
+# `attribution` is the user's own choice and is left alone.
+hide_claude_attribution() {   # $1 settings file, $2 backup root
+  local f="$1" backup_root="$2" tmp="$1.attribution.$$" empty=0
+  local entry='"attribution": { "commit": "", "pr": "" }'
+  if [ ! -f "$f" ] || ! grep -q '[^[:space:]]' "$f"; then
+    mkdir -p "$(dirname "$f")"
+    printf '{\n  %s\n}\n' "$entry" > "$f"
+    note "created $f with commit and pull request attribution hidden"
+    return
+  fi
+  if grep -q '"attribution"[[:space:]]*:' "$f"; then
+    note "kept the existing attribution setting in $f"
+    return
+  fi
+  case "$(tr -d '[:space:]' < "$f")" in
+    '{}') empty=1 ;;
+    '{'*) ;;
+    *) note "WARNING: $f is not a JSON object; add $entry to it yourself to hide commit and pull request attribution."; return ;;
+  esac
+
+  LC_ALL=C awk -v entry="$entry" -v empty="$empty" '
+    !done && (i = index($0, "{")) {
+      print substr($0, 1, i)
+      print "  " entry (empty ? "" : ",")
+      rest = substr($0, i + 1)
+      if (rest ~ /[^[:space:]]/) print rest
+      done = 1
+      next
+    }
+    { print }
+  ' "$f" > "$tmp"
+
+  # Validate with whichever JSON parser actually runs (on Windows, `python3` can be the Microsoft
+  # Store stub, which exists but fails); without one, the insertion stands on its own.
+  local valid=1
+  if python3 -c 'pass' >/dev/null 2>&1; then
+    python3 -c 'import json, sys; a = json.load(open(sys.argv[1]))["attribution"]; sys.exit(a != {"commit": "", "pr": ""})' "$tmp" 2>/dev/null || valid=0
+  elif node -e '' >/dev/null 2>&1; then
+    node -e 'const a = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).attribution; process.exit(a && a.commit === "" && a.pr === "" ? 0 : 1)' "$tmp" 2>/dev/null || valid=0
+  fi
+  if [ "$valid" != 1 ]; then
+    rm -f "$tmp"
+    note "WARNING: could not add attribution to $f safely; add $entry to it yourself."
+    return
+  fi
+
+  if [ "$NO_BACKUP" != 1 ]; then
+    mkdir -p "$backup_root"
+    cp "$f" "$backup_root/settings.json-$STAMP"
+  fi
+  mv "$tmp" "$f"
+  note "hid commit and pull request attribution in $f"
+}
+
 # Rewrite one installed skill file from Claude Code's vocabulary to Codex's. LC_ALL=C keeps sed
 # byte-oriented, so non-ASCII prose passes through untouched. The first substitution runs twice
 # because it consumes the character before a match and two mentions can sit close together.
@@ -198,6 +257,8 @@ if [ "$DO_CLAUDE" = 1 ]; then
   done
   note "installed $count agent definitions into $CLAUDE_HOME/agents"
   retire_agents "$CLAUDE_HOME/agents" md "$CLAUDE_HOME/backups"
+  # User scope even with --project: attribution is a per-person preference, not a repository's.
+  hide_claude_attribution "$HOME/.claude/settings.json" "$HOME/.claude/backups"
 fi
 
 # --- 5. Codex CLI -------------------------------------------------------------------------------

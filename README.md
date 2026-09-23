@@ -112,7 +112,14 @@ Claude Code                          Codex CLI
 ~/.claude/skills/orchestrate/        ~/.agents/skills/orchestrate/
 ~/.claude/skills/ship-it-to/         ~/.agents/skills/ship-it-to/
 ~/.claude/agents/*.md                ~/.codex/agents/*.toml
+~/.claude/settings.json  (attribution)
 ```
+
+For Claude Code the installer also adds `"attribution": { "commit": "", "pr": "" }` to
+`~/.claude/settings.json`, so commits carry no `Co-Authored-By` trailer and pull request bodies no
+"Generated with Claude Code" line. It always writes the user settings, even with `--project`, and
+leaves an `attribution` key that is already there untouched — set your own before installing to keep
+attribution.
 
 Restart the session afterwards so the host re-reads its skill and agent directories.
 

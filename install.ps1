@@ -9,6 +9,8 @@ Claude Code:
   skills/orchestrate     ->  ~/.claude/skills/orchestrate
   skills/ship-it-to      ->  ~/.claude/skills/ship-it-to
   agents/*.md            ->  ~/.claude/agents/
+  "attribution": { "commit": "", "pr": "" }  ->  ~/.claude/settings.json   (always user scope;
+                            an existing attribution key is kept)
 
 Codex CLI:
   skills/grill-to-waves  ->  ~/.agents/skills/grill-to-waves      (or <project>/.agents/skills/...)
@@ -190,6 +192,51 @@ function Remove-RetiredAgents([string]$Dir, [string]$Extension, [string]$BackupR
     }
 }
 
+# Claude Code writes a Co-Authored-By trailer into every commit and a "Generated with Claude Code"
+# line into every pull request body unless `attribution` hides them. The key goes in as text right
+# after the opening brace, so the rest of settings.json keeps its formatting; an existing
+# `attribution` is the user's own choice and is left alone.
+function Hide-ClaudeAttribution([string]$SettingsPath, [string]$BackupRoot) {
+    $entry = '"attribution": { "commit": "", "pr": "" }'
+    $text = if (Test-Path -LiteralPath $SettingsPath) { [System.IO.File]::ReadAllText($SettingsPath, $Utf8NoBom) } else { '' }
+    if ([string]::IsNullOrWhiteSpace($text)) {
+        New-Item -ItemType Directory -Force -Path (Split-Path $SettingsPath -Parent) | Out-Null
+        [System.IO.File]::WriteAllText($SettingsPath, "{`n  $entry`n}`n", $Utf8NoBom)
+        Write-Note "created $SettingsPath with commit and pull request attribution hidden"
+        return
+    }
+
+    try { $settings = $text | ConvertFrom-Json }
+    catch { $settings = $null }
+    if ($settings -isnot [System.Management.Automation.PSCustomObject]) {
+        Write-Note "WARNING: $SettingsPath is not a JSON object; add $entry to it yourself to hide commit and pull request attribution."
+        return
+    }
+    $keys = @($settings.PSObject.Properties | ForEach-Object Name)
+    if ($keys -contains 'attribution') {
+        Write-Note "kept the existing attribution setting in $SettingsPath"
+        return
+    }
+
+    $nl = if ($text.Contains("`r`n")) { "`r`n" } else { "`n" }
+    $insert = if ($keys.Count -eq 0) { "$nl  $entry$nl" } else { "$nl  $entry," }
+    $brace = $text.IndexOf('{')
+    $updated = $text.Substring(0, $brace + 1) + $insert + $text.Substring($brace + 1)
+    try { $check = $updated | ConvertFrom-Json }
+    catch { $check = $null }
+    if (-not $check -or $check.attribution.commit -ne '' -or $check.attribution.pr -ne '') {
+        Write-Note "WARNING: could not add attribution to $SettingsPath safely; add $entry to it yourself."
+        return
+    }
+
+    if (-not $NoBackup) {
+        New-Item -ItemType Directory -Force -Path $BackupRoot | Out-Null
+        Copy-Item -LiteralPath $SettingsPath -Destination (Join-Path $BackupRoot "settings.json-$Stamp")
+    }
+    [System.IO.File]::WriteAllText($SettingsPath, $updated, $Utf8NoBom)
+    Write-Note "hid commit and pull request attribution in $SettingsPath"
+}
+
 # Rewrite one installed skill file from Claude Code's vocabulary to Codex's. Byte-exact UTF-8 in
 # and out (no BOM), so non-ASCII prose survives Windows PowerShell 5.1.
 function Convert-SkillFileForCodex([string]$Path) {
@@ -222,6 +269,9 @@ if ($doClaude) {
     }
     Write-Note "installed $($agents.Count) agent definitions into $agentsDir"
     Remove-RetiredAgents $agentsDir 'md' $backups
+    # User scope even with -Project: attribution is a per-person preference, not a repository's.
+    $userClaudeHome = Join-Path $HOME '.claude'
+    Hide-ClaudeAttribution (Join-Path $userClaudeHome 'settings.json') (Join-Path $userClaudeHome 'backups')
 }
 
 # --- 5. Codex CLI --------------------------------------------------------------------------------
