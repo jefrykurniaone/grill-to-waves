@@ -112,7 +112,7 @@ plan is running one tier lower than its label says, so check the plan before tru
 
 | | Claude Code | Codex CLI |
 |---|---|---|
-| Fable tier (`fable`) | Fable (alias `fable`, currently Fable 5.1) at `medium` / `high` / `xhigh` | GPT-6 Astra (`gpt-6-astra`) at the same effort |
+| Fable tier (`fable`) | Fable (alias `fable`) at `medium` / `high` / `xhigh` | GPT-6 Astra (`gpt-6-astra`) at the same effort |
 | Frontier tier (`opus`) | Opus at `medium` / `high` / `xhigh` | GPT-5.6 Sol (`gpt-5.6-sol`) at the same effort |
 | Mid tier (`sonnet`) | Sonnet at `medium` / `high` / `xhigh` | GPT-5.6 Terra (`gpt-5.6-terra`) at the same effort |
 | Sonnet scouts (`scout-sonnet-*`) | Sonnet at `medium` / `high` | `scout-sonnet-high`: GPT-5.6 Terra (`gpt-5.6-terra`); `scout-sonnet-medium`: GPT-5.6 Luna (`gpt-5.6-luna`), the one-grep locate being the narrowly scoped work Luna is positioned for |
