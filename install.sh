@@ -1,19 +1,22 @@
 #!/usr/bin/env bash
-# Install the grill-to-waves, orchestrate and ship-it-to skills and their executor/scout/scribe
-# agents for Claude Code and/or Codex CLI.
+# Install the grill-to-waves, orchestrate, ship-it-to and daily-recap skills and their
+# executor/scout/scribe agents for Claude Code and/or Codex CLI.
 #
 # Claude Code:
 #   skills/grill-to-waves  ->  ~/.claude/skills/grill-to-waves     (or <project>/.claude/skills/...)
 #   skills/orchestrate     ->  ~/.claude/skills/orchestrate
 #   skills/ship-it-to      ->  ~/.claude/skills/ship-it-to
+#   skills/daily-recap     ->  ~/.claude/skills/daily-recap
 #   agents/*.md            ->  ~/.claude/agents/
+#   statusline/statusline.js   ->  ~/.claude/statusline.js                  (always user scope)
 #   "attribution": { "commit": "", "pr": "" }  ->  ~/.claude/settings.json   (always user scope;
-#                             an existing attribution key is kept)
+#                             an existing attribution key is kept, and so is an existing statusLine)
 #
 # Codex CLI:
 #   skills/grill-to-waves  ->  ~/.agents/skills/grill-to-waves     (or <project>/.agents/skills/...)
 #   skills/orchestrate     ->  ~/.agents/skills/orchestrate
 #   skills/ship-it-to      ->  ~/.agents/skills/ship-it-to
+#   skills/daily-recap     ->  ~/.agents/skills/daily-recap
 #   agents/codex/*.toml    ->  ~/.codex/agents/                    (or <project>/.codex/agents/)
 #
 # The skill text is written in Claude Code's vocabulary. For Codex the installer rewrites, and only
@@ -29,7 +32,7 @@
 set -euo pipefail
 
 REPO="https://github.com/jefrykurniaone/grill-to-waves.git"
-SKILLS=(grill-to-waves orchestrate ship-it-to)
+SKILLS=(grill-to-waves orchestrate ship-it-to daily-recap)
 REQUIRED_CODEX_SKILLS=(grilling domain-modeling setup-matt-pocock-skills)
 # Agent definitions this repo used to ship and no longer does. A copy left in the agent directory
 # would keep registering a tier the skills no longer dispatch, so the installer removes it.
@@ -175,23 +178,22 @@ retire_agents() {         # $1 agents dir, $2 extension, $3 backup root
 # line into every pull request body unless `attribution` hides them. The key goes in as text right
 # after the opening brace, so the rest of settings.json keeps its formatting; an existing
 # `attribution` is the user's own choice and is left alone.
-hide_claude_attribution() {   # $1 settings file, $2 backup root
-  local f="$1" backup_root="$2" tmp="$1.attribution.$$" empty=0
-  local entry='"attribution": { "commit": "", "pr": "" }'
+add_claude_setting() {   # $1 settings file, $2 backup root, $3 key, $4 entry, $5 subject
+  local f="$1" backup_root="$2" key="$3" entry="$4" subject="$5" tmp="$1.$3.$$" empty=0
   if [ ! -f "$f" ] || ! grep -q '[^[:space:]]' "$f"; then
     mkdir -p "$(dirname "$f")"
     printf '{\n  %s\n}\n' "$entry" > "$f"
-    note "created $f with commit and pull request attribution hidden"
+    note "created $f with $subject"
     return
   fi
-  if grep -q '"attribution"[[:space:]]*:' "$f"; then
-    note "kept the existing attribution setting in $f"
+  if grep -q "\"$key\"[[:space:]]*:" "$f"; then
+    note "kept the existing $key setting in $f"
     return
   fi
   case "$(tr -d '[:space:]' < "$f")" in
     '{}') empty=1 ;;
     '{'*) ;;
-    *) note "WARNING: $f is not a JSON object; add $entry to it yourself to hide commit and pull request attribution."; return ;;
+    *) note "WARNING: $f is not a JSON object; add $entry to it yourself."; return ;;
   esac
 
   LC_ALL=C awk -v entry="$entry" -v empty="$empty" '
@@ -210,13 +212,13 @@ hide_claude_attribution() {   # $1 settings file, $2 backup root
   # Store stub, which exists but fails); without one, the insertion stands on its own.
   local valid=1
   if python3 -c 'pass' >/dev/null 2>&1; then
-    python3 -c 'import json, sys; a = json.load(open(sys.argv[1]))["attribution"]; sys.exit(a != {"commit": "", "pr": ""})' "$tmp" 2>/dev/null || valid=0
+    python3 -c 'import json, sys; sys.exit(sys.argv[2] not in json.load(open(sys.argv[1])))' "$tmp" "$key" 2>/dev/null || valid=0
   elif node -e '' >/dev/null 2>&1; then
-    node -e 'const a = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).attribution; process.exit(a && a.commit === "" && a.pr === "" ? 0 : 1)' "$tmp" 2>/dev/null || valid=0
+    node -e 'const o = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")); process.exit(o[process.argv[2]] === undefined ? 1 : 0)' "$tmp" "$key" 2>/dev/null || valid=0
   fi
   if [ "$valid" != 1 ]; then
     rm -f "$tmp"
-    note "WARNING: could not add attribution to $f safely; add $entry to it yourself."
+    note "WARNING: could not add $key to $f safely; add $entry to it yourself."
     return
   fi
 
@@ -225,7 +227,26 @@ hide_claude_attribution() {   # $1 settings file, $2 backup root
     cp "$f" "$backup_root/settings.json-$STAMP"
   fi
   mv "$tmp" "$f"
-  note "hid commit and pull request attribution in $f"
+  note "added $subject to $f"
+}
+
+hide_claude_attribution() {   # $1 settings file, $2 backup root
+  add_claude_setting "$1" "$2" attribution '"attribution": { "commit": "", "pr": "" }' \
+    'the attribution setting (no commit or pull request attribution)'
+}
+
+# The statusline renders  model | ctx% | 5h | 7d  from the hook JSON. The script is installed
+# alongside the setting that points at it, and an existing statusLine is left alone.
+install_claude_statusline() {   # $1 source file, $2 user ~/.claude, $3 backup root
+  local src="$1" home_dir="$2" backup_root="$3" dest="$2/statusline.js"
+  install_file "$src" "$dest" "$backup_root"
+  note "installed $dest"
+  if ! node -e '' >/dev/null 2>&1; then
+    note "WARNING: node was not found on PATH; $dest is installed but settings.json is untouched."
+    return
+  fi
+  add_claude_setting "$home_dir/settings.json" "$backup_root" statusLine \
+    "\"statusLine\": { \"type\": \"command\", \"command\": \"node '$dest'\" }" 'the statusline'
 }
 
 # Rewrite one installed skill file from Claude Code's vocabulary to Codex's. LC_ALL=C keeps sed
@@ -234,8 +255,8 @@ hide_claude_attribution() {   # $1 settings file, $2 backup root
 codexify_skill_file() {   # $1 file
   local f="$1" tmp="$1.codex.$$"
   LC_ALL=C sed -E \
-    -e 's#(^|[^[:alnum:]_./\\-])/(orchestrate|grill-to-waves|ship-it-to|setup-matt-pocock-skills)([^[:alnum:]_/-]|$)#\1$\2\3#g' \
-    -e 's#(^|[^[:alnum:]_./\\-])/(orchestrate|grill-to-waves|ship-it-to|setup-matt-pocock-skills)([^[:alnum:]_/-]|$)#\1$\2\3#g' \
+    -e 's#(^|[^[:alnum:]_./\\-])/(orchestrate|grill-to-waves|ship-it-to|daily-recap|setup-matt-pocock-skills)([^[:alnum:]_/-]|$)#\1$\2\3#g' \
+    -e 's#(^|[^[:alnum:]_./\\-])/(orchestrate|grill-to-waves|ship-it-to|daily-recap|setup-matt-pocock-skills)([^[:alnum:]_/-]|$)#\1$\2\3#g' \
     -e 's#\.claude([/\\])(worktrees|scratch)#.codex\1\2#g' \
     -e 's#mattpocock-skills:grilling#$grilling#g' \
     -e 's#mattpocock-skills:domain-modeling#$domain-modeling#g' \
@@ -259,6 +280,8 @@ if [ "$DO_CLAUDE" = 1 ]; then
   retire_agents "$CLAUDE_HOME/agents" md "$CLAUDE_HOME/backups"
   # User scope even with --project: attribution is a per-person preference, not a repository's.
   hide_claude_attribution "$HOME/.claude/settings.json" "$HOME/.claude/backups"
+  # The statusline is a per-person preference too, and its script is read from the user's home.
+  install_claude_statusline "$SRC/statusline/statusline.js" "$HOME/.claude" "$HOME/.claude/backups"
 fi
 
 # --- 5. Codex CLI -------------------------------------------------------------------------------
@@ -302,7 +325,9 @@ fi
 # --- 6. Report ----------------------------------------------------------------------------------
 step "Done."
 [ "$DO_CLAUDE" = 1 ] && note "Claude Code: restart the session, then run  /grill-to-waves , later  /orchestrate , and  /ship-it-to stg|prd  to promote"
+[ "$DO_CLAUDE" = 1 ] && note "Claude Code: end the day with  /daily-recap  for the team recap"
 [ "$DO_CODEX" = 1 ] && note "Codex CLI: restart Codex, then run  \$grill-to-waves , later  \$orchestrate , and  \$ship-it-to stg|prd  to promote"
+[ "$DO_CODEX" = 1 ] && note "Codex CLI: end the day with  \$daily-recap  for the team recap"
 [ "$DO_CODEX" = 1 ] && note "Codex dispatches executors with spawn_agent; the custom agents pin model and reasoning effort per tier."
 
 # The pipeline requires setup-matt-pocock-skills (Stage 0), grilling and domain-modeling (Stage 1).
