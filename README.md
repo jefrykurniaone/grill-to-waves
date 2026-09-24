@@ -1,7 +1,7 @@
 # grill-to-waves
 
 A three-skill delivery pipeline for coding agents, plus the executor, scout and scribe agent
-definitions it dispatches.
+definitions it dispatches, and a reporting skill for the end of the day.
 
 - **`/grill-to-waves`** plans: it grills the idea, writes one spec per shippable slice, tickets each
   spec, proves the specs write-disjoint, publishes an execution map — then stops.
@@ -10,6 +10,10 @@ definitions it dispatches.
 - **`/ship-it-to stg|prd`** promotes what landed: it reads the repo's own promotion contract and the
   forge's branch protections, cuts a pivot, gates it, names whose commits are travelling, opens the
   request — and stops where the rules say someone else must merge.
+
+- **`/daily-recap`** reports: at the end of the day it reads that day's commits and agent sessions,
+  drafts the Done / Next / Blocker recap you post to your team, and asks once for the meetings and
+  offline work no file records. It sits beside the pipeline rather than inside it.
 
 Planning and execution are deliberately separate sessions. The pipeline ends at a published map so
 that execution starts on a fresh context window with the plan as its only input. Promotion is
@@ -27,6 +31,9 @@ production deploy rather than a handed-back ticket.
 | `skills/grill-to-waves/DEFAULTS.md` | Model/effort ladder, the Fable tier, scout tiering, and the junction-safe worktree teardown. |
 | `skills/orchestrate/SKILL.md` | Wave dispatch, verification, merge gate, closing upward, team shape. |
 | `skills/ship-it-to/SKILL.md` | Promotion to staging or production: contract resolution, branch protections, the pivot, the gate on the pivot, authorship of what travels, the request body, and where the run stops. |
+| `skills/daily-recap/SKILL.md` | The end-of-day recap: evidence collection, what never goes into a team message, the Done / Next / Blocker template. |
+| `skills/daily-recap/scripts/collect-evidence.*` | Read-only collector, PowerShell and bash: the day's commits per repository, and each Claude Code or Codex session's prompts and closing report. |
+| `statusline/statusline.js` | Claude Code statusline: `model │ ctx% │ 5h │ 7d`, each usage percentage coloured and carrying its reset time. Installed for Claude Code only. |
 | `agents/executor-{fable,opus,sonnet}-{medium,high,xhigh}.md` | Nine ticket executors, one per tier/effort pairing. |
 | `agents/scout-{sonnet-medium,sonnet-high,opus-medium,opus-high}.md` | Four read-only scouts: locate, sweep, focused judgment, broad analysis. |
 | `agents/vault-scribe.md` | Optional Obsidian scribe. Owns every vault read and write so the orchestrator's session spends no context on note prose. Available on both hosts. |
@@ -111,8 +118,10 @@ Claude Code                          Codex CLI
 ~/.claude/skills/grill-to-waves/     ~/.agents/skills/grill-to-waves/
 ~/.claude/skills/orchestrate/        ~/.agents/skills/orchestrate/
 ~/.claude/skills/ship-it-to/         ~/.agents/skills/ship-it-to/
+~/.claude/skills/daily-recap/        ~/.agents/skills/daily-recap/
 ~/.claude/agents/*.md                ~/.codex/agents/*.toml
-~/.claude/settings.json  (attribution)
+~/.claude/statusline.js
+~/.claude/settings.json  (attribution, statusLine)
 ```
 
 For Claude Code the installer also adds `"attribution": { "commit": "", "pr": "" }` to
@@ -120,6 +129,11 @@ For Claude Code the installer also adds `"attribution": { "commit": "", "pr": ""
 "Generated with Claude Code" line. It always writes the user settings, even with `--project`, and
 leaves an `attribution` key that is already there untouched — set your own before installing to keep
 attribution.
+
+It installs the statusline the same way: `statusline.js` into `~/.claude/`, and a `statusLine`
+command pointing at it into the same user settings. An existing `statusLine` is left alone, and if
+`node` is not on `PATH` the script is installed but the settings file is not touched. Codex has no
+statusline, so nothing about it is installed there.
 
 Restart the session afterwards so the host re-reads its skill and agent directories.
 

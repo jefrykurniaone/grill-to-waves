@@ -1,21 +1,24 @@
 <#
 .SYNOPSIS
-Install the grill-to-waves, orchestrate and ship-it-to skills and their executor/scout/scribe agents
-for Claude Code and/or Codex CLI.
+Install the grill-to-waves, orchestrate, ship-it-to and daily-recap skills and their
+executor/scout/scribe agents for Claude Code and/or Codex CLI.
 
 .DESCRIPTION
 Claude Code:
   skills/grill-to-waves  ->  ~/.claude/skills/grill-to-waves      (or <project>/.claude/skills/...)
   skills/orchestrate     ->  ~/.claude/skills/orchestrate
   skills/ship-it-to      ->  ~/.claude/skills/ship-it-to
+  skills/daily-recap     ->  ~/.claude/skills/daily-recap
   agents/*.md            ->  ~/.claude/agents/
+  statusline/statusline.js   ->  ~/.claude/statusline.js                   (always user scope)
   "attribution": { "commit": "", "pr": "" }  ->  ~/.claude/settings.json   (always user scope;
-                            an existing attribution key is kept)
+                            an existing attribution key is kept, and so is an existing statusLine)
 
 Codex CLI:
   skills/grill-to-waves  ->  ~/.agents/skills/grill-to-waves      (or <project>/.agents/skills/...)
   skills/orchestrate     ->  ~/.agents/skills/orchestrate
   skills/ship-it-to      ->  ~/.agents/skills/ship-it-to
+  skills/daily-recap     ->  ~/.agents/skills/daily-recap
   agents/codex/*.toml    ->  ~/.codex/agents/                     (or <project>/.codex/agents/)
 
 The skill text is written in Claude Code's vocabulary. For Codex the installer rewrites, and only
@@ -56,7 +59,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $Repo = 'https://github.com/jefrykurniaone/grill-to-waves.git'
-$Skills = @('grill-to-waves', 'orchestrate', 'ship-it-to')
+$Skills = @('grill-to-waves', 'orchestrate', 'ship-it-to', 'daily-recap')
 $RequiredCodexSkills = @('grilling', 'domain-modeling', 'setup-matt-pocock-skills')
 # Agent definitions this repo used to ship and no longer does. A copy left in the agent directory
 # would keep registering a tier the skills no longer dispatch, so the installer removes it.
@@ -192,40 +195,37 @@ function Remove-RetiredAgents([string]$Dir, [string]$Extension, [string]$BackupR
     }
 }
 
-# Claude Code writes a Co-Authored-By trailer into every commit and a "Generated with Claude Code"
-# line into every pull request body unless `attribution` hides them. The key goes in as text right
-# after the opening brace, so the rest of settings.json keeps its formatting; an existing
-# `attribution` is the user's own choice and is left alone.
-function Hide-ClaudeAttribution([string]$SettingsPath, [string]$BackupRoot) {
-    $entry = '"attribution": { "commit": "", "pr": "" }'
+# Add one top-level key to settings.json as text right after the opening brace, so the rest of the
+# file keeps its formatting. A key that is already there is the user's own choice and is left alone.
+function Add-ClaudeSetting([string]$SettingsPath, [string]$BackupRoot, [string]$Key, [string]$Entry, [string]$Subject) {
     $text = if (Test-Path -LiteralPath $SettingsPath) { [System.IO.File]::ReadAllText($SettingsPath, $Utf8NoBom) } else { '' }
     if ([string]::IsNullOrWhiteSpace($text)) {
         New-Item -ItemType Directory -Force -Path (Split-Path $SettingsPath -Parent) | Out-Null
-        [System.IO.File]::WriteAllText($SettingsPath, "{`n  $entry`n}`n", $Utf8NoBom)
-        Write-Note "created $SettingsPath with commit and pull request attribution hidden"
+        [System.IO.File]::WriteAllText($SettingsPath, "{`n  $Entry`n}`n", $Utf8NoBom)
+        Write-Note "created $SettingsPath with $Subject"
         return
     }
 
     try { $settings = $text | ConvertFrom-Json }
     catch { $settings = $null }
     if ($settings -isnot [System.Management.Automation.PSCustomObject]) {
-        Write-Note "WARNING: $SettingsPath is not a JSON object; add $entry to it yourself to hide commit and pull request attribution."
+        Write-Note "WARNING: $SettingsPath is not a JSON object; add $Entry to it yourself."
         return
     }
     $keys = @($settings.PSObject.Properties | ForEach-Object Name)
-    if ($keys -contains 'attribution') {
-        Write-Note "kept the existing attribution setting in $SettingsPath"
+    if ($keys -contains $Key) {
+        Write-Note "kept the existing $Key setting in $SettingsPath"
         return
     }
 
     $nl = if ($text.Contains("`r`n")) { "`r`n" } else { "`n" }
-    $insert = if ($keys.Count -eq 0) { "$nl  $entry$nl" } else { "$nl  $entry," }
+    $insert = if ($keys.Count -eq 0) { "$nl  $Entry$nl" } else { "$nl  $Entry," }
     $brace = $text.IndexOf('{')
     $updated = $text.Substring(0, $brace + 1) + $insert + $text.Substring($brace + 1)
     try { $check = $updated | ConvertFrom-Json }
     catch { $check = $null }
-    if (-not $check -or $check.attribution.commit -ne '' -or $check.attribution.pr -ne '') {
-        Write-Note "WARNING: could not add attribution to $SettingsPath safely; add $entry to it yourself."
+    if (-not $check -or @($check.PSObject.Properties | ForEach-Object Name) -notcontains $Key) {
+        Write-Note "WARNING: could not add $Key to $SettingsPath safely; add $Entry to it yourself."
         return
     }
 
@@ -234,7 +234,41 @@ function Hide-ClaudeAttribution([string]$SettingsPath, [string]$BackupRoot) {
         Copy-Item -LiteralPath $SettingsPath -Destination (Join-Path $BackupRoot "settings.json-$Stamp")
     }
     [System.IO.File]::WriteAllText($SettingsPath, $updated, $Utf8NoBom)
-    Write-Note "hid commit and pull request attribution in $SettingsPath"
+    Write-Note "added $Subject to $SettingsPath"
+}
+
+# Claude Code writes a Co-Authored-By trailer into every commit and a "Generated with Claude Code"
+# line into every pull request body unless `attribution` hides them.
+function Hide-ClaudeAttribution([string]$SettingsPath, [string]$BackupRoot) {
+    Add-ClaudeSetting $SettingsPath $BackupRoot 'attribution' '"attribution": { "commit": "", "pr": "" }' `
+        'the attribution setting (no commit or pull request attribution)'
+}
+
+# The statusline renders  model | ctx% | 5h | 7d  from the hook JSON. The script is installed
+# alongside the settings that point at it, and an existing `statusLine` is left alone.
+function Install-ClaudeStatusLine([string]$Source, [string]$ClaudeUserHome, [string]$BackupRoot) {
+    $dest = Join-Path $ClaudeUserHome 'statusline.js'
+    Install-File $Source $dest $BackupRoot
+    Write-Note "installed $dest"
+
+    $windows = ($PSVersionTable.PSVersion.Major -lt 6) -or $IsWindows
+    $script = $dest.Replace('\', '/')
+    $nodeCmd = Get-Command node -ErrorAction SilentlyContinue
+    if (-not $nodeCmd) {
+        Write-Note "WARNING: node was not found on PATH; $dest is installed but settings.json is untouched."
+        return
+    }
+    # Windows: Claude Code runs the command through cmd, which cannot quote the way the script needs,
+    # so it goes through PowerShell with node's full path. Elsewhere the command runs as written.
+    $command = if ($windows) {
+        $node = $nodeCmd.Source.Replace('\', '/')
+        "powershell -NoProfile -NonInteractive -Command `"& '$node' '$script'`""
+    }
+    else {
+        "node '$script'"
+    }
+    $entry = '"statusLine": { "type": "command", "command": ' + ($command | ConvertTo-Json) + ' }'
+    Add-ClaudeSetting (Join-Path $ClaudeUserHome 'settings.json') $BackupRoot 'statusLine' $entry 'the statusline'
 }
 
 # Rewrite one installed skill file from Claude Code's vocabulary to Codex's. Byte-exact UTF-8 in
@@ -243,7 +277,7 @@ function Convert-SkillFileForCodex([string]$Path) {
     $text = [System.IO.File]::ReadAllText($Path, $Utf8NoBom)
     # Slash commands -> Codex skill mentions.
     # A path segment (`../grill-to-waves/DEFAULTS.md`, `skills/grill-to-waves`) is left alone.
-    $text = [regex]::Replace($text, '(?<![\w./\\-])/(orchestrate|grill-to-waves|ship-it-to|setup-matt-pocock-skills)(?![\w/-])', '$$$1')
+    $text = [regex]::Replace($text, '(?<![\w./\\-])/(orchestrate|grill-to-waves|ship-it-to|daily-recap|setup-matt-pocock-skills)(?![\w/-])', '$$$1')
     # The agent directory inside the repository.
     $text = [regex]::Replace($text, '\.claude([/\\])(worktrees|scratch)', '.codex$1$2')
     # The two required grill skills, plugin-namespaced on Claude Code, plain skills on Codex.
@@ -272,6 +306,8 @@ if ($doClaude) {
     # User scope even with -Project: attribution is a per-person preference, not a repository's.
     $userClaudeHome = Join-Path $HOME '.claude'
     Hide-ClaudeAttribution (Join-Path $userClaudeHome 'settings.json') (Join-Path $userClaudeHome 'backups')
+    # The statusline is a per-person preference too, and its script is read from the user's home.
+    Install-ClaudeStatusLine (Join-Path $sourceRoot 'statusline/statusline.js') $userClaudeHome (Join-Path $userClaudeHome 'backups')
 }
 
 # --- 5. Codex CLI --------------------------------------------------------------------------------
@@ -319,9 +355,11 @@ if ($doCodex) {
 Write-Step 'Done.'
 if ($doClaude) {
     Write-Note 'Claude Code: restart the session, then run  /grill-to-waves , later  /orchestrate , and  /ship-it-to stg|prd  to promote'
+    Write-Note 'Claude Code: end the day with  /daily-recap  for the team recap'
 }
 if ($doCodex) {
     Write-Note 'Codex CLI: restart Codex, then run  $grill-to-waves , later  $orchestrate , and  $ship-it-to stg|prd  to promote'
+    Write-Note 'Codex CLI: end the day with  $daily-recap  for the team recap'
     Write-Note 'Codex dispatches executors with spawn_agent; the custom agents pin model and reasoning effort per tier.'
 }
 

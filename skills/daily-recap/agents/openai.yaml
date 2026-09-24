@@ -1,0 +1,10 @@
+# Codex CLI skill metadata. Claude Code ignores this file; it reads only SKILL.md.
+# `allow_implicit_invocation: false` is the Codex equivalent of SKILL.md's
+# `disable-model-invocation: true`: the skill runs only when the user types `$daily-recap`.
+interface:
+  display_name: "Daily recap"
+  short_description: "Write the end-of-day Done / Next / Blocker recap for the team"
+  default_prompt: "Use $daily-recap to write today's recap — pass a date for another day."
+
+policy:
+  allow_implicit_invocation: false
