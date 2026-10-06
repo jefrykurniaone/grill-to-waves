@@ -1,7 +1,7 @@
 # grill-to-waves
 
 A three-skill delivery pipeline for coding agents, plus the executor, scout and scribe agent
-definitions it dispatches, and a reporting skill for the end of the day.
+definitions it dispatches, and two reporting skills: one for the end of the day, one for the ticket.
 
 - **`/grill-to-waves`** plans: it grills the idea, writes one spec per shippable slice, tickets each
   spec, proves the specs write-disjoint, publishes an execution map — then stops.
@@ -14,6 +14,9 @@ definitions it dispatches, and a reporting skill for the end of the day.
 - **`/daily-recap`** reports: at the end of the day it reads that day's commits and agent sessions,
   drafts the Done / Next / Blocker recap you post to your team, and asks once for the meetings and
   offline work no file records. It sits beside the pipeline rather than inside it.
+- **`/jira-comment`** reports on a ticket: once its fix has a request, is deployed or is promoted,
+  it drafts the comment you paste into Jira — the state, cause and fix, the retest steps, what was
+  verified and on which environment — in the ticket's language. It sits beside the pipeline too.
 
 Planning and execution are deliberately separate sessions. The pipeline ends at a published map so
 that execution starts on a fresh context window with the plan as its only input. Promotion is
@@ -33,6 +36,7 @@ production deploy rather than a handed-back ticket.
 | `skills/ship-it-to/SKILL.md` | Promotion to staging or production: contract resolution, branch protections, the pivot, the gate on the pivot, authorship of what travels, the request body, and where the run stops. |
 | `skills/daily-recap/SKILL.md` | The end-of-day recap: evidence collection, what never goes into a team message, the Done / Next / Blocker template. |
 | `skills/daily-recap/scripts/collect-evidence.*` | Read-only collector, PowerShell and bash: the day's commits per repository, and each Claude Code or Codex session's prompts and closing report. |
+| `skills/jira-comment/SKILL.md` | The ticket comment: which event it reports, when "deployed" and "ready for retest" may be written, the language rule, the template. |
 | `statusline/statusline.js` | Claude Code statusline: `model │ ctx% │ 5h │ 7d`, each usage percentage coloured and carrying its reset time. Installed for Claude Code only. |
 | `agents/executor-{fable,opus,sonnet}-{medium,high,xhigh}.md` | Nine ticket executors, one per tier/effort pairing. |
 | `agents/scout-{sonnet-medium,sonnet-high,opus-medium,opus-high}.md` | Four read-only scouts: locate, sweep, focused judgment, broad analysis. |
@@ -119,6 +123,7 @@ Claude Code                          Codex CLI
 ~/.claude/skills/orchestrate/        ~/.agents/skills/orchestrate/
 ~/.claude/skills/ship-it-to/         ~/.agents/skills/ship-it-to/
 ~/.claude/skills/daily-recap/        ~/.agents/skills/daily-recap/
+~/.claude/skills/jira-comment/       ~/.agents/skills/jira-comment/
 ~/.claude/agents/*.md                ~/.codex/agents/*.toml
 ~/.claude/statusline.js
 ~/.claude/settings.json  (attribution, statusLine)
@@ -146,8 +151,8 @@ legacy root and the installer warns if a copy is there too) and custom agents fr
 it is set, because a map's in-flight ceiling must stay under it.
 
 The skill text in this repo is written in Claude Code's vocabulary. For Codex the installer
-rewrites, and only rewrites: `/orchestrate`, `/grill-to-waves`, `/ship-it-to`, and
-`/setup-matt-pocock-skills` to
+rewrites, and only rewrites: `/orchestrate`, `/grill-to-waves`, `/ship-it-to`, `/daily-recap`,
+`/jira-comment` and `/setup-matt-pocock-skills` to
 Codex `$` mentions; `.claude/worktrees` and `.claude/scratch` to `.codex/…`; the two grill-skill
 names to `$grilling` and `$domain-modeling`; and it drops the `disable-model-invocation` line, whose
 Codex equivalent is each skill's `agents/openai.yaml` (`allow_implicit_invocation: false`).
@@ -225,6 +230,15 @@ Once a wave is merged into the integration branch, promoting it is its own sessi
 It reads the repository's own promotion contract rather than assuming one, so it fits a repo that
 promotes through a pivot branch and a repo that fast-forwards. It stops at the opened request
 wherever the forge reserves the merge to a role you do not hold, and says who must finish it.
+
+When a ticket's fix has moved — a request opened, a merge deployed, a promotion requested — draft
+the comment for it, in the same session or a new one:
+
+```
+/jira-comment SHOP-412      # or no argument: the keys are read from the branch and the commits
+```
+
+It only drafts; you paste the comment into Jira.
 
 ## Requirements
 

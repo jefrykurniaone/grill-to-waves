@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install the grill-to-waves, orchestrate, ship-it-to and daily-recap skills and their
+# Install the grill-to-waves, orchestrate, ship-it-to, daily-recap and jira-comment skills and their
 # executor/scout/scribe agents for Claude Code and/or Codex CLI.
 #
 # Claude Code:
@@ -7,6 +7,7 @@
 #   skills/orchestrate     ->  ~/.claude/skills/orchestrate
 #   skills/ship-it-to      ->  ~/.claude/skills/ship-it-to
 #   skills/daily-recap     ->  ~/.claude/skills/daily-recap
+#   skills/jira-comment    ->  ~/.claude/skills/jira-comment
 #   agents/*.md            ->  ~/.claude/agents/
 #   statusline/statusline.js   ->  ~/.claude/statusline.js                  (always user scope)
 #   "attribution": { "commit": "", "pr": "" }  ->  ~/.claude/settings.json   (always user scope;
@@ -17,6 +18,7 @@
 #   skills/orchestrate     ->  ~/.agents/skills/orchestrate
 #   skills/ship-it-to      ->  ~/.agents/skills/ship-it-to
 #   skills/daily-recap     ->  ~/.agents/skills/daily-recap
+#   skills/jira-comment    ->  ~/.agents/skills/jira-comment
 #   agents/codex/*.toml    ->  ~/.codex/agents/                    (or <project>/.codex/agents/)
 #
 # The skill text is written in Claude Code's vocabulary. For Codex the installer rewrites, and only
@@ -32,7 +34,7 @@
 set -euo pipefail
 
 REPO="https://github.com/jefrykurniaone/grill-to-waves.git"
-SKILLS=(grill-to-waves orchestrate ship-it-to daily-recap)
+SKILLS=(grill-to-waves orchestrate ship-it-to daily-recap jira-comment)
 REQUIRED_CODEX_SKILLS=(grilling domain-modeling setup-matt-pocock-skills)
 # Agent definitions this repo used to ship and no longer does. A copy left in the agent directory
 # would keep registering a tier the skills no longer dispatch, so the installer removes it.
@@ -255,8 +257,8 @@ install_claude_statusline() {   # $1 source file, $2 user ~/.claude, $3 backup r
 codexify_skill_file() {   # $1 file
   local f="$1" tmp="$1.codex.$$"
   LC_ALL=C sed -E \
-    -e 's#(^|[^[:alnum:]_./\\-])/(orchestrate|grill-to-waves|ship-it-to|daily-recap|setup-matt-pocock-skills)([^[:alnum:]_/-]|$)#\1$\2\3#g' \
-    -e 's#(^|[^[:alnum:]_./\\-])/(orchestrate|grill-to-waves|ship-it-to|daily-recap|setup-matt-pocock-skills)([^[:alnum:]_/-]|$)#\1$\2\3#g' \
+    -e 's#(^|[^[:alnum:]_./\\-])/(orchestrate|grill-to-waves|ship-it-to|daily-recap|jira-comment|setup-matt-pocock-skills)([^[:alnum:]_/-]|$)#\1$\2\3#g' \
+    -e 's#(^|[^[:alnum:]_./\\-])/(orchestrate|grill-to-waves|ship-it-to|daily-recap|jira-comment|setup-matt-pocock-skills)([^[:alnum:]_/-]|$)#\1$\2\3#g' \
     -e 's#\.claude([/\\])(worktrees|scratch)#.codex\1\2#g' \
     -e 's#mattpocock-skills:grilling#$grilling#g' \
     -e 's#mattpocock-skills:domain-modeling#$domain-modeling#g' \
@@ -326,8 +328,10 @@ fi
 step "Done."
 [ "$DO_CLAUDE" = 1 ] && note "Claude Code: restart the session, then run  /grill-to-waves , later  /orchestrate , and  /ship-it-to stg|prd  to promote"
 [ "$DO_CLAUDE" = 1 ] && note "Claude Code: end the day with  /daily-recap  for the team recap"
+[ "$DO_CLAUDE" = 1 ] && note "Claude Code: once a fix has moved, draft its ticket comment with  /jira-comment"
 [ "$DO_CODEX" = 1 ] && note "Codex CLI: restart Codex, then run  \$grill-to-waves , later  \$orchestrate , and  \$ship-it-to stg|prd  to promote"
 [ "$DO_CODEX" = 1 ] && note "Codex CLI: end the day with  \$daily-recap  for the team recap"
+[ "$DO_CODEX" = 1 ] && note "Codex CLI: once a fix has moved, draft its ticket comment with  \$jira-comment"
 [ "$DO_CODEX" = 1 ] && note "Codex dispatches executors with spawn_agent; the custom agents pin model and reasoning effort per tier."
 
 # The pipeline requires setup-matt-pocock-skills (Stage 0), grilling and domain-modeling (Stage 1).
