@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-Install the grill-to-waves, orchestrate, ship-it-to and daily-recap skills and their
+Install the grill-to-waves, orchestrate, ship-it-to, daily-recap and jira-comment skills and their
 executor/scout/scribe agents for Claude Code and/or Codex CLI.
 
 .DESCRIPTION
@@ -9,6 +9,7 @@ Claude Code:
   skills/orchestrate     ->  ~/.claude/skills/orchestrate
   skills/ship-it-to      ->  ~/.claude/skills/ship-it-to
   skills/daily-recap     ->  ~/.claude/skills/daily-recap
+  skills/jira-comment    ->  ~/.claude/skills/jira-comment
   agents/*.md            ->  ~/.claude/agents/
   statusline/statusline.js   ->  ~/.claude/statusline.js                   (always user scope)
   "attribution": { "commit": "", "pr": "" }  ->  ~/.claude/settings.json   (always user scope;
@@ -19,6 +20,7 @@ Codex CLI:
   skills/orchestrate     ->  ~/.agents/skills/orchestrate
   skills/ship-it-to      ->  ~/.agents/skills/ship-it-to
   skills/daily-recap     ->  ~/.agents/skills/daily-recap
+  skills/jira-comment    ->  ~/.agents/skills/jira-comment
   agents/codex/*.toml    ->  ~/.codex/agents/                     (or <project>/.codex/agents/)
 
 The skill text is written in Claude Code's vocabulary. For Codex the installer rewrites, and only
@@ -59,7 +61,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $Repo = 'https://github.com/jefrykurniaone/grill-to-waves.git'
-$Skills = @('grill-to-waves', 'orchestrate', 'ship-it-to', 'daily-recap')
+$Skills = @('grill-to-waves', 'orchestrate', 'ship-it-to', 'daily-recap', 'jira-comment')
 $RequiredCodexSkills = @('grilling', 'domain-modeling', 'setup-matt-pocock-skills')
 # Agent definitions this repo used to ship and no longer does. A copy left in the agent directory
 # would keep registering a tier the skills no longer dispatch, so the installer removes it.
@@ -277,7 +279,7 @@ function Convert-SkillFileForCodex([string]$Path) {
     $text = [System.IO.File]::ReadAllText($Path, $Utf8NoBom)
     # Slash commands -> Codex skill mentions.
     # A path segment (`../grill-to-waves/DEFAULTS.md`, `skills/grill-to-waves`) is left alone.
-    $text = [regex]::Replace($text, '(?<![\w./\\-])/(orchestrate|grill-to-waves|ship-it-to|daily-recap|setup-matt-pocock-skills)(?![\w/-])', '$$$1')
+    $text = [regex]::Replace($text, '(?<![\w./\\-])/(orchestrate|grill-to-waves|ship-it-to|daily-recap|jira-comment|setup-matt-pocock-skills)(?![\w/-])', '$$$1')
     # The agent directory inside the repository.
     $text = [regex]::Replace($text, '\.claude([/\\])(worktrees|scratch)', '.codex$1$2')
     # The two required grill skills, plugin-namespaced on Claude Code, plain skills on Codex.
@@ -356,10 +358,12 @@ Write-Step 'Done.'
 if ($doClaude) {
     Write-Note 'Claude Code: restart the session, then run  /grill-to-waves , later  /orchestrate , and  /ship-it-to stg|prd  to promote'
     Write-Note 'Claude Code: end the day with  /daily-recap  for the team recap'
+    Write-Note 'Claude Code: once a fix has moved, draft its ticket comment with  /jira-comment'
 }
 if ($doCodex) {
     Write-Note 'Codex CLI: restart Codex, then run  $grill-to-waves , later  $orchestrate , and  $ship-it-to stg|prd  to promote'
     Write-Note 'Codex CLI: end the day with  $daily-recap  for the team recap'
+    Write-Note 'Codex CLI: once a fix has moved, draft its ticket comment with  $jira-comment'
     Write-Note 'Codex dispatches executors with spawn_agent; the custom agents pin model and reasoning effort per tier.'
 }
 

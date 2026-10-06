@@ -1,0 +1,10 @@
+# Codex CLI skill metadata. Claude Code ignores this file; it reads only SKILL.md.
+# `allow_implicit_invocation: false` is the Codex equivalent of SKILL.md's
+# `disable-model-invocation: true`: the skill runs only when the user types `$jira-comment`.
+interface:
+  display_name: "Jira comment"
+  short_description: "Draft the Jira comment for a ticket whose fix has moved"
+  default_prompt: "Use $jira-comment to draft the ticket comment — pass the ticket key."
+
+policy:
+  allow_implicit_invocation: false
