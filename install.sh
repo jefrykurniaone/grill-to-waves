@@ -108,7 +108,7 @@ if [ -z "$TARGET" ]; then select_install_target; fi
 step "Install target: $TARGET"
 
 # --- 1. Locate the source tree ------------------------------------------------------------------
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd || true)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd)" || SCRIPT_DIR=""
 if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/skills/grill-to-waves/SKILL.md" ]; then
   SRC="$SCRIPT_DIR"
   step "Source: local checkout at $SRC"
@@ -139,7 +139,7 @@ case "$TARGET" in
   claude) DO_CLAUDE=1 ;;
   codex)  DO_CODEX=1 ;;
   both)   DO_CLAUDE=1; DO_CODEX=1 ;;
-  auto)   DO_CLAUDE=1; [ -d "$CODEX_HOME" ] && DO_CODEX=1 || true ;;
+  auto)   DO_CLAUDE=1; if [ -d "$CODEX_HOME" ]; then DO_CODEX=1; fi ;;
 esac
 
 # Claude Code paths.
@@ -308,8 +308,11 @@ install_claude_statusline() {   # $1 source file, $2 user ~/.claude, $3 backup r
 # Rewrite skill text on stdin from Claude Code's vocabulary to Codex's. LC_ALL=C keeps sed
 # byte-oriented, so non-ASCII prose passes through untouched. The first substitution runs twice
 # because it consumes the character before a match and two mentions can sit close together.
+# GNU sed on Windows (Git Bash, Cygwin) reads in text mode and drops every carriage return, so a
+# CRLF checkout would come out LF; --binary keeps it byte-exact. BSD sed has no such flag and needs none.
+if sed --binary -e '' </dev/null >/dev/null 2>&1; then CODEX_SED=(sed --binary); else CODEX_SED=(sed); fi
 codexify_skill_text() {
-  LC_ALL=C sed -E \
+  LC_ALL=C "${CODEX_SED[@]}" -E \
     -e 's#(^|[^[:alnum:]_./\\-])/(orchestrate|grill-to-waves|ship-it-to|daily-recap|jira-comment|setup-matt-pocock-skills|grilling|domain-modeling)([^[:alnum:]_/-]|$)#\1$\2\3#g' \
     -e 's#(^|[^[:alnum:]_./\\-])/(orchestrate|grill-to-waves|ship-it-to|daily-recap|jira-comment|setup-matt-pocock-skills|grilling|domain-modeling)([^[:alnum:]_/-]|$)#\1$\2\3#g' \
     -e 's#\.claude([/\\])(worktrees|scratch)#.codex\1\2#g' \
