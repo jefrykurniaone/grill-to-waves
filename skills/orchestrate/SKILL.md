@@ -62,10 +62,14 @@ labels, bodies and open-blocker counts is in
 Four reads, then work. This is the whole resume, and it is enough after a context clear or a crash,
 because the tracker and git already carry the state that matters.
 
-1. **The map** — wave order, the contention table, the completion gate, what is out of scope, and any
-   orchestrator-only checks pinned to a wave. Binding. Its execution-progress section is the state
-   the last wave left behind and is kept current by *Record, close, tear down*, so trust it over a
-   comment thread — and rewrite it when this wave ends.
+1. **The map** — wave order, the contention table, the completion gate, where the run closes and
+   who owns the steps after it (`Run closes at:`, `Steps after close owned by:`), what is out of
+   scope, and any orchestrator-only checks pinned to a wave. Binding. Its execution-progress section
+   is the state the last wave left behind and is kept current by *Record, close, tear down*, so trust
+   it over the log — and rewrite it when this wave ends. The log (the comment thread; `map-log.md`
+   beside a local `map.md`) is history, read only when a question needs it; a local `map.md` still
+   carrying dated sections is moved to that layout first, as
+   [../grill-to-waves/TRACKERS.md](../grill-to-waves/TRACKERS.md) says.
 2. **One frontier listing** of every open item under `run:<slug>` — state, labels, bodies, open blocker
    counts.
 3. **Git ground truth** — `git fetch --prune`, `git status --porcelain`, `git log --merges` on `main`,
@@ -179,21 +183,7 @@ An executor's account of its own work is a claim, not evidence. Before a branch 
 - **A wrong ticket premise is the common failure**, and an executor that refuses its own ticket is
   usually right. Verify the claim against the code; if the ticket is wrong, correct its body and any
   acceptance criterion quoting it, record why, and re-dispatch. That is not a hand-back.
-- **Measure, do not eyeball.** A claim about type, size, spacing or contrast is settled by
-  `getComputedStyle` or a computed value, not by comparing screenshots — a screenshot pair can be clean
-  and still hide the defect.
-- **Drive the browser with Playwright MCP** (`mcp__playwright__*`) whenever it is connected. It is the
-  default for every runtime check: `browser_navigate`, `browser_snapshot` for the accessibility tree,
-  `browser_evaluate` for the `getComputedStyle` measurement above, `browser_console_messages` for the
-  console-error count, `browser_take_screenshot` only as a record of what was measured. Sign in through
-  `/auth/dev` by clicking the user whose role the check needs.
-- **When the MCP server is not connected, say so in the wave report** and fall back to the npx-cached
-  Playwright scripts under `.claude/scratch/`, or to plain HTTP where the check does not need a DOM.
-  A fallback is a stated fact, never a silent substitution — and never a reason to skip the walk.
-- **An artifact a route returns is verified by fetching it**, not by reasoning about the library that
-  produced it. Where the output is an image or a file rather than a page, fetch it and look at it, and
-  settle any "does this declaration take effect" question by rendering twice with only that declaration
-  changed and comparing hashes. Identical bytes mean the declaration is inert.
+- **The runtime is walked after the merge, by a sub-agent you judge** — *The runtime walk*, below.
 
 ## Merge the batch — one gate, and nothing pushed until it is green
 
@@ -205,11 +195,10 @@ after every merge:
    subject, then the **fast** part of the gate only — the test suite — so a break is attributed to the
    merge that caused it. Resolve append-plus-append catalogue conflicts yourself.
 3. After the last merge, the **whole** gate once: lint, type check, tests, build. Restore any file the
-   test run dirties before judging the tree.
+   test run dirties before judging the tree, and record the result with the commit it ran on — the
+   close reuses that record (*Closing upward*).
 4. **Then the runtime walk**, on merged `main`, for every ticket whose `runtime:` is not `none` and for
-   every check the map pins to this wave — **Playwright MCP** where it is connected, its scripted
-   fallback or plain HTTP where it is not, credentials from env by name, sentinel data wiped afterwards
-   and the wipe proven.
+   every check the map pins to this wave — dispatched and judged as *The runtime walk* says.
 5. **Push once, only when the gate and the walk are both green.** Nothing reaches `origin/main` before
    then, so a bad ticket costs `git reset --hard origin/main` and a re-merge without it — there is no
    revert to publish and no ungated commit on the shared branch. Re-gate what remains and hand the
@@ -217,23 +206,60 @@ after every merge:
 
 A red gate after the last merge points at that merge first; reset, re-merge the others, re-gate.
 
+## The runtime walk — a sub-agent walks, you judge
+
+The walk runs in a fresh context, never in yours: a browser driven from the orchestrator's context
+re-reads every earlier call, and the walk's own calls soon are most of them. Dispatch one agent from
+the executor definitions (the scouts carry no browser tool), the way executors are dispatched —
+`executor-sonnet-high`, because the checks were settled upstream and the work is a sweep;
+`executor-opus-high` where a pinned check leaves the walker to decide what to measure — with a brief
+that writes nothing to the codebase and carries:
+
+- **What to observe**: every `runtime:` criterion of the wave's tickets verbatim — the surface to open,
+  the role, the property, the value it must hold — and every check the map pins to this wave.
+- **How to sign in**: the way the repository's own steering file (`CLAUDE.md`, `AGENTS.md`) or runbook
+  says, with credentials from env by name.
+- **Measure, do not eyeball.** A claim about type, size, spacing or contrast is settled by
+  `getComputedStyle` or a computed value, not by comparing screenshots — a screenshot pair can be clean
+  and still hide the defect.
+- **Playwright MCP** (`mcp__playwright__*`) wherever it is connected: `browser_navigate`,
+  `browser_snapshot` for the accessibility tree, `browser_evaluate` for the measurement,
+  `browser_console_messages` for the console-error count, `browser_take_screenshot` once per check,
+  captioned with what it measured, because the set is posted on the review request at the close. Where
+  the server is not connected the walker falls back to the npx-cached Playwright scripts under
+  `.claude/scratch/`, or to plain HTTP where the check needs no DOM, and names the fallback in its
+  table. A fallback is a stated fact, never a silent substitution — and never a reason to skip the walk.
+- **An artifact a route returns is verified by fetching it**, not by reasoning about the library that
+  produced it. Where the output is an image or a file rather than a page, fetch it and look at it, and
+  settle any "does this declaration take effect" question by rendering twice with only that declaration
+  changed and comparing hashes. Identical bytes mean the declaration is inert.
+- **What it returns**: a per-ticket pass/fail table with the measured values, the console-error count
+  per page, the screenshot paths, every account it created with its password — those stay, for the
+  reviewer — and any other sentinel data it wrote, wiped, with the wipe proven.
+
+Judge the table against the criteria yourself. A failed row is a hand-back to the ticket's executor; a
+row whose evidence is thin is a re-dispatch of the walker with the gap named. Open the browser from this
+context only to settle a single disputed measurement. Done when every criterion in the brief carries a
+measured value or a named failure.
+
 ## Record, close, tear down
 
-Per ticket, **one comment**: what landed, the gate result with its start time, the runtime finding, the
-merge sha and the review request. Then close it, and drop the assignee if the tracker set one.
+Per ticket, **one comment**: what landed, the gate result with its start time and the commit it ran
+on, the runtime finding, the merge sha and the review request. Then close it, and drop the assignee if the tracker set one.
 
 Per wave, **two writes on the map, and the body is the one that matters**:
 
 - **Rewrite the map's execution-progress section in its body.** The waves table with what landed and
   its sha, how many tickets remain, the next dispatchable tickets from a live blocking-edge read, the
-  open items still blocking the close, the tree state, and anything a later executor would otherwise
-  rediscover. Stage 1 reads the body first and calls it binding, so a body still saying "wave 5 is
-  next" after wave 5 landed aims the next session at a closed ticket. A comment does not correct
-  that: it is one entry in a thread nobody reads before acting. Where the map has no such section
-  yet, add one at the top.
-- **One comment**: the tickets with their shas, the decisions taken, the defects filed, and what the
-  next wave waits on. The comment is the append-only log of *how* the run went; the body is the state
-  the next session resumes *from*. Neither replaces the other.
+  open items still blocking the close, and the tree state. A fact the next session needs before it
+  dispatches is one line here; how the wave went belongs to the log. Stage 1 reads the body first and
+  calls it binding, so a body still saying "wave 5 is next" after wave 5 landed aims the next session
+  at a closed ticket. A log entry does not correct that: it is one entry in a thread nobody reads
+  before acting. Where the map has no such section yet, add one at the top.
+- **One log entry**: the tickets with their shas, the decisions taken, the defects filed, and what the
+  next wave waits on — a comment on the map, or on the local tracker a dated section appended to
+  `map-log.md` (TRACKERS.md). The log is the append-only record of *how* the run went; the body is
+  the state the next session resumes *from*. Neither replaces the other.
 
 **That is the entire tracker footprint of a run.**
 
@@ -261,11 +287,17 @@ pinned to it is recorded done. Post its completion record — what landed agains
 testing decisions, with tickets, review requests and merge commits — and close it. A spec another open
 map is still executing stays open, and the record says so.
 
-**The map closes** when: zero open tickets under the run label; zero open non-ticket items under it
-other than the specs and the map (a mislabelled item is resolved or re-labelled first); every spec
-closed with its record; every orchestrator-only item pinned to the close done, runtime verification
-included; and the mirror pass from `/grill-to-waves` Stage 2 run over every `docs/spec-*` this run
-produced. Then post the execution record, close the map, and where a spec has a parent item above it,
+**The map closes** when: zero open tickets under the run label on this side of the map's
+`Run closes at:` line — a ticket past that point, or one the map's `Steps after close owned by:` line
+hands to someone else, is outside the close condition, and the record names it as handed over to its
+owner, never as waited on; zero open non-ticket items under it other than the specs and the map (a
+mislabelled item is resolved or re-labelled first); every spec closed with its record; every
+orchestrator-only item pinned to the close done, runtime verification included; the completion gate
+green on `HEAD` — a recorded gate run stands when `HEAD` is the commit it ran on and
+`git status --porcelain` is empty, and is run again only otherwise; the walk's screenshots posted on
+the review request as one captioned note; and the mirror pass from `/grill-to-waves` Stage 2 run over
+every spec this run produced — the delivery notes written on the spec item, each mirror regenerated
+from it. Then post the execution record, close the map, and where a spec has a parent item above it,
 post a delivery summary there and close it too. Closing upward is part of finishing.
 
 ## Stop rule
@@ -277,13 +309,16 @@ without a further go-ahead.
 
 Leave nothing half-held: no worktree for a closed ticket, and no branch that is green but unmerged
 without saying so by name. The report names the tickets closed with their merge shas and
-review requests, the hand-backs, the defects filed, anything outstanding for the user, and the next
-wave with what it waits on.
+review requests, the hand-backs, the defects filed, every account the walk created with its password
+(a file committed to the repository names the account and never the password), anything outstanding
+for the user, the steps handed over past the close point with their owner, and the next wave with
+what it waits on.
 
 **This run ends at the integration branch.** Promoting what landed to staging or production is
 `/ship-it-to stg` or `/ship-it-to prd`, in its own session: it reads the repository's promotion
 contract and the forge's protections rather than inheriting anything from this run. Name it in the
-report when a wave is worth promoting; never promote from here.
+report when a wave is worth promoting; never promote from here. A map whose `Run closes at:` is
+*deployed* closes once that session has reported the promotion, which the tail waits on.
 
 ## Team shape — `+ team`
 
@@ -347,11 +382,11 @@ the tracker cannot arbitrate.
 
 Where the host has no subagent tool — a Codex CLI too old to expose `spawn_agent`, a Codex
 configuration with agents disabled, or another agent CLI — everything above holds except the fan-out:
-the session **is** the executor, one ticket at a time, in the ticket's own worktree, and the installed
-agent definitions are read as role briefs rather than dispatched. The in-flight ceiling is then 1, so
-a wave is executed serially in wave order. Verification does not become optional because the same
-session did the work — read the diff, run the gate, walk the runtime, and say in the report that
-executor and verifier were the same context.
+the session **is** the executor, one ticket at a time, in the ticket's own worktree, and the walker
+too; the installed agent definitions are read as role briefs rather than dispatched. The in-flight
+ceiling is then 1, so a wave is executed serially in wave order. Verification does not become optional
+because the same session did the work — read the diff, run the gate, walk the runtime by the walk
+brief's own rules, and say in the report that executor, walker and verifier were the same context.
 
 Where the host does dispatch but its sub-agents share the parent's working directory (Codex), every
 executor brief names the worktree's absolute path and tells the executor to work only there; the

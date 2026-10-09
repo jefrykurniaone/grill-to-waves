@@ -46,9 +46,10 @@ Done when: the tracker is named and the label vocabulary exists.
 
 ## Stage 1 — Grill
 
-Invoke `mattpocock-skills:grilling` on the user's raw input, and `mattpocock-skills:domain-modeling`
-whenever vocabulary is in play. Both are **required** — see [README](../../README.md); if either is
-missing, stop and install it (the README says how on each host) rather than improvising a grill.
+Call the Skill tool for `/grilling` on the user's raw input, and again for `/domain-modeling`
+whenever vocabulary is in play; naming a skill in prose does not reliably load it. Both are
+**required** — see [README](../../README.md); if either is missing, stop and install it (the README
+says how on each host) rather than improvising a grill.
 Facts are yours to find: dispatch `scout-sonnet-medium` (one known thing), `scout-sonnet-high` (a
 sweep), `scout-opus-medium` (one precise judgment over narrow evidence) or `scout-opus-high` (a broad
 or uncertain analysis) for anything the codebase can answer, and put only decisions to the user.
@@ -64,11 +65,12 @@ files are one spec wearing two titles.
 
 Pick a run slug and create `run:<slug>` (description: "Belongs to delivery run <slug> - <title>").
 Before writing, sketch the seams the work will be tested at — existing seams first, the highest seam
-possible, ideally one — and confirm them with the user. Then write each spec on this template and
-publish it with `ready-for-agent`, `run:<slug>` and its own `spec:<slug>` label (description:
-"Belongs to spec <ref> - <title>"). No file paths and no code in a spec; those belong to tickets. The
-exception is a prototype snippet that encodes a decision more precisely than prose (a state machine,
-a schema, a type shape), trimmed to the decision.
+possible, ideally one, each with a one-line note on what it catches and what it misses — and confirm
+them with the user. Then write each spec on this template and publish it with `ready-for-agent`,
+`run:<slug>` and its own `spec:<slug>` label (description: "Belongs to spec <ref> - <title>"). No
+file paths and no code in a spec; those belong to tickets. The exception is a prototype snippet that
+encodes a decision more precisely than prose (a state machine, a schema, a type shape), trimmed to
+the decision.
 
 ```markdown
 ## Problem statement
@@ -103,8 +105,13 @@ map items (updated as later stages create them), then the body verbatim — on a
 by pull request. A mirror is a point-in-time copy that the spec's own run will falsify, so write its
 claims to survive delivery: "as of <date>, X" rather than "X is", and never renumber a `path:line`
 citation later — the quoted text is the evidence, the number is only its address at writing time.
-Whoever closes the run re-reads every mirror it produced and past-tenses or marks each claim the
-run's tickets reversed, deleting nothing.
+**The spec item is the one written copy.** Whoever closes the run writes the delivery notes there —
+past-tensing or marking each claim the run's tickets reversed, deleting nothing — and then regenerates
+each mirror whole from it: the mirror keeps its own header (the title line and the note above the
+body: the as-of date and commit, the links, the lineage of earlier versions) and takes the item's body
+below that header verbatim — on the local tracker, everything under the item's header lines and above
+its first dated section, which stays on the item. Done when the mirror below its header and the item's
+body diff empty.
 
 Done when: every grilled decision is owned by exactly one spec, every spec item exists, the docs
 pull request is open or merged.
@@ -133,7 +140,9 @@ The end-to-end behaviour this ticket makes work, from the user's perspective.
 - [ ] An executor that must write outside `writes:` stops and reports; it never widens the edit.
 
 ## Blocked by
-Each blocking ticket, or "None (can start immediately)".
+Each blocking ticket, or "None (can start immediately)". Omit this section where the tracker records
+the edge natively (GitHub, GitLab Premium): the edge is what the frontier read counts, and a copy in
+the body drifts from it.
 
 ## Execution
 executor: fable | opus | sonnet · effort: medium | high | xhigh — one line saying which axis
@@ -155,8 +164,8 @@ session, so there are no exceptions.
 A `runtime:` of `dev-server` means the orchestrator walks the app for that ticket, and the walk is
 driven by **Playwright MCP** where the server is connected — the executor never starts a dev server.
 Write the ticket's runtime criterion as what a walk must *observe*, not as an instruction to the
-executor: the surface to open, the role to sign in as at `/auth/dev`, the property to measure, and
-the value it must hold. A criterion an executor cannot satisfy and a walk cannot check is not a
+executor: the surface to open, the role to sign in as, the property to measure, and the value it
+must hold. A criterion an executor cannot satisfy and a walk cannot check is not a
 criterion.
 
 Label every ticket `ready-for-agent`, `run:<slug>`, its spec's `spec:<slug>`, its `executor:` and
@@ -203,20 +212,29 @@ would be an audience rather than a second pair of hands. Say so rather than aski
 Write the answer as an **Execution shape** line under the verdict: the shape, the reason, and for team
 the row-to-developer assignment and the serial owner.
 
+**Settle where the run closes** in the same exchange: `Run closes at:` — *merge request opened*,
+*merged* or *deployed* — and `Steps after close owned by:`, the person who takes what follows (the
+merge, the deploy, a data cleanup, a seed). Stage 5 writes both as the map's header lines, and
+`/orchestrate` reports every step past that point as handed over to that person, so a run that ends
+at an open review request says so from the start rather than closing "waiting on" a step that was
+never its own.
+
 Done when: every ticket appears in exactly one row and exactly one wave, the table is written, and the
-shape is recorded.
+shape, the close point and its owner are recorded.
 
 ## Stage 5 — Map
 
 Author one execution map for the run as its own item, titled
 `map: <run-slug> delivery - execution plan for run <run-slug>`, labelled `run:<slug>`. Mirror the
-repo's most recent map (search `map in:title`) for shape. It carries, in order:
+repo's most recent map (search `map in:title`) for shape. Under the title, two header lines from
+Stage 4: `Run closes at:` and `Steps after close owned by:`. Then, in order:
 
 1. **Execution progress** — first, above everything else, because it is the first thing a resuming
    session reads. At publication it is one line: the run has not started, wave 1 is next, and this
-   section is rewritten in the map's body by `/orchestrate` after every wave. Leaving the slot empty
-   invites the progress to live in the comment thread instead, where the next session acts without
-   it.
+   section is rewritten whole in the map's body by `/orchestrate` after every wave. It is live state,
+   never a log: wave reports and dated notes go to the comment thread, or beside a local map to
+   `map-log.md` ([TRACKERS.md](./TRACKERS.md)). Leaving the slot empty invites the progress to live
+   in that log instead, where the next session acts without it.
 2. **Parent** — the spec items, their docs mirrors, binding ADRs and seams, and any
    cross-run gate ("must not start until run X closes"), each gate naming the tickets whose closed
    state satisfies it and carrying a real blocking edge on the tickets it gates.
@@ -235,11 +253,10 @@ repo's most recent map (search `map in:title`) for shape. It carries, in order:
    a session that picks up an `exclusive: run` ticket can see in one read whether it may run it.
 6. **Waves** — the solo order, numbered globally; every ticket line carries its spec. Orchestrator-only
    work pinned to a wave (a baseline, a runtime check) names its owner: a session row, or `tail`. A
-   pinned runtime check states **how it is driven**: Playwright MCP (`mcp__playwright__*`) is the
-   default — `browser_navigate`, `browser_snapshot`, `browser_evaluate` for a `getComputedStyle`
-   measurement, `browser_console_messages` for the console-error count — with the scripted Playwright
-   fallback or plain HTTP named only where the check does not need a DOM, or where the check produces
-   an artifact rather than a page and is settled by fetching it.
+   pinned runtime check states **how it is driven**: Playwright MCP by default, the scripted Playwright
+   fallback or plain HTTP only where the check does not need a DOM, or where it produces an artifact
+   rather than a page and is settled by fetching it. `/orchestrate`'s walk brief carries the check
+   verbatim, so write it as what the walker must open, measure and find.
 7. **Why the executors split this way** — one paragraph naming every ticket not at `high` and the
    axis that moved it, every `executor:fable` ticket with the clause of the Fable tier that earned it
    (irreversible, run-wide or adversarial).

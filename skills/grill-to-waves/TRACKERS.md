@@ -61,7 +61,10 @@ label, link and close mechanics. Ownership in a team run is the tracker's assign
 One run per directory, `.scratch/<run-slug>/`.
 
 - **Publish**: `spec-NN-<slug>.md` per spec, `map.md`, and one ticket file per ticket at
-  `issues/NN-<slug>.md`, numbered from `01` in dependency order — never one combined file.
+  `issues/NN-<slug>.md`, numbered from `01` in dependency order — never one combined file. `map.md`
+  holds the run's live state only — the header lines, the execution-progress section and the
+  planned sections — because `/orchestrate` reads it whole at every start; its log lives beside it
+  in `map-log.md`.
 - **Label**: header lines stand in — `Status:` (one of `ready-for-agent`, `ready-for-human`,
   `needs-info`, `wontfix`, `resolved`; `resolved` is the closed state everywhere this protocol says
   "closed"), `Run:`, `Spec:`, `Executor:`, `Effort:`, `Assignee:`. The `## Surface` block lives in the
@@ -70,7 +73,13 @@ One run per directory, `.scratch/<run-slug>/`.
 - **Blocking edge**: a `Blocked by: NN, NN` header line. A ticket is unblocked when every file it
   lists carries `Status: resolved`.
 - **Comment**: append a `## <ISO date>` section to the item's file, written with the Write/Edit tools,
-  never through a PowerShell round trip.
+  never through a PowerShell round trip. A comment on the map — a wave report, a delivery note, any
+  dated narrative — is appended to `map-log.md`, so `map.md` stays the state a session resumes from
+  and `map-log.md` the history it reads only when a question needs it. The first `/orchestrate`
+  session to meet a `map.md` that carries dated sections migrates it once, at Stage 1, before
+  dispatching: move every dated section into `map-log.md` in its original order (creating the file),
+  rewrite the execution-progress section to the bounded state `/orchestrate`'s *Record, close, tear
+  down* prescribes, and say so in the wave report. Done when `map.md` has no `## <ISO date>` heading.
 - **Deliver**: no review request. The orchestrator merges the branch with a merge commit whose
   subject carries the ticket number — the only reconcile evidence this tracker leaves. References in
   the map and mirrors are file paths, not numbers.

@@ -87,7 +87,7 @@ function main() {
       // Strip a leading UTF-8 BOM / surrounding whitespace before parsing —
       // some shells prepend a BOM when piping (harmless under Claude Code, which
       // pipes raw, but makes the parser robust either way).
-      const clean = input.replace(/^﻿/, '').trim();
+      const clean = input.replace(/^\uFEFF/, '').trim();
       process.stdout.write(render(JSON.parse(clean)));
     } catch (e) {
       // never break the statusline on parse/render errors

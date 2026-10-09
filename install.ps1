@@ -23,18 +23,29 @@ Codex CLI:
   skills/jira-comment    ->  ~/.agents/skills/jira-comment
   agents/codex/*.toml    ->  ~/.codex/agents/                     (or <project>/.codex/agents/)
 
+Both hosts, into the same skills directory as above:
+  github.com/mattpocock/skills, cloned at its latest release  ->  one folder per skill that
+  release ships (its .claude-plugin/plugin.json), minus -MattPocockExclude
+
 The skill text is written in Claude Code's vocabulary. For Codex the installer rewrites, and only
-rewrites: the skill invocation prefix (`/orchestrate` -> `$orchestrate`, including the setup skill),
-the agent directory (`.claude/worktrees`, `.claude/scratch` -> `.codex/...`), the grill-skill names
-(`mattpocock-skills:grilling` -> `$grilling`, likewise domain-modeling) and drops the
-`disable-model-invocation` frontmatter line, whose Codex equivalent is the skill's
-`agents/openai.yaml` (`allow_implicit_invocation: false`), shipped in the repo.
+rewrites: the skill invocation prefix (`/orchestrate` -> `$orchestrate`, including the setup skill
+and the two grill skills), the agent directory (`.claude/worktrees`, `.claude/scratch` ->
+`.codex/...`) and drops the `disable-model-invocation` frontmatter line, whose Codex equivalent is
+the skill's `agents/openai.yaml` (`allow_implicit_invocation: false`), shipped in the repo.
 
 Any directory it is about to replace is first moved to <backups>/<name>-<timestamp>, unless
 -NoBackup is given. Backups: ~/.claude/backups for Claude Code, ~/.codex/backups for Codex.
 
+-Status installs nothing. From a local checkout it lists every skill folder and agent file the
+installer would install for the chosen target as `identical`, `differs` or `not installed`,
+comparing byte for byte against what an install would write (for Codex, the rewritten skill text).
+It reads no network and writes no file, leaves the Matt Pocock collection out, and exits 0 whatever
+it finds: a copy that differs may be a private variant kept on purpose.
+
 .EXAMPLE
 ./install.ps1
+.EXAMPLE
+./install.ps1 -Status -Target both
 .EXAMPLE
 ./install.ps1 -Target codex
 .EXAMPLE
@@ -54,7 +65,17 @@ param(
     [switch]$NoBackup,
 
     # Branch, tag or commit to fetch when the script is run without a local checkout.
-    [string]$Ref = 'main'
+    [string]$Ref = 'main',
+
+    # Do not fetch the Matt Pocock skill collection (offline, or installed some other way).
+    [switch]$SkipMattPocock,
+
+    # Matt Pocock skills left out of the install. `pr` dictates a pull request body template, and
+    # this pipeline leaves the body to the repository's own convention.
+    [string[]]$MattPocockExclude = @('pr'),
+
+    # Install nothing: report how the installed copies relate to this checkout. Read-only, offline.
+    [switch]$Status
 )
 
 $ErrorActionPreference = 'Stop'
@@ -62,11 +83,11 @@ Set-StrictMode -Version Latest
 
 $Repo = 'https://github.com/jefrykurniaone/grill-to-waves.git'
 $Skills = @('grill-to-waves', 'orchestrate', 'ship-it-to', 'daily-recap', 'jira-comment')
-$RequiredCodexSkills = @('grilling', 'domain-modeling', 'setup-matt-pocock-skills')
+$RequiredMattPocockSkills = @('grilling', 'domain-modeling', 'setup-matt-pocock-skills')
 # Agent definitions this repo used to ship and no longer does. A copy left in the agent directory
 # would keep registering a tier the skills no longer dispatch, so the installer removes it.
 $RetiredAgents = @('executor-fable-five-one-medium', 'executor-fable-five-one-high', 'executor-fable-five-one-xhigh')
-$MattPocockCodexInstallCommand = "npx skills@latest add mattpocock/skills --skill '*' -a codex"
+$MattPocockRepo = 'mattpocock/skills'
 $Stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $Utf8NoBom = New-Object System.Text.UTF8Encoding $false
 
@@ -112,6 +133,9 @@ if ($PSScriptRoot -and (Test-Path (Join-Path $PSScriptRoot 'skills/grill-to-wave
     Write-Step "Source: local checkout at $sourceRoot"
 }
 else {
+    if ($Status) {
+        throw '-Status compares the installed copies against a local checkout. Run it from a clone.'
+    }
     if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
         throw 'git is required to fetch the skills when the script runs without a local checkout.'
     }
@@ -157,7 +181,15 @@ $codexAgentsDir = if ($projectRoot) { Join-Path $projectRoot '.codex/agents' } e
 $codexBackups = Join-Path $codexHome 'backups'
 
 # --- 3. Helpers ---------------------------------------------------------------------------------
+# A destination that is a junction or symlink - an `npx skills` install links <agent>/skills/<name>
+# to ~/.agents/skills/<name> - is unlinked, never followed: a recursive delete through it would
+# empty the link's target.
 function Install-Directory([string]$From, [string]$To, [string]$BackupRoot) {
+    $existing = Get-Item -LiteralPath $To -Force -ErrorAction SilentlyContinue
+    if ($existing -and ($existing.Attributes -band [System.IO.FileAttributes]::ReparsePoint)) {
+        $existing.Delete()
+        Write-Note "unlinked $To"
+    }
     if (Test-Path $To) {
         if ($NoBackup) {
             Write-Note "replacing $To (no backup)"
@@ -173,6 +205,36 @@ function Install-Directory([string]$From, [string]$To, [string]$BackupRoot) {
     New-Item -ItemType Directory -Force -Path (Split-Path $To -Parent) | Out-Null
     Copy-Item -LiteralPath $From -Destination $To -Recurse
     Write-Note "installed $To"
+}
+
+# The latest release of the Matt Pocock collection: the tag GitHub names as latest, or the highest
+# plain vX.Y.Z tag when the API cannot be reached (it rate-limits unauthenticated callers).
+function Get-MattPocockReleaseTag {
+    try {
+        $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$MattPocockRepo/releases/latest" `
+            -Headers @{ 'User-Agent' = 'grill-to-waves-installer' }
+        if ($release.tag_name) { return [string]$release.tag_name }
+    }
+    catch {
+        Write-Note "GitHub API did not name a latest release ($($_.Exception.Message)); reading the tags instead."
+    }
+    $tags = @(git ls-remote --tags --refs "https://github.com/$MattPocockRepo.git" 'v*' |
+            ForEach-Object { ($_ -split 'refs/tags/')[-1] } |
+            Where-Object { $_ -match '^v\d+\.\d+\.\d+$' } |
+            Sort-Object { [version]$_.Substring(1) })
+    if ($tags.Count -eq 0) {
+        throw "Could not find a release of $MattPocockRepo. Re-run with -SkipMattPocock to install without it."
+    }
+    return $tags[-1]
+}
+
+# Install the fetched Matt Pocock skills into one skills root. Install-Directory unlinks a
+# destination that is a link, which is what an `npx skills` install leaves there.
+function Install-MattPocockSkills([string]$SkillsRoot, [string]$BackupRoot) {
+    foreach ($source in $mattPocockSkillDirs) {
+        Install-Directory $source (Join-Path $SkillsRoot (Split-Path $source -Leaf)) $BackupRoot
+    }
+    Write-Note "installed $($mattPocockSkillDirs.Count) Matt Pocock skills ($mattPocockTag) into $SkillsRoot"
 }
 
 function Install-File([string]$From, [string]$To, [string]$BackupRoot) {
@@ -273,31 +335,168 @@ function Install-ClaudeStatusLine([string]$Source, [string]$ClaudeUserHome, [str
     Add-ClaudeSetting (Join-Path $ClaudeUserHome 'settings.json') $BackupRoot 'statusLine' $entry 'the statusline'
 }
 
-# Rewrite one installed skill file from Claude Code's vocabulary to Codex's. Byte-exact UTF-8 in
-# and out (no BOM), so non-ASCII prose survives Windows PowerShell 5.1.
-function Convert-SkillFileForCodex([string]$Path) {
-    $text = [System.IO.File]::ReadAllText($Path, $Utf8NoBom)
+# Rewrite skill text from Claude Code's vocabulary to Codex's.
+function ConvertTo-CodexSkillText([string]$Text) {
     # Slash commands -> Codex skill mentions.
     # A path segment (`../grill-to-waves/DEFAULTS.md`, `skills/grill-to-waves`) is left alone.
-    $text = [regex]::Replace($text, '(?<![\w./\\-])/(orchestrate|grill-to-waves|ship-it-to|daily-recap|jira-comment|setup-matt-pocock-skills)(?![\w/-])', '$$$1')
+    $Text = [regex]::Replace($Text, '(?<![\w./\\-])/(orchestrate|grill-to-waves|ship-it-to|daily-recap|jira-comment|setup-matt-pocock-skills|grilling|domain-modeling)(?![\w/-])', '$$$1')
     # The agent directory inside the repository.
-    $text = [regex]::Replace($text, '\.claude([/\\])(worktrees|scratch)', '.codex$1$2')
-    # The two required grill skills, plugin-namespaced on Claude Code, plain skills on Codex.
-    $text = $text.Replace('mattpocock-skills:grilling', '$grilling')
-    $text = $text.Replace('mattpocock-skills:domain-modeling', '$domain-modeling')
+    $Text = [regex]::Replace($Text, '\.claude([/\\])(worktrees|scratch)', '.codex$1$2')
     # Codex reads only `name` and `description` from the frontmatter; agents/openai.yaml carries the
     # user-invocation-only policy instead.
-    $text = [regex]::Replace($text, '(?m)^disable-model-invocation: true\r?\n', '')
-    [System.IO.File]::WriteAllText($Path, $text, $Utf8NoBom)
+    return [regex]::Replace($Text, '(?m)^disable-model-invocation: true\r?\n', '')
 }
 
-# --- 4. Claude Code ------------------------------------------------------------------------------
+# Rewrite one installed skill file for Codex. Byte-exact UTF-8 in and out (no BOM), so non-ASCII
+# prose survives Windows PowerShell 5.1.
+function Convert-SkillFileForCodex([string]$Path) {
+    $text = [System.IO.File]::ReadAllText($Path, $Utf8NoBom)
+    [System.IO.File]::WriteAllText($Path, (ConvertTo-CodexSkillText $text), $Utf8NoBom)
+}
+
+# The bytes an install would write for one source file: the file as it is, or the rewritten text
+# for a Codex skill's own Markdown.
+function Get-InstallBytes([string]$Path, [bool]$ForCodex) {
+    if ($ForCodex) {
+        return , $Utf8NoBom.GetBytes((ConvertTo-CodexSkillText ([System.IO.File]::ReadAllText($Path, $Utf8NoBom))))
+    }
+    return , [System.IO.File]::ReadAllBytes($Path)
+}
+
+function Test-InstalledFile([string]$From, [string]$To, [bool]$ForCodex) {
+    $expected = [System.Convert]::ToBase64String((Get-InstallBytes $From $ForCodex))
+    return $expected -ceq [System.Convert]::ToBase64String([System.IO.File]::ReadAllBytes($To))
+}
+
+function Get-RelativeFiles([string]$Root) {
+    $prefix = (Get-Item -LiteralPath $Root -Force).FullName.TrimEnd('\', '/').Length + 1
+    return @(Get-ChildItem -LiteralPath $Root -Recurse -File -Force |
+            ForEach-Object { $_.FullName.Substring($prefix).Replace('\', '/') })
+}
+
+# `identical`, `not installed`, or `differs` with the files that are changed, missing or extra.
+# Codex rewrites the Markdown at the top of a skill folder and nothing below it.
+function Get-DirectoryStatus([string]$From, [string]$To, [bool]$ForCodex) {
+    if (-not (Test-Path -LiteralPath $To -PathType Container)) { return 'not installed' }
+    $expected = Get-RelativeFiles $From
+    $installed = Get-RelativeFiles $To
+    $changed = New-Object System.Collections.Generic.List[string]
+    foreach ($file in $expected) {
+        $rewritten = $ForCodex -and $file -notmatch '/' -and $file -like '*.md'
+        if ($installed -cnotcontains $file) { $changed.Add($file) }
+        elseif (-not (Test-InstalledFile (Join-Path $From $file) (Join-Path $To $file) $rewritten)) { $changed.Add($file) }
+    }
+    foreach ($file in $installed) {
+        if ($expected -cnotcontains $file) { $changed.Add($file) }
+    }
+    if ($changed.Count -eq 0) { return 'identical' }
+    $names = [string[]]$changed.ToArray()
+    [System.Array]::Sort($names, [System.StringComparer]::Ordinal)
+    return "differs ($($names -join ', '))"
+}
+
+function Get-FileStatus([string]$From, [string]$To) {
+    if (-not (Test-Path -LiteralPath $To -PathType Leaf)) { return 'not installed' }
+    if (Test-InstalledFile $From $To $false) { return 'identical' }
+    return 'differs'
+}
+
+# One status line: the state in a fixed column, then the item, then the files behind a `differs`.
+function Write-Status([string]$State, [string]$Item) {
+    $name = $State
+    $detail = ''
+    if ($State.StartsWith('differs ')) {
+        $name = 'differs'
+        $detail = '  ' + $State.Substring(8)
+    }
+    $script:statusCounts[$name]++
+    Write-Note ('{0,-13}  {1}{2}' -f $name, $Item, $detail)
+}
+
+function Get-SortedFiles([string]$Dir, [string]$Filter) {
+    $files = @(Get-ChildItem $Dir -Filter $Filter -File)
+    $names = [string[]]@($files | ForEach-Object Name)
+    [System.Array]::Sort($names, [System.StringComparer]::Ordinal)
+    return $names
+}
+
+# --- 4. Status ----------------------------------------------------------------------------------
+# Compare, report and stop. Nothing below this section runs, so nothing is fetched or written.
+if ($Status) {
+    $statusCounts = @{ 'identical' = 0; 'differs' = 0; 'not installed' = 0 }
+    if ($doClaude) {
+        Write-Step "Status: Claude Code -> $claudeHome"
+        foreach ($skill in $Skills) {
+            Write-Status (Get-DirectoryStatus (Join-Path $sourceRoot "skills/$skill") (Join-Path $claudeHome "skills/$skill") $false) "skills/$skill"
+        }
+        foreach ($agent in (Get-SortedFiles (Join-Path $sourceRoot 'agents') '*.md')) {
+            Write-Status (Get-FileStatus (Join-Path $sourceRoot "agents/$agent") (Join-Path $claudeHome "agents/$agent")) "agents/$agent"
+        }
+    }
+    if ($doCodex) {
+        Write-Step "Status: Codex CLI -> skills in $codexSkillsRoot, agents in $codexAgentsDir"
+        foreach ($skill in $Skills) {
+            Write-Status (Get-DirectoryStatus (Join-Path $sourceRoot "skills/$skill") (Join-Path $codexSkillsRoot $skill) $true) "skills/$skill"
+        }
+        foreach ($agent in (Get-SortedFiles (Join-Path $sourceRoot 'agents/codex') '*.toml')) {
+            Write-Status (Get-FileStatus (Join-Path $sourceRoot "agents/codex/$agent") (Join-Path $codexAgentsDir $agent)) "agents/$agent"
+        }
+    }
+    Write-Step "Status: $($statusCounts['identical']) identical, $($statusCounts['differs']) differs, $($statusCounts['not installed']) not installed."
+    Write-Note 'Nothing was changed. A copy that differs stays as it is until the installer runs without -Status.'
+    return
+}
+
+# --- 5. Fetch the Matt Pocock collection ---------------------------------------------------------
+# Straight from its GitHub repository, at the latest release, before anything is installed - so a
+# network failure stops the run with nothing half-replaced.
+$mattPocockTag = $null
+$mattPocockSkillDirs = @()
+if (-not $SkipMattPocock) {
+    if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+        throw "git is required to fetch $MattPocockRepo. Re-run with -SkipMattPocock to install without it."
+    }
+    $mattPocockTag = Get-MattPocockReleaseTag
+    $mattPocockRoot = Join-Path ([System.IO.Path]::GetTempPath()) "mattpocock-skills-$Stamp"
+    Write-Step "Matt Pocock skills: fetching $MattPocockRepo at its latest release, $mattPocockTag"
+    # Fetch the tag rather than `clone --branch`: a shallow clone of an annotated tag works, but
+    # warns that the tag "is not a commit!".
+    git init --quiet $mattPocockRoot
+    git -C $mattPocockRoot fetch --quiet --depth 1 "https://github.com/$MattPocockRepo.git" "refs/tags/$mattPocockTag"
+    if ($LASTEXITCODE -eq 0) { git -C $mattPocockRoot -c advice.detachedHead=false checkout --quiet FETCH_HEAD }
+    if ($LASTEXITCODE -ne 0) {
+        throw "Fetching $MattPocockRepo $mattPocockTag failed with exit code $LASTEXITCODE. Re-run with -SkipMattPocock to install without it."
+    }
+    # The release's own manifest names the skills it ships; its in-progress and misc buckets are
+    # not in it.
+    $manifestPath = Join-Path $mattPocockRoot '.claude-plugin/plugin.json'
+    if (-not (Test-Path $manifestPath)) {
+        throw "$MattPocockRepo $mattPocockTag has no .claude-plugin/plugin.json to read the skill list from."
+    }
+    $manifest = [System.IO.File]::ReadAllText($manifestPath, $Utf8NoBom) | ConvertFrom-Json
+    foreach ($relative in @($manifest.skills)) {
+        $dir = [System.IO.Path]::GetFullPath((Join-Path $mattPocockRoot $relative))
+        $name = Split-Path $dir -Leaf
+        if ($MattPocockExclude -contains $name) {
+            Write-Note "left out $name"
+            continue
+        }
+        if (-not (Test-Path (Join-Path $dir 'SKILL.md'))) {
+            throw "$MattPocockRepo $mattPocockTag lists $relative but ships no SKILL.md there."
+        }
+        $mattPocockSkillDirs += $dir
+    }
+    if ($mattPocockSkillDirs.Count -eq 0) { throw "$MattPocockRepo $mattPocockTag lists no skills to install." }
+}
+
+# --- 6. Claude Code ------------------------------------------------------------------------------
 if ($doClaude) {
     Write-Step "Claude Code -> $claudeHome"
     $backups = Join-Path $claudeHome 'backups'
     foreach ($skill in $Skills) {
         Install-Directory (Join-Path $sourceRoot "skills/$skill") (Join-Path $claudeHome "skills/$skill") $backups
     }
+    if (-not $SkipMattPocock) { Install-MattPocockSkills (Join-Path $claudeHome 'skills') $backups }
     $agentsDir = Join-Path $claudeHome 'agents'
     $agents = Get-ChildItem (Join-Path $sourceRoot 'agents') -Filter '*.md' -File
     foreach ($agent in $agents) {
@@ -312,7 +511,7 @@ if ($doClaude) {
     Install-ClaudeStatusLine (Join-Path $sourceRoot 'statusline/statusline.js') $userClaudeHome (Join-Path $userClaudeHome 'backups')
 }
 
-# --- 5. Codex CLI --------------------------------------------------------------------------------
+# --- 7. Codex CLI --------------------------------------------------------------------------------
 if ($doCodex) {
     Write-Step "Codex CLI -> skills in $codexSkillsRoot, agents in $codexAgentsDir"
     foreach ($skill in $Skills) {
@@ -321,8 +520,9 @@ if ($doCodex) {
         foreach ($file in (Get-ChildItem $dest -Filter '*.md' -File)) {
             Convert-SkillFileForCodex $file.FullName
         }
-        Write-Note "rewrote $skill for Codex (`$-mentions, .codex/ paths, and required Matt Pocock skills)"
+        Write-Note "rewrote $skill for Codex (`$-mentions and .codex/ paths)"
     }
+    if (-not $SkipMattPocock) { Install-MattPocockSkills $codexSkillsRoot $codexBackups }
 
     $agents = Get-ChildItem (Join-Path $sourceRoot 'agents/codex') -Filter '*.toml' -File
     foreach ($agent in $agents) {
@@ -353,7 +553,7 @@ if ($doCodex) {
     }
 }
 
-# --- 6. Report ----------------------------------------------------------------------------------
+# --- 8. Report ----------------------------------------------------------------------------------
 Write-Step 'Done.'
 if ($doClaude) {
     Write-Note 'Claude Code: restart the session, then run  /grill-to-waves , later  /orchestrate , and  /ship-it-to stg|prd  to promote'
@@ -369,43 +569,42 @@ if ($doCodex) {
 
 # The pipeline requires setup-matt-pocock-skills (Stage 0), grilling and domain-modeling (Stage 1).
 if ($doClaude) {
-    # The plugin cache is laid out <marketplace>/<plugin>; the marketplace name depends on how the
-    # plugin was added (mattpocock, claude-plugins-official, ...), so match the plugin one level down.
-    $pluginCache = Join-Path $HOME '.claude/plugins/cache'
-    $mattpocockInstalled = (@(
-        Get-ChildItem $pluginCache -Directory -Filter 'mattpocock*' -ErrorAction SilentlyContinue
-    ).Count -gt 0) -or (@(
-        Get-ChildItem $pluginCache -Directory -ErrorAction SilentlyContinue |
-            ForEach-Object { Get-ChildItem $_.FullName -Directory -Filter 'mattpocock-skills' -ErrorAction SilentlyContinue }
-    ).Count -gt 0)
-    if ($mattpocockInstalled) {
-        Write-Note 'Claude Code required plugin mattpocock-skills: found.'
+    $currentProjectSkillsRoot = Join-Path (Get-Location).Path '.claude/skills'
+    $missing = @($RequiredMattPocockSkills | Where-Object {
+        -not (Test-Path (Join-Path $claudeHome "skills/$_/SKILL.md")) -and
+        -not (Test-Path (Join-Path $HOME ".claude/skills/$_/SKILL.md")) -and
+        -not (Test-Path (Join-Path $currentProjectSkillsRoot "$_/SKILL.md"))
+    })
+    if ($missing.Count -eq 0) {
+        Write-Note "Claude Code required skills found: $($RequiredMattPocockSkills -join ', ')."
     }
     else {
         Write-Host ''
-        Write-Step 'Claude Code required plugin missing: mattpocock-skills'
-        Write-Note 'Stage 1 needs grilling and domain-modeling; Stage 0 suggests setup-matt-pocock-skills.'
-        Write-Note 'In Claude Code, run:'
-        Write-Note '  /plugin marketplace add mattpocock/skills'
-        Write-Note '  /plugin install mattpocock-skills@mattpocock'
-        Write-Note 'The marketplace is named mattpocock, not skills. Restart the session afterwards.'
+        Write-Step "Claude Code required skills missing: $($missing -join ', ')"
+        Write-Note 'Stage 0 suggests /setup-matt-pocock-skills; Stage 1 needs /grilling and /domain-modeling.'
+        Write-Note "Re-run without -SkipMattPocock, and without excluding them, to fetch them from the latest release of $MattPocockRepo."
+    }
+    # The plugin registers every skill a second time, under a prefix the pipeline does not call.
+    $installedPlugins = Join-Path $HOME '.claude/plugins/installed_plugins.json'
+    if ((Test-Path $installedPlugins) -and
+        [System.IO.File]::ReadAllText($installedPlugins, $Utf8NoBom).Contains('"mattpocock-skills@')) {
+        Write-Note 'WARNING: the mattpocock-skills plugin is installed too, so each skill is listed twice. Remove it:  claude plugin uninstall mattpocock-skills@mattpocock'
     }
 }
 if ($doCodex) {
     $currentProjectSkillsRoot = Join-Path (Get-Location).Path '.agents/skills'
-    $missing = @($RequiredCodexSkills | Where-Object {
+    $missing = @($RequiredMattPocockSkills | Where-Object {
         -not (Test-Path (Join-Path $codexSkillsRoot "$_/SKILL.md")) -and
         -not (Test-Path (Join-Path $HOME ".agents/skills/$_/SKILL.md")) -and
         -not (Test-Path (Join-Path $currentProjectSkillsRoot "$_/SKILL.md"))
     })
     if ($missing.Count -eq 0) {
-        Write-Note "Codex required skills found: $($RequiredCodexSkills -join ', ')."
+        Write-Note "Codex required skills found: $($RequiredMattPocockSkills -join ', ')."
     }
     else {
         Write-Host ''
         Write-Step "Codex required skills missing: $($missing -join ', ')"
-        Write-Note 'Stage 0 needs $setup-matt-pocock-skills; Stage 1 needs $grilling and $domain-modeling. Install the full collection to match Claude Code:'
-        Write-Note "  $MattPocockCodexInstallCommand"
-        Write-Note 'Choose project scope if prompted, then restart Codex.'
+        Write-Note 'Stage 0 needs $setup-matt-pocock-skills; Stage 1 needs $grilling and $domain-modeling.'
+        Write-Note "Re-run without -SkipMattPocock, and without excluding them, to fetch them from the latest release of $MattPocockRepo."
     }
 }

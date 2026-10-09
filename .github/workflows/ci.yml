@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Windows - install.ps1
+    runs-on: windows-latest
+    env:
+      # The parity test needs a bash (Git Bash here); without one it must fail, not skip.
+      G2W_REQUIRE_PARITY: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PSScriptAnalyzer on install.ps1
+        shell: pwsh
+        run: |
+          if (-not (Get-Module -ListAvailable PSScriptAnalyzer)) {
+            Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
+          }
+          $findings = @(Invoke-ScriptAnalyzer -Path install.ps1 -Settings tests/PSScriptAnalyzerSettings.psd1)
+          $findings | Format-Table -AutoSize RuleName, Severity, Line, Message | Out-String -Width 200 | Write-Host
+          if ($findings.Count -gt 0) { exit 1 }
+
+      - name: Tests under PowerShell 7
+        shell: pwsh
+        run: ./tests/test-install.ps1
+
+      - name: Tests under Windows PowerShell 5.1
+        shell: powershell
+        run: ./tests/test-install.ps1
+
+  ubuntu:
+    name: Ubuntu - install.sh and docs
+    runs-on: ubuntu-latest
+    env:
+      # The parity test needs pwsh; without it the test must fail, not skip.
+      G2W_REQUIRE_PARITY: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: shellcheck
+        run: shellcheck install.sh tests/test-install.sh tests/lib/guarded-install.sh
+
+      - name: Tests under bash
+        run: bash tests/test-install.sh
+
+      - name: Docs check
+        shell: pwsh
+        run: ./tests/check-docs.ps1

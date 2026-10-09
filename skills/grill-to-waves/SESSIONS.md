@@ -153,9 +153,11 @@ marker.
 Four entry points: first start, context clear, crash, interrupted turn. Nothing local is trusted, no
 prior report is trusted, no executor's account of worktree state is trusted.
 
-1. **Map** — run slug, Sessions table and verdict, waves, contention table, gate, out of scope.
-2. **Map comments and other open maps** naming this run — cross-run gates are written as prose on the
-   *other* run's map. A gate is verified by reading the named tickets' states.
+1. **Map** — run slug, Sessions table and verdict, waves, contention table, gate, where the run
+   closes and who owns the steps after it, out of scope. Its log (the comment thread, or `map-log.md`
+   beside a local map) is history, read only when a question needs it.
+2. **Other open maps** naming this run — cross-run gates are written as prose on the *other* run's
+   map. A gate is verified by reading the named tickets' states.
 3. **Tickets** — one listing of every item under the run label with state, labels, body and open
    blockers (TRACKERS.md's frontier read returns the body too); classify by §1; the surface blocks
    feed the collision re-check.
