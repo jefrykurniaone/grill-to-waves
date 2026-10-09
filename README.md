@@ -27,7 +27,7 @@ production deploy rather than a handed-back ticket.
 
 | Piece | What it is |
 |---|---|
-| `CONTEXT.md` | Canonical distinction between executor tier and reasoning effort. |
+| `GLOSSARY.md` | Canonical distinction between executor tier and reasoning effort. |
 | `skills/grill-to-waves/SKILL.md` | The seven-stage pipeline (Stage 0 tracker → Stage 6 stop). |
 | `skills/grill-to-waves/SESSIONS.md` | Write surfaces, the collision rule, ownership, resume. The protocol both skills share. |
 | `skills/grill-to-waves/TRACKERS.md` | The five tracker operations for GitHub (`gh`), GitLab (`glab`) and local markdown. |
@@ -49,43 +49,7 @@ docs mirror of each spec. Nothing depends on a local file that a context clear w
 
 ## Install
 
-### 1. Install the Matt Pocock skill collection first
-
-Install the complete [mattpocock/skills](https://github.com/mattpocock/skills) collection on both
-hosts. The pipeline directly requires three of them: one for repository setup in Stage 0 and two for
-grilling in Stage 1.
-
-**Claude Code** — the plugin:
-
-```
-/plugin marketplace add mattpocock/skills
-/plugin install mattpocock-skills@mattpocock
-```
-
-The marketplace is named `mattpocock`, not `skills`. Outside the session the same operations are
-`claude plugin marketplace add mattpocock/skills` and
-`claude plugin install mattpocock-skills@mattpocock`; an install needs a restart to apply.
-
-| Skill | Used by |
-|---|---|
-| `grilling` | Stage 1 — the grill itself. |
-| `domain-modeling` | Stage 1, whenever vocabulary is in play. |
-| `setup-matt-pocock-skills` | Stage 0 — records the tracker choice in `docs/agents/issue-tracker.md`, run once per repo. |
-
-**Codex CLI** — run this from the project where you will use the pipeline (Node.js/npm is required):
-
-```bash
-npx skills@latest add mattpocock/skills --skill '*' -a codex
-```
-
-Choose **project scope** if prompted. This installs the full collection under the project's
-`.agents/skills/` directory, matching the collection provided by the Claude Code plugin. Restart
-Codex afterwards. Run `$setup-matt-pocock-skills` once in each repository before its first
-`$grill-to-waves` run. The installer verifies the three pipeline requirements—`$grilling`,
-`$domain-modeling`, and `$setup-matt-pocock-skills`—and prints the full-collection command when one
-is missing.
-
-### 2. Install the skills and agents
+### Run the installer
 
 ```powershell
 # Windows / PowerShell
@@ -114,6 +78,9 @@ cd grill-to-waves
 | `--project PATH` (`-Project`) | Install into the project instead of the home directory: `PATH/.claude` for Claude Code; `PATH/.agents/skills` and `PATH/.codex/agents` for Codex. |
 | `--no-backup` (`-NoBackup`) | Do not move a replaced directory or file to `<backups>/<name>-<timestamp>` first (`~/.claude/backups`, `~/.codex/backups`). |
 | `--ref REF` (`-Ref`) | Branch, tag or commit to fetch when running without a local checkout. |
+| `--skip-mattpocock` (`-SkipMattPocock`) | Do not fetch the Matt Pocock skill collection — offline, or where it is installed some other way. |
+| `--mattpocock-exclude "NAME NAME"` (`-MattPocockExclude NAME,NAME`) | Matt Pocock skills to leave out. Default: `pr`. |
+| `--status` (`-Status`) | Install nothing; report each installed skill and agent as `identical`, `differs` or `not installed`. See *Status and tests*. |
 
 Where it lands:
 
@@ -124,6 +91,7 @@ Claude Code                          Codex CLI
 ~/.claude/skills/ship-it-to/         ~/.agents/skills/ship-it-to/
 ~/.claude/skills/daily-recap/        ~/.agents/skills/daily-recap/
 ~/.claude/skills/jira-comment/       ~/.agents/skills/jira-comment/
+~/.claude/skills/<matt-pocock>/      ~/.agents/skills/<matt-pocock>/      one folder per skill
 ~/.claude/agents/*.md                ~/.codex/agents/*.toml
 ~/.claude/statusline.js
 ~/.claude/settings.json  (attribution, statusLine)
@@ -142,6 +110,66 @@ statusline, so nothing about it is installed there.
 
 Restart the session afterwards so the host re-reads its skill and agent directories.
 
+### Status and tests
+
+From a clone, `--status` (`-Status`) installs nothing and reports how the installed copies relate to
+the checkout — each skill folder and agent file as `identical`, `differs` or `not installed`:
+
+```bash
+./install.sh --status --target both        # or  ./install.ps1 -Status -Target both
+```
+
+It is read-only and offline, honours `--target` and `--project`, and leaves the Matt Pocock
+collection out. A Codex skill is compared against its rewritten text, so a fresh install is
+`identical` on both hosts. It exits 0 whatever it finds: a copy that `differs` — the files are named
+beside it — may be a private variant you keep on purpose, and it stays until the installer runs
+without `--status`.
+
+The installers are tested from `tests/`. Every run installs into a scratch directory under the
+system temp path and checks at the end that the real `~/.claude`, `~/.agents` and `~/.codex` are
+untouched:
+
+```
+pwsh -NoProfile -File tests/test-install.ps1           # install.ps1 under PowerShell 7
+powershell -NoProfile -File tests/test-install.ps1     # install.ps1 under Windows PowerShell 5.1
+bash tests/test-install.sh                             # install.sh
+pwsh -NoProfile -File tests/check-docs.ps1             # no Claude model named with a version
+```
+
+The parity test runs both installers and compares the trees, so the PowerShell suite needs a bash
+(Git Bash, or a WSL distribution named in `G2W_WSL_DISTRO`) and the bash suite needs `pwsh`; without
+one that test is skipped, or fails when `G2W_REQUIRE_PARITY=1`. CI (`.github/workflows/ci.yml`) runs
+all of it on push and pull request, with PSScriptAnalyzer and shellcheck.
+
+### The Matt Pocock skill collection
+
+The pipeline requires three skills from [mattpocock/skills](https://github.com/mattpocock/skills):
+
+| Skill | Used by |
+|---|---|
+| `grilling` | Stage 1 — the grill itself. |
+| `domain-modeling` | Stage 1, whenever vocabulary is in play. |
+| `setup-matt-pocock-skills` | Stage 0 — records the tracker choice in `docs/agents/issue-tracker.md`, run once per repo. |
+
+The installer fetches the collection for you, straight from that GitHub repository at its **latest
+release**: the tag GitHub names as latest, or the highest `vX.Y.Z` tag when the API does not answer.
+It installs the skills that release ships — the list in its `.claude-plugin/plugin.json` — one folder
+each, beside the pipeline's own skills on every host you chose. `git` is the only requirement.
+Re-run the installer to move to a newer release.
+
+- `pr` is left out by default: it dictates a pull request body template, and the pipeline leaves the
+  body to the repository's own convention. `--mattpocock-exclude` changes the list.
+- `--skip-mattpocock` installs without fetching. The installer still reports any of the three
+  required skills it cannot find.
+- A skill folder that is a link — what an `npx skills` install leaves in `.claude/skills/` — is
+  unlinked and replaced by a real copy; the link's target is not touched.
+- Do not install the `mattpocock-skills` Claude Code plugin as well. It registers every skill a
+  second time under a `mattpocock-skills:` prefix, which the pipeline does not call. The installer
+  warns when it finds it; remove it with `claude plugin uninstall mattpocock-skills@mattpocock`.
+
+Run `/setup-matt-pocock-skills` (`$setup-matt-pocock-skills` on Codex) once in each repository
+before its first pipeline run.
+
 ### Codex CLI specifics
 
 Codex reads skills from `~/.agents/skills/` (the agent-skills standard; `~/.codex/skills/` is its
@@ -152,10 +180,10 @@ it is set, because a map's in-flight ceiling must stay under it.
 
 The skill text in this repo is written in Claude Code's vocabulary. For Codex the installer
 rewrites, and only rewrites: `/orchestrate`, `/grill-to-waves`, `/ship-it-to`, `/daily-recap`,
-`/jira-comment` and `/setup-matt-pocock-skills` to
-Codex `$` mentions; `.claude/worktrees` and `.claude/scratch` to `.codex/…`; the two grill-skill
-names to `$grilling` and `$domain-modeling`; and it drops the `disable-model-invocation` line, whose
-Codex equivalent is each skill's `agents/openai.yaml` (`allow_implicit_invocation: false`).
+`/jira-comment`, `/setup-matt-pocock-skills`, `/grilling` and `/domain-modeling` to
+Codex `$` mentions; `.claude/worktrees` and `.claude/scratch` to `.codex/…`; and it drops the
+`disable-model-invocation` line, whose Codex equivalent is each skill's `agents/openai.yaml`
+(`allow_implicit_invocation: false`).
 
 The tier names in the labels and agent names are tiers, not vendors or model generations. Claude
 Code agents use the host's aliases (`fable`, `opus`, `sonnet`), so each tier follows the current
@@ -250,13 +278,13 @@ It only drafts; you paste the comment into Jira.
   role briefs (see *Hosts without subagent dispatch* in `skills/orchestrate/SKILL.md`).
 - **[mattpocock/skills](https://github.com/mattpocock/skills)**, required — `grilling` and
   `domain-modeling` for Stage 1, and `setup-matt-pocock-skills` for the Stage 0 tracker record on
-  both hosts. Install step 1 above.
+  both hosts. The installer fetches them; see *The Matt Pocock skill collection* above.
 - **Playwright MCP**, optional, for runtime verification of `runtime: dev-server` tickets. Without it
-  the orchestrator falls back to scripted Playwright or plain HTTP, and says which it used.
-- **Obsidian**, optional, for `vault-scribe`. The desktop app has to be running for the official CLI;
-  the agent falls back to reading the vault from disk when it is not. It takes the vault path from
-  the calling session's brief, then `OBSIDIAN_VAULT`, then whatever vault the CLI already has open,
-  and stops rather than guessing. Nothing in the pipeline depends on it.
+  the walk falls back to scripted Playwright or plain HTTP, and says which it used.
+- **An Obsidian vault**, optional, for `vault-scribe`. The agent works on the vault as Markdown files,
+  so neither the desktop app nor its CLI has to be running. It takes the vault path from the calling
+  session's brief, then from the instructions already in its context, and stops rather than
+  guessing. Nothing in the pipeline depends on it.
 
 Per-repository conventions — the completion gate, the seams, the hard rules an executor brief has to
 carry — are read from the repository's own `CLAUDE.md` or `AGENTS.md`, and override `DEFAULTS.md`

@@ -17,7 +17,7 @@ _Avoid_: Model tier, executor tier
 **Fable tier**:
 The highest executor tier, for work whose failure is irreversible, run-wide, or adversarial. It is
 independent of reasoning effort and of which Fable generation the host currently serves.
-_Avoid_: Fable model, xhigh tier, Fable 5.1 tier
+_Avoid_: Fable model, xhigh tier, a tier named with a version number
 
 **Promotion**:
 Moving what already landed on the integration branch to a staging or production branch. It is one

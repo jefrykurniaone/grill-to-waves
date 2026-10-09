@@ -124,15 +124,15 @@ plan is running one tier lower than its label says, so check the plan before tru
 | In-flight ceiling | the map's (default three, hard maximum five) | the map's, and never above `agents.max_concurrent_threads_per_session` in `~/.codex/config.toml` |
 | Skill invocation | a slash command: the skill name after `/` | a skill mention: the skill name after `$` |
 | Agent directory in the repo | `.claude/` — `worktrees/<row>/<ticket>` and `scratch/` under it | `.codex/` — the same two paths under it, inside the workspace so a `workspace-write` sandbox can write there |
-| Required Matt Pocock skills | the `mattpocock-skills` plugin, invoked as `mattpocock-skills:<name>` or `/setup-matt-pocock-skills` | `$grilling`, `$domain-modeling`, and `$setup-matt-pocock-skills`, installed under the project or user `.agents/skills/` directory |
+| Required Matt Pocock skills | `grilling`, `domain-modeling` and `setup-matt-pocock-skills`, fetched by this repo's installer from the latest release of the `mattpocock/skills` GitHub repository into the project or user `.claude/skills/` directory — never the plugin, whose `mattpocock-skills:<name>` names the skill text does not use | `$grilling`, `$domain-modeling`, and `$setup-matt-pocock-skills`, fetched from the same release into the project or user `.agents/skills/` directory |
 | Read-only scouts | `permissionMode: plan` in the frontmatter (Write and Edit denied by the host; a shell command outside the built-in read-only set is reviewed or prompted, never silently run) plus the tool list | by `sandbox_mode = "read-only"` |
 
 The skill text in this repo is written in Claude Code's vocabulary; the installer rewrites the
-invocation prefix, the agent directory and the grill-skill names when it installs for Codex, and
-nothing else. Codex sub-agents share the parent's working directory, so an executor brief on Codex
-names the worktree's absolute path and tells the executor to work only there. A Codex executor in a
-`workspace-write` sandbox may have no network: when it cannot push or open the review request, the
-orchestrator does both from the executor's branch, and the ticket's record says so.
+invocation prefix and the agent directory when it installs for Codex, and nothing else. Codex
+sub-agents share the parent's working directory, so an executor brief on Codex names the worktree's
+absolute path and tells the executor to work only there. A Codex executor in a `workspace-write`
+sandbox may have no network: when it cannot push or open the review request, the orchestrator does
+both from the executor's branch, and the ticket's record says so.
 
 ## Worktree teardown — the junction trap
 
