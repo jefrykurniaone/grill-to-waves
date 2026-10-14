@@ -10,6 +10,10 @@
 #
 # The parity test also runs install.ps1, so it needs pwsh. Without it the test is skipped, unless
 # G2W_REQUIRE_PARITY is 1, which turns the skip into a failure.
+#
+# gh, glab, claude and codex are stand-ins on every run (tests/lib/stub-cli.js, started with node), so
+# no test signs in to a forge or registers an MCP server for real. Without node each stand-in only
+# exits 1, and the tests that read their calls are skipped.
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -21,6 +25,10 @@ SOURCE="$SCRATCH_ROOT/source"
 MENTION='(orchestrate|grill-to-waves|ship-it-to|daily-recap|jira-comment|setup-matt-pocock-skills|grilling|domain-modeling)'
 INSTALLED_PATHS=(.claude/skills .claude/agents .claude/statusline.js .agents/skills .codex/agents)
 SKIP_CODE=77
+STUB_NAMES=(gh glab claude codex npx markitdown-mcp)
+ALL_MCP_FLAGS=(--with-playwright-mcp --with-context7-mcp --with-markitdown-mcp)
+NODE="$(command -v node || true)"
+export G2W_STUB_LOG="$SCRATCH_ROOT/stub-calls.log"
 
 PASSED=0
 FAILED=0
@@ -63,8 +71,43 @@ new_scratch_home() {      # $1 name; prints the path
 run_installer() {         # $1 scratch home, then install.sh arguments
   local scratch="$1"
   shift
+  rm -f "$G2W_STUB_LOG"
   bash "$HERE/lib/guarded-install.sh" "$scratch" "$SOURCE/install.sh" "$@" 2>&1
 }
+
+# A directory of stand-ins for the named programs, each running stub-cli.js under its own name.
+# Without node each one only exits 1, which still keeps the real program from running: a real gh
+# writes its state under the scratch HOME.
+new_stub_dir() {          # $1 name, then the programs; prints the directory
+  local dir="$SCRATCH_ROOT/$1" program
+  shift
+  mkdir -p "$dir"
+  for program in "$@"; do
+    if [ -n "$NODE" ]; then
+      # shellcheck disable=SC2016  # "$@" belongs to the stand-in
+      printf '#!/bin/sh\nexec "%s" "%s" %s "$@"\n' "$NODE" "$HERE/lib/stub-cli.js" "$program" > "$dir/$program"
+    else
+      printf '#!/bin/sh\nexit 1\n' > "$dir/$program"
+    fi
+    chmod +x "$dir/$program"
+  done
+  printf '%s' "$dir"
+}
+
+# A directory of links to everything on PATH except the named programs, earlier entries first, so a
+# PATH made of it leaves those programs out and keeps bash and coreutils that share their directory.
+path_without() {          # $1 directory to fill, then the programs to leave out
+  local dir="$1" entry name
+  shift
+  mkdir -p "$dir"
+  while IFS= read -r entry; do
+    [ -d "$entry" ] || continue
+    ln -s "$entry"/* "$dir"/ 2>/dev/null || true
+  done < <(printf '%s\n' "$PATH" | tr ':' '\n')
+  for name in "$@"; do rm -f "$dir/$name"; done
+}
+
+stub_calls() { if [ -f "$G2W_STUB_LOG" ]; then cat "$G2W_STUB_LOG"; fi; }
 
 run_ps1_installer() {     # $1 scratch home, then install.ps1 arguments
   local scratch="$1"
@@ -278,6 +321,9 @@ case_status() {
   [ "$(printf '%s\n' "$lines" | wc -l | tr -d ' ')" = "$EXPECTED_STATUS_COUNT" ] || fail "wrong number of status lines: $out"
   [ -z "$(printf '%s\n' "$lines" | grep -v '^    not installed  ' || true)" ] || fail "an empty home reported something installed: $out"
   [ "$(ls -A "$scratch")" = .g2w-scratch ] || fail "--status wrote to an empty home"
+  has_line "$out" '    gh (GitHub): installed' || fail "gh not reported as installed: $out"
+  has_line "$out" '    glab (GitLab): installed' || fail "glab not reported as installed: $out"
+  [ -z "$(stub_calls)" ] || fail "--status ran a forge CLI, so it did not stay offline: $(stub_calls)"
 
   out="$(run_installer "$scratch" --target both --skip-mattpocock)" || fail "install before --status exited $?: $out"
   installed="$(file_map "$scratch")"
@@ -304,6 +350,84 @@ case_status() {
   has_line "$codex" "    not installed  agents/${CODEX_AGENTS[0]}" || fail "deleted agent not reported as not installed: $out"
   has_line "$out" "==> Status: $((EXPECTED_STATUS_COUNT - 4)) identical, 3 differs, 1 not installed." || fail "wrong summary: $out"
   [ "$changed" = "$(file_map "$scratch")" ] || fail "--status changed a tree that differs"
+}
+
+case_forge_and_mcp() {
+  local scratch stubs out expected line markitdown
+  [ -n "$NODE" ] || skip "no node found to run the CLI stand-ins"
+  scratch="$(new_scratch_home mcp)"
+  stubs="$(new_stub_dir stubs-all "${STUB_NAMES[@]}")"
+  export PATH="$stubs:$PATH" G2W_STUB_SIGNED_IN=gh G2W_STUB_CLAUDE_SERVERS=playwright G2W_STUB_CODEX_SERVERS=markitdown
+
+  out="$(run_installer "$scratch" --target both --skip-mattpocock)" || fail "install without an MCP flag exited $?: $out"
+  [ "$(stub_calls)" = "$(printf 'gh auth status\nglab auth status')" ] || fail "an install without an MCP flag ran more than the sign-in checks: $(stub_calls)"
+  has_line "$out" '    gh (GitHub): signed in' || fail "gh not reported as signed in: $out"
+  has_line "$out" '    glab (GitLab): installed, not signed in - run  glab auth login' || fail "glab not reported as signed out: $out"
+  if contains "$out" 'neither gh nor glab'; then fail "warned about missing forge CLIs: $out"; fi
+
+  out="$(run_installer "$scratch" --target both --skip-mattpocock "${ALL_MCP_FLAGS[@]}")" || fail "install with every MCP flag exited $?: $out"
+  markitdown="$stubs/markitdown-mcp"
+  # Git Bash hands a path to a Windows program, node here, in C:/ form.
+  if command -v cygpath >/dev/null 2>&1; then markitdown="$(cygpath -m "$markitdown")"; fi
+  expected="$(printf '%s\n' \
+    'claude mcp add --scope user playwright -- npx -y @playwright/mcp@latest' \
+    'claude mcp add --scope user --transport http context7 https://mcp.context7.com/mcp' \
+    "claude mcp add --scope user markitdown -- $markitdown" \
+    'codex mcp get playwright' 'codex mcp add playwright -- npx -y @playwright/mcp@latest' \
+    'codex mcp get context7' 'codex mcp add context7 -- npx -y @upstash/context7-mcp' \
+    'codex mcp get markitdown' 'gh auth status' 'glab auth status')"
+  [ "$(stub_calls)" = "$expected" ] || fail "the installer made the wrong host CLI calls: $(stub_calls)"
+  for line in \
+    'kept the existing playwright MCP server for Claude Code' \
+    'registered context7 for Claude Code:  claude mcp add --scope user --transport http context7 https://mcp.context7.com/mcp' \
+    "registered markitdown for Claude Code:  claude mcp add --scope user markitdown -- $stubs/markitdown-mcp" \
+    'registered playwright for Codex CLI:  codex mcp add playwright -- npx -y @playwright/mcp@latest' \
+    'registered context7 for Codex CLI:  codex mcp add context7 -- npx -y @upstash/context7-mcp' \
+    'kept the existing markitdown MCP server for Codex CLI'; do
+    has_line "$out" "    $line" || fail "no line '$line': $out"
+  done
+}
+
+case_forge_and_mcp_missing() {
+  local scratch stubs bare out server line expected
+  [ -n "$NODE" ] || skip "no node found to run the CLI stand-ins"
+  case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) skip "ln -s copies instead of linking here" ;; esac
+  scratch="$(new_scratch_home mcp-missing)"
+  bare="$SCRATCH_ROOT/path-without"
+  path_without "$bare" "${STUB_NAMES[@]}"
+
+  export PATH="$bare"
+  out="$(run_installer "$scratch" --target both --skip-mattpocock "${ALL_MCP_FLAGS[@]}")" || fail "install with every MCP flag and nothing on PATH exited $?: $out"
+  [ -z "$(stub_calls)" ] || fail "a CLI ran although none was on PATH: $(stub_calls)"
+  has_line "$out" '    gh (GitHub): not installed' || fail "gh not reported as missing: $out"
+  has_line "$out" '    glab (GitLab): not installed' || fail "glab not reported as missing: $out"
+  contains "$out" '^    WARNING: neither gh nor glab is installed, so the pipeline falls back to local Markdown under \.scratch/\.' \
+    || fail "no warning about the missing forge CLIs: $out"
+  for server in playwright context7 markitdown; do
+    contains "$out" "^    WARNING: claude is not on PATH, so $server was not registered for Claude Code\. Run:  claude mcp add --scope user " \
+      || fail "no warning about claude for $server: $out"
+    contains "$out" "^    WARNING: codex is not on PATH, so $server was not registered for Codex CLI\. Run:  codex mcp add " \
+      || fail "no warning about codex for $server: $out"
+  done
+
+  # The host CLIs are there, npx and markitdown-mcp are not, and each host already has one server.
+  stubs="$(new_stub_dir stubs-hosts claude codex)"
+  export PATH="$stubs:$bare" G2W_STUB_CLAUDE_SERVERS=playwright G2W_STUB_CODEX_SERVERS=context7
+  out="$(run_installer "$scratch" --target both --skip-mattpocock "${ALL_MCP_FLAGS[@]}")" || fail "install with every MCP flag and no npx or markitdown-mcp exited $?: $out"
+  expected="$(printf '%s\n' \
+    'claude mcp get playwright' \
+    'claude mcp add --scope user --transport http context7 https://mcp.context7.com/mcp' \
+    'claude mcp get markitdown' 'codex mcp get playwright' 'codex mcp get context7' 'codex mcp get markitdown')"
+  [ "$(stub_calls)" = "$expected" ] || fail "the installer made the wrong host CLI calls: $(stub_calls)"
+  for line in \
+    'kept the existing playwright MCP server for Claude Code' \
+    'registered context7 for Claude Code:  claude mcp add --scope user --transport http context7 https://mcp.context7.com/mcp' \
+    'WARNING: markitdown-mcp is not on PATH, so markitdown was not registered for Claude Code. Install it with  pip install markitdown-mcp , then run the installer again.' \
+    'WARNING: npx is not on PATH, so playwright was not registered for Codex CLI. Install Node.js, which ships npx, then run the installer again.' \
+    'kept the existing context7 MCP server for Codex CLI' \
+    'WARNING: markitdown-mcp is not on PATH, so markitdown was not registered for Codex CLI. Install it with  pip install markitdown-mcp , then run the installer again.'; do
+    has_line "$out" "    $line" || fail "no line '$line': $out"
+  done
 }
 
 case_parity() {
@@ -345,6 +469,8 @@ real_home_fingerprint > "$SCRATCH_ROOT/real-home.before"
 mkdir -p "$SOURCE"
 cp "$REPO/install.sh" "$REPO/install.ps1" "$SOURCE/"
 cp -R "$REPO/skills" "$REPO/agents" "$REPO/statusline" "$SOURCE/"
+DEFAULT_STUBS="$(new_stub_dir stubs gh glab claude codex)"
+export PATH="$DEFAULT_STUBS:$PATH"
 
 SKILLS=()
 for path in "$SOURCE"/skills/*/SKILL.md; do SKILLS+=("$(basename "$(dirname "$path")")"); done
@@ -362,6 +488,8 @@ run_case "codex conversion: mentions, agent directory and frontmatter are rewrit
 run_case "link destination: the link is removed and its target is left alone (with a backup)" case_link_backup
 run_case "link destination: the link is removed and its target is left alone (with --no-backup)" case_link_no_backup
 run_case "status: not installed, then identical, then differs, and it never writes" case_status
+run_case "forge CLIs and MCP servers: reported, registered through the host CLIs, an existing name kept" case_forge_and_mcp
+run_case "forge CLIs and MCP servers: what is not on PATH is reported, and a server the host has is kept" case_forge_and_mcp_missing
 run_case "parity: install.sh and install.ps1 produce the same tree for --target both" case_parity
 run_case "real home: ~/.claude, ~/.agents and ~/.codex are what they were before the run" case_real_home
 

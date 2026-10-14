@@ -22,7 +22,10 @@ param(
     [string]$Project,
     [switch]$NoBackup,
     [switch]$SkipMattPocock,
-    [switch]$Status
+    [switch]$Status,
+    [switch]$WithPlaywrightMcp,
+    [switch]$WithContext7Mcp,
+    [switch]$WithMarkitdownMcp
 )
 
 $ErrorActionPreference = 'Stop'

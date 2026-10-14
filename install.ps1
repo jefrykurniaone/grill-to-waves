@@ -27,6 +27,17 @@ Both hosts, into the same skills directory as above:
   github.com/mattpocock/skills, cloned at its latest release  ->  one folder per skill that
   release ships (its .claude-plugin/plugin.json), minus -MattPocockExclude
 
+MCP servers, only the ones asked for, registered on each chosen host through its own CLI
+(`claude mcp add --scope user`, `codex mcp add`) at user scope, even with -Project. A server the
+host already has under that name is kept.
+  -WithPlaywrightMcp   playwright   npx -y @playwright/mcp@latest
+  -WithContext7Mcp     context7     https://mcp.context7.com/mcp on Claude Code,
+                                    npx -y @upstash/context7-mcp on Codex
+  -WithMarkitdownMcp   markitdown   the markitdown-mcp program found on PATH
+
+The report ends with gh and glab, the CLIs the pipeline drives GitHub and GitLab with: installed or
+not, and signed in or not.
+
 The skill text is written in Claude Code's vocabulary. For Codex the installer rewrites, and only
 rewrites: the skill invocation prefix (`/orchestrate` -> `$orchestrate`, including the setup skill
 and the two grill skills), the agent directory (`.claude/worktrees`, `.claude/scratch` ->
@@ -39,8 +50,9 @@ Any directory it is about to replace is first moved to <backups>/<name>-<timesta
 -Status installs nothing. From a local checkout it lists every skill folder and agent file the
 installer would install for the chosen target as `identical`, `differs` or `not installed`,
 comparing byte for byte against what an install would write (for Codex, the rewritten skill text).
-It reads no network and writes no file, leaves the Matt Pocock collection out, and exits 0 whatever
-it finds: a copy that differs may be a private variant kept on purpose.
+It reads no network and writes no file, leaves the Matt Pocock collection and the MCP servers out,
+lists gh and glab as installed or not without asking either whether it is signed in, and exits 0
+whatever it finds: a copy that differs may be a private variant kept on purpose.
 
 .EXAMPLE
 ./install.ps1
@@ -48,6 +60,8 @@ it finds: a copy that differs may be a private variant kept on purpose.
 ./install.ps1 -Status -Target both
 .EXAMPLE
 ./install.ps1 -Target codex
+.EXAMPLE
+./install.ps1 -Target both -WithPlaywrightMcp -WithContext7Mcp -WithMarkitdownMcp
 .EXAMPLE
 ./install.ps1 -Target claude -Project D:\WORK\PROJECT\my-repo
 .EXAMPLE
@@ -75,7 +89,12 @@ param(
     [string[]]$MattPocockExclude = @('pr'),
 
     # Install nothing: report how the installed copies relate to this checkout. Read-only, offline.
-    [switch]$Status
+    [switch]$Status,
+
+    # Register the Playwright, Context7 or markitdown MCP server on each chosen host.
+    [switch]$WithPlaywrightMcp,
+    [switch]$WithContext7Mcp,
+    [switch]$WithMarkitdownMcp
 )
 
 $ErrorActionPreference = 'Stop'
@@ -88,8 +107,17 @@ $RequiredMattPocockSkills = @('grilling', 'domain-modeling', 'setup-matt-pocock-
 # would keep registering a tier the skills no longer dispatch, so the installer removes it.
 $RetiredAgents = @('executor-fable-five-one-medium', 'executor-fable-five-one-high', 'executor-fable-five-one-xhigh')
 $MattPocockRepo = 'mattpocock/skills'
+# The CLIs the pipeline drives each forge with, and the forge each one serves.
+$ForgeClis = [ordered]@{ gh = 'GitHub'; glab = 'GitLab' }
+$Context7Url = 'https://mcp.context7.com/mcp'
+# What to do when the program an MCP server runs is not on PATH.
+$McpPrerequisites = @{
+    'npx'            = 'Install Node.js, which ships npx, then run the installer again.'
+    'markitdown-mcp' = 'Install it with  pip install markitdown-mcp , then run the installer again.'
+}
 $Stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $Utf8NoBom = New-Object System.Text.UTF8Encoding $false
+$OnWindows = ($PSVersionTable.PSVersion.Major -lt 6) -or $IsWindows
 
 function Write-Step([string]$Message) { Write-Host "==> $Message" }
 function Write-Note([string]$Message) { Write-Host "    $Message" }
@@ -315,7 +343,6 @@ function Install-ClaudeStatusLine([string]$Source, [string]$ClaudeUserHome, [str
     Install-File $Source $dest $BackupRoot
     Write-Note "installed $dest"
 
-    $windows = ($PSVersionTable.PSVersion.Major -lt 6) -or $IsWindows
     $script = $dest.Replace('\', '/')
     $nodeCmd = Get-Command node -ErrorAction SilentlyContinue
     if (-not $nodeCmd) {
@@ -324,7 +351,7 @@ function Install-ClaudeStatusLine([string]$Source, [string]$ClaudeUserHome, [str
     }
     # Windows: Claude Code runs the command through cmd, which cannot quote the way the script needs,
     # so it goes through PowerShell with node's full path. Elsewhere the command runs as written.
-    $command = if ($windows) {
+    $command = if ($OnWindows) {
         $node = $nodeCmd.Source.Replace('\', '/')
         "powershell -NoProfile -NonInteractive -Command `"& '$node' '$script'`""
     }
@@ -420,6 +447,100 @@ function Get-SortedFiles([string]$Dir, [string]$Filter) {
     return $names
 }
 
+# The full path of a program on PATH, or $null. An alias or function of the same name in the
+# caller's session does not count, and on Windows neither does a file without a PATHEXT extension:
+# npm and Git Bash leave extensionless shell scripts beside the .cmd, and Windows cannot run them.
+function Find-Program([string]$Name) {
+    $found = @(Get-Command $Name -CommandType Application -ErrorAction SilentlyContinue)
+    if ($OnWindows) {
+        $runnable = @($env:PATHEXT -split ';' | Where-Object { $_ })
+        $found = @($found | Where-Object { $runnable -contains $_.Extension })
+    }
+    if ($found.Count -gt 0) { return $found[0].Source }
+    return $null
+}
+
+# Run a native command and keep its exit code and output. Windows PowerShell 5.1 turns a native
+# command's stderr into a terminating error under Stop, so the call runs under Continue. A program
+# that cannot start at all is reported as exit code -1, and the install carries on.
+function Invoke-NativeCommand([string]$Path, [string[]]$Arguments) {
+    $ErrorActionPreference = 'Continue'
+    try { $output = @(& $Path @Arguments 2>&1 | ForEach-Object { "$_" }) }
+    catch { return New-Object psobject -Property @{ ExitCode = -1; Output = "$Path could not run: $($_.Exception.Message)" } }
+    return New-Object psobject -Property @{ ExitCode = $LASTEXITCODE; Output = ($output -join ' ').Trim() }
+}
+
+# gh and glab: installed or not, and, when the run may go online, signed in or not. Only both missing
+# earns a warning, because the pipeline then falls back to local Markdown under .scratch/.
+function Write-ForgeCliReport([bool]$CheckSignIn) {
+    $found = 0
+    foreach ($cli in $ForgeClis.Keys) {
+        $label = "$cli ($($ForgeClis[$cli]))"
+        $path = Find-Program $cli
+        if (-not $path) {
+            Write-Note "${label}: not installed"
+            continue
+        }
+        $found++
+        if (-not $CheckSignIn) { Write-Note "${label}: installed" }
+        elseif ((Invoke-NativeCommand $path @('auth', 'status')).ExitCode -eq 0) { Write-Note "${label}: signed in" }
+        else { Write-Note "${label}: installed, not signed in - run  $cli auth login" }
+    }
+    if ($found -gt 0) { return }
+    $hint = if ($OnWindows) { 'winget install --id GitHub.cli  or  winget install --id GLab.GLab' }
+    else { 'https://cli.github.com  or  https://gitlab.com/gitlab-org/cli' }
+    Write-Note "WARNING: neither gh nor glab is installed, so the pipeline falls back to local Markdown under .scratch/. Install the one your remote needs:  $hint"
+}
+
+# What `<host> mcp add` takes for one server, and the program that server runs. Context7 is its
+# remote server on Claude Code. Codex starts a browser OAuth login the moment it adds that URL and
+# waits on it, so on Codex Context7 runs as its local package instead.
+function Get-McpServerSpec([string]$Server, [string]$McpHost) {
+    switch ($Server) {
+        'playwright' { return @{ Needs = 'npx'; Arguments = @('playwright', '--', 'npx', '-y', '@playwright/mcp@latest') } }
+        'context7' {
+            if ($McpHost -eq 'claude') { return @{ Needs = $null; Arguments = @('--transport', 'http', 'context7', $Context7Url) } }
+            return @{ Needs = 'npx'; Arguments = @('context7', '--', 'npx', '-y', '@upstash/context7-mcp') }
+        }
+        default {
+            $program = Find-Program 'markitdown-mcp'
+            if (-not $program) { $program = 'markitdown-mcp' }
+            return @{ Needs = 'markitdown-mcp'; Arguments = @('markitdown', '--', $program) }
+        }
+    }
+}
+
+# Register one MCP server on one host through the host's own CLI, which owns that configuration.
+# Claude Code refuses a name it already has; Codex would overwrite it, so Codex is asked first. When
+# the program the server runs is missing, either host is asked first, because a server registered
+# some other way, such as from a virtualenv, is kept as it is. `claude mcp get` starts the server
+# to check it, which is why Claude Code is not asked on every run.
+function Register-McpServer([string]$Server, [string]$McpHost) {
+    $hostName = if ($McpHost -eq 'claude') { 'Claude Code' } else { 'Codex CLI' }
+    $spec = Get-McpServerSpec $Server $McpHost
+    $add = @('mcp', 'add')
+    if ($McpHost -eq 'claude') { $add += @('--scope', 'user') }
+    $add += $spec.Arguments
+    $cli = Find-Program $McpHost
+    if (-not $cli) {
+        Write-Note "WARNING: $McpHost is not on PATH, so $Server was not registered for $hostName. Run:  $McpHost $($add -join ' ')"
+        return
+    }
+    $missing = $spec.Needs -and -not (Find-Program $spec.Needs)
+    if (($missing -or $McpHost -eq 'codex') -and (Invoke-NativeCommand $cli @('mcp', 'get', $Server)).ExitCode -eq 0) {
+        Write-Note "kept the existing $Server MCP server for $hostName"
+        return
+    }
+    if ($missing) {
+        Write-Note "WARNING: $($spec.Needs) is not on PATH, so $Server was not registered for $hostName. $($McpPrerequisites[$spec.Needs])"
+        return
+    }
+    $run = Invoke-NativeCommand $cli $add
+    if ($run.ExitCode -eq 0) { Write-Note "registered $Server for ${hostName}:  $McpHost $($add -join ' ')" }
+    elseif ($run.Output -match 'already exists') { Write-Note "kept the existing $Server MCP server for $hostName" }
+    else { Write-Note "WARNING: $McpHost mcp add $Server exited $($run.ExitCode): $($run.Output)" }
+}
+
 # --- 4. Status ----------------------------------------------------------------------------------
 # Compare, report and stop. Nothing below this section runs, so nothing is fetched or written.
 if ($Status) {
@@ -442,6 +563,8 @@ if ($Status) {
             Write-Status (Get-FileStatus (Join-Path $sourceRoot "agents/codex/$agent") (Join-Path $codexAgentsDir $agent)) "agents/$agent"
         }
     }
+    Write-Step 'Status: forge CLIs (installed or not; an install also checks the sign-in)'
+    Write-ForgeCliReport $false
     Write-Step "Status: $($statusCounts['identical']) identical, $($statusCounts['differs']) differs, $($statusCounts['not installed']) not installed."
     Write-Note 'Nothing was changed. A copy that differs stays as it is until the installer runs without -Status.'
     return
@@ -553,7 +676,26 @@ if ($doCodex) {
     }
 }
 
-# --- 8. Report ----------------------------------------------------------------------------------
+# --- 8. MCP servers ------------------------------------------------------------------------------
+# Only the servers asked for, on the hosts chosen, at user scope even with -Project: like the
+# attribution and the statusline, the tools a person works with are theirs, not a repository's.
+$mcpServers = @(
+    if ($WithPlaywrightMcp) { 'playwright' }
+    if ($WithContext7Mcp) { 'context7' }
+    if ($WithMarkitdownMcp) { 'markitdown' }
+)
+if ($mcpServers.Count -gt 0) {
+    if ($doClaude) {
+        Write-Step 'MCP servers -> Claude Code (user scope)'
+        foreach ($server in $mcpServers) { Register-McpServer $server 'claude' }
+    }
+    if ($doCodex) {
+        Write-Step "MCP servers -> Codex CLI ($(Join-Path $codexHome 'config.toml'))"
+        foreach ($server in $mcpServers) { Register-McpServer $server 'codex' }
+    }
+}
+
+# --- 9. Report ----------------------------------------------------------------------------------
 Write-Step 'Done.'
 if ($doClaude) {
     Write-Note 'Claude Code: restart the session, then run  /grill-to-waves , later  /orchestrate , and  /ship-it-to stg|prd  to promote'
@@ -608,3 +750,7 @@ if ($doCodex) {
         Write-Note "Re-run without -SkipMattPocock, and without excluding them, to fetch them from the latest release of $MattPocockRepo."
     }
 }
+
+# The tracker and delivery steps run gh or glab, whichever matches the repository's remote.
+Write-Step 'Forge CLIs (issue tracker and delivery)'
+Write-ForgeCliReport $true

@@ -25,6 +25,17 @@
 #   github.com/mattpocock/skills, cloned at its latest release  ->  one folder per skill that
 #   release ships (its .claude-plugin/plugin.json), minus --mattpocock-exclude
 #
+# MCP servers, only the ones asked for, registered on each chosen host through its own CLI
+# (claude mcp add --scope user, codex mcp add) at user scope, even with --project. A server the
+# host already has under that name is kept.
+#   --with-playwright-mcp   playwright   npx -y @playwright/mcp@latest
+#   --with-context7-mcp     context7     https://mcp.context7.com/mcp on Claude Code,
+#                                        npx -y @upstash/context7-mcp on Codex
+#   --with-markitdown-mcp   markitdown   the markitdown-mcp program found on PATH
+#
+# The report ends with gh and glab, the CLIs the pipeline drives GitHub and GitLab with: installed
+# or not, and signed in or not.
+#
 # The skill text is written in Claude Code's vocabulary. For Codex the installer rewrites, and only
 # rewrites: the skill invocation prefix (/orchestrate -> $orchestrate, including the setup skill
 # and the two grill skills), the agent directory (.claude/worktrees, .claude/scratch -> .codex/...)
@@ -34,12 +45,14 @@
 # --status installs nothing. From a local checkout it lists every skill folder and agent file the
 # installer would install for the chosen target as identical, differs or not installed, comparing
 # byte for byte against what an install would write (for Codex, the rewritten skill text). It reads
-# no network and writes no file, leaves the Matt Pocock collection out, and exits 0 whatever it
-# finds: a copy that differs may be a private variant kept on purpose.
+# no network and writes no file, leaves the Matt Pocock collection and the MCP servers out, lists
+# gh and glab as installed or not without asking either whether it is signed in, and exits 0
+# whatever it finds: a copy that differs may be a private variant kept on purpose.
 #
 # Usage:
 #   ./install.sh [--target claude|codex|both|auto] [--project PATH] [--no-backup] [--ref REF]
 #                [--skip-mattpocock] [--mattpocock-exclude "NAME NAME"] [--status]
+#                [--with-playwright-mcp] [--with-context7-mcp] [--with-markitdown-mcp]
 #   curl -fsSL https://raw.githubusercontent.com/jefrykurniaone/grill-to-waves/main/install.sh | bash
 set -euo pipefail
 
@@ -62,6 +75,11 @@ SKIP_MATTPOCOCK=0
 MATTPOCOCK_EXCLUDE="pr"
 # Install nothing: report how the installed copies relate to this checkout. Read-only, offline.
 STATUS=0
+# Register the Playwright, Context7 or markitdown MCP server on each chosen host.
+WITH_PLAYWRIGHT_MCP=0
+WITH_CONTEXT7_MCP=0
+WITH_MARKITDOWN_MCP=0
+CONTEXT7_URL="https://mcp.context7.com/mcp"
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -73,7 +91,10 @@ while [ $# -gt 0 ]; do
     --mattpocock-exclude) [ $# -ge 2 ] || { echo "--mattpocock-exclude needs a value" >&2; exit 2; }
                           MATTPOCOCK_EXCLUDE="${2//,/ }"; shift 2 ;;
     --status) STATUS=1; shift ;;
-    -h|--help) sed -n '2,43p' "$0"; exit 0 ;;
+    --with-playwright-mcp) WITH_PLAYWRIGHT_MCP=1; shift ;;
+    --with-context7-mcp) WITH_CONTEXT7_MCP=1; shift ;;
+    --with-markitdown-mcp) WITH_MARKITDOWN_MCP=1; shift ;;
+    -h|--help) sed -n '2,56p' "$0"; exit 0 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
@@ -375,6 +396,82 @@ sorted_files() {          # $1 directory, $2 extension; prints the file names, o
   done | LC_ALL=C sort
 }
 
+# gh and glab: installed or not, and, when the run may go online, signed in or not. Only both missing
+# earns a warning, because the pipeline then falls back to local Markdown under .scratch/.
+report_forge_clis() {     # $1 1 to ask each CLI whether it is signed in, 0 to stay offline
+  local cli label found=0
+  for cli in gh glab; do
+    if [ "$cli" = gh ]; then label="gh (GitHub)"; else label="glab (GitLab)"; fi
+    if ! command -v "$cli" >/dev/null 2>&1; then
+      note "$label: not installed"
+      continue
+    fi
+    found=$((found + 1))
+    if [ "$1" != 1 ]; then note "$label: installed"
+    elif "$cli" auth status >/dev/null 2>&1 </dev/null; then note "$label: signed in"
+    else note "$label: installed, not signed in - run  $cli auth login"
+    fi
+  done
+  [ "$found" = 0 ] || return 0
+  note "WARNING: neither gh nor glab is installed, so the pipeline falls back to local Markdown under .scratch/. Install the one your remote needs:  https://cli.github.com  or  https://gitlab.com/gitlab-org/cli"
+}
+
+# What `<host> mcp add` takes for one server, and the program that server runs, in MCP_ARGS and
+# MCP_NEEDS. Context7 is its remote server on Claude Code. Codex starts a browser OAuth login the
+# moment it adds that URL and waits on it, so on Codex Context7 runs as its local package instead.
+mcp_server_spec() {       # $1 server, $2 host (claude or codex)
+  MCP_NEEDS=""
+  case "$1" in
+    playwright) MCP_NEEDS=npx; MCP_ARGS=(playwright -- npx -y @playwright/mcp@latest) ;;
+    context7)
+      if [ "$2" = claude ]; then MCP_ARGS=(--transport http context7 "$CONTEXT7_URL")
+      else MCP_NEEDS=npx; MCP_ARGS=(context7 -- npx -y @upstash/context7-mcp)
+      fi ;;
+    *) MCP_NEEDS=markitdown-mcp
+       MCP_ARGS=(markitdown -- "$(command -v markitdown-mcp || printf 'markitdown-mcp')") ;;
+  esac
+}
+
+mcp_prerequisite() {      # $1 program; prints what to do when it is not on PATH
+  case "$1" in
+    npx) printf 'Install Node.js, which ships npx, then run the installer again.' ;;
+    *) printf 'Install it with  pip install markitdown-mcp , then run the installer again.' ;;
+  esac
+}
+
+# Register one MCP server on one host through the host's own CLI, which owns that configuration.
+# Claude Code refuses a name it already has; Codex would overwrite it, so Codex is asked first. When
+# the program the server runs is missing, either host is asked first, because a server registered
+# some other way, such as from a virtualenv, is kept as it is. `claude mcp get` starts the server
+# to check it, which is why Claude Code is not asked on every run.
+register_mcp_server() {   # $1 server, $2 host (claude or codex)
+  local server="$1" cli="$2" host_name out code=0 missing=0
+  local -a add
+  if [ "$cli" = claude ]; then host_name="Claude Code"; else host_name="Codex CLI"; fi
+  mcp_server_spec "$server" "$cli"
+  add=(mcp add)
+  if [ "$cli" = claude ]; then add+=(--scope user); fi
+  add+=("${MCP_ARGS[@]}")
+  if ! command -v "$cli" >/dev/null 2>&1; then
+    note "WARNING: $cli is not on PATH, so $server was not registered for $host_name. Run:  $cli ${add[*]}"
+    return 0
+  fi
+  if [ -n "$MCP_NEEDS" ] && ! command -v "$MCP_NEEDS" >/dev/null 2>&1; then missing=1; fi
+  if { [ "$missing" = 1 ] || [ "$cli" = codex ]; } && "$cli" mcp get "$server" >/dev/null 2>&1 </dev/null; then
+    note "kept the existing $server MCP server for $host_name"
+    return 0
+  fi
+  if [ "$missing" = 1 ]; then
+    note "WARNING: $MCP_NEEDS is not on PATH, so $server was not registered for $host_name. $(mcp_prerequisite "$MCP_NEEDS")"
+    return 0
+  fi
+  out="$("$cli" "${add[@]}" 2>&1 </dev/null)" || code=$?
+  if [ "$code" = 0 ]; then note "registered $server for $host_name:  $cli ${add[*]}"
+  elif printf '%s' "$out" | grep -q 'already exists'; then note "kept the existing $server MCP server for $host_name"
+  else note "WARNING: $cli mcp add $server exited $code: $(printf '%s' "$out" | tr '\n' ' ')"
+  fi
+}
+
 # --- 4. Status ----------------------------------------------------------------------------------
 # Compare, report and stop. Nothing below this section runs, so nothing is fetched or written.
 if [ "$STATUS" = 1 ]; then
@@ -396,6 +493,8 @@ if [ "$STATUS" = 1 ]; then
       report_status "$(file_status "$SRC/agents/codex/$agent" "$CODEX_AGENTS_DIR/$agent")" "agents/$agent"
     done < <(sorted_files "$SRC/agents/codex" toml)
   fi
+  step "Status: forge CLIs (installed or not; an install also checks the sign-in)"
+  report_forge_clis 0
   step "Status: $STATUS_IDENTICAL identical, $STATUS_DIFFERS differs, $STATUS_NOT_INSTALLED not installed."
   note "Nothing was changed. A copy that differs stays as it is until the installer runs without --status."
   exit 0
@@ -492,7 +591,25 @@ if [ "$DO_CODEX" = 1 ]; then
   fi
 fi
 
-# --- 8. Report ----------------------------------------------------------------------------------
+# --- 8. MCP servers -----------------------------------------------------------------------------
+# Only the servers asked for, on the hosts chosen, at user scope even with --project: like the
+# attribution and the statusline, the tools a person works with are theirs, not a repository's.
+MCP_SERVERS=()
+[ "$WITH_PLAYWRIGHT_MCP" = 0 ] || MCP_SERVERS+=(playwright)
+[ "$WITH_CONTEXT7_MCP" = 0 ] || MCP_SERVERS+=(context7)
+[ "$WITH_MARKITDOWN_MCP" = 0 ] || MCP_SERVERS+=(markitdown)
+if [ "${#MCP_SERVERS[@]}" -gt 0 ]; then
+  if [ "$DO_CLAUDE" = 1 ]; then
+    step "MCP servers -> Claude Code (user scope)"
+    for server in "${MCP_SERVERS[@]}"; do register_mcp_server "$server" claude; done
+  fi
+  if [ "$DO_CODEX" = 1 ]; then
+    step "MCP servers -> Codex CLI ($CODEX_HOME/config.toml)"
+    for server in "${MCP_SERVERS[@]}"; do register_mcp_server "$server" codex; done
+  fi
+fi
+
+# --- 9. Report ----------------------------------------------------------------------------------
 step "Done."
 [ "$DO_CLAUDE" = 1 ] && note "Claude Code: restart the session, then run  /grill-to-waves , later  /orchestrate , and  /ship-it-to stg|prd  to promote"
 [ "$DO_CLAUDE" = 1 ] && note "Claude Code: end the day with  /daily-recap  for the team recap"
@@ -543,3 +660,7 @@ if [ "$DO_CODEX" = 1 ]; then
     note "Re-run without --skip-mattpocock, and without excluding them, to fetch them from the latest release of $MATTPOCOCK_REPO."
   fi
 fi
+
+# The tracker and delivery steps run gh or glab, whichever matches the repository's remote.
+step "Forge CLIs (issue tracker and delivery)"
+report_forge_clis 1

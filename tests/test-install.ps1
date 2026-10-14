@@ -11,6 +11,10 @@ to a scratch directory under the system temp path, and works from a snapshot of 
 when the script starts. The last test compares the real ~/.claude, ~/.agents and ~/.codex against a
 fingerprint taken before the first one.
 
+gh, glab, claude and codex are stand-ins on every run (tests/lib/stub-cli.js, started with node), so
+no test signs in to a forge or registers an MCP server for real. Without node each stand-in only
+exits 1, and the tests that read their calls are skipped.
+
 The parity test also runs install.sh, so it needs a bash: `bash` on macOS and Linux, Git Bash on
 Windows, or the WSL distribution named by G2W_WSL_DISTRO. Without one it is skipped, unless
 G2W_REQUIRE_PARITY is 1, which turns the skip into a failure.
@@ -37,6 +41,13 @@ $installer = Join-Path $source 'install.ps1'
 $bashInstaller = Join-Path $source 'install.sh'
 $mention = '(orchestrate|grill-to-waves|ship-it-to|daily-recap|jira-comment|setup-matt-pocock-skills|grilling|domain-modeling)'
 $installedPaths = @('.claude/skills', '.claude/agents', '.claude/statusline.js', '.agents/skills', '.codex/agents')
+$pathSeparator = [System.IO.Path]::PathSeparator
+$stubScript = Join-Path $PSScriptRoot 'lib/stub-cli.js'
+$stubLog = Join-Path $scratchRoot 'stub-calls.log'
+$stubNames = @('gh', 'glab', 'claude', 'codex', 'npx', 'markitdown-mcp')
+$node = Get-Command node -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+$defaultStubs = $null
+$allMcpFlags = @('-WithPlaywrightMcp', '-WithContext7Mcp', '-WithMarkitdownMcp')
 
 $results = @{ passed = 0; failed = 0; skipped = 0 }
 $skipReason = $null
@@ -94,16 +105,24 @@ function New-ScratchHome([string]$Name) {
     return $path
 }
 
-function Invoke-Installer([string]$ScratchHome, [string[]]$Arguments) {
-    $saved = @{ USERPROFILE = $env:USERPROFILE; HOME = $env:HOME; CODEX_HOME = $env:CODEX_HOME }
+# Run install.ps1 through the guard. -Environment sets more variables for the run, or replaces the
+# default PATH, which puts the stand-ins first. Calls holds what the stand-ins logged, one per line.
+function Invoke-Installer([string]$ScratchHome, [string[]]$Arguments, [hashtable]$Environment = @{}) {
+    $variables = @{ USERPROFILE = $ScratchHome; HOME = $ScratchHome; CODEX_HOME = (Join-Path $ScratchHome '.codex') }
+    if ($defaultStubs) {
+        $variables.PATH = $defaultStubs + $pathSeparator + $env:PATH
+        $variables.G2W_STUB_LOG = $stubLog
+    }
+    foreach ($key in $Environment.Keys) { $variables[$key] = $Environment[$key] }
+    $saved = @{}
+    foreach ($key in $variables.Keys) { $saved[$key] = [System.Environment]::GetEnvironmentVariable($key) }
+    if (Test-Path -LiteralPath $stubLog) { [System.IO.File]::Delete($stubLog) }
     $preference = $ErrorActionPreference
     $shellArguments = @('-NoProfile', '-NonInteractive')
     if ($onWindows) { $shellArguments += @('-ExecutionPolicy', 'Bypass') }
     $shellArguments += @('-File', $guard, '-ScratchHome', $ScratchHome, '-Installer', $installer)
     try {
-        $env:USERPROFILE = $ScratchHome
-        $env:HOME = $ScratchHome
-        $env:CODEX_HOME = Join-Path $ScratchHome '.codex'
+        foreach ($key in $variables.Keys) { [System.Environment]::SetEnvironmentVariable($key, $variables[$key]) }
         # Windows PowerShell 5.1 turns a native command's stderr into terminating errors under Stop.
         $ErrorActionPreference = 'Continue'
         $output = @(& $shell @shellArguments @Arguments 2>&1 | ForEach-Object { "$_" })
@@ -111,11 +130,56 @@ function Invoke-Installer([string]$ScratchHome, [string[]]$Arguments) {
     }
     finally {
         $ErrorActionPreference = $preference
-        $env:USERPROFILE = $saved.USERPROFILE
-        $env:HOME = $saved.HOME
-        $env:CODEX_HOME = $saved.CODEX_HOME
+        foreach ($key in $saved.Keys) { [System.Environment]::SetEnvironmentVariable($key, $saved[$key]) }
     }
-    return New-Object psobject -Property @{ ExitCode = $code; Output = ($output -join "`n") }
+    $calls = if (Test-Path -LiteralPath $stubLog) { @([System.IO.File]::ReadAllLines($stubLog)) } else { @() }
+    return New-Object psobject -Property @{ ExitCode = $code; Output = ($output -join "`n"); Calls = $calls }
+}
+
+# A directory of stand-ins for the named programs, each running stub-cli.js under its own name.
+# Without node each one only exits 1, which still keeps the real program from running.
+function New-StubDirectory([string]$Name, [string[]]$Programs) {
+    $dir = Join-Path $scratchRoot $Name
+    New-Item -ItemType Directory -Force -Path $dir | Out-Null
+    foreach ($program in $Programs) {
+        if ($onWindows) {
+            $text = if ($node) { "@`"$($node.Source)`" `"$stubScript`" $program %*`r`n@exit /b %ERRORLEVEL%`r`n" } else { "@exit /b 1`r`n" }
+            [System.IO.File]::WriteAllText((Join-Path $dir "$program.cmd"), $text, $utf8NoBom)
+            continue
+        }
+        $path = Join-Path $dir $program
+        $text = if ($node) { "#!/bin/sh`nexec '$($node.Source)' '$stubScript' $program `"`$@`"`n" } else { "#!/bin/sh`nexit 1`n" }
+        [System.IO.File]::WriteAllText($path, $text, $utf8NoBom)
+        & chmod +x $path
+    }
+    return $dir
+}
+
+function Test-DirectoryHolds([string]$Dir, [string[]]$Programs) {
+    $extensions = @('')
+    if ($onWindows) { $extensions += @($env:PATHEXT -split ';' | Where-Object { $_ }) }
+    # String concatenation and File.Exists, because Join-Path throws on a PATH entry whose drive is gone.
+    $prefix = $Dir.TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
+    foreach ($program in $Programs) {
+        foreach ($extension in $extensions) {
+            if ([System.IO.File]::Exists($prefix + $program + $extension)) { return $true }
+        }
+    }
+    return $false
+}
+
+# PATH less every directory that holds one of the named programs. The installer needs nothing that
+# shares a directory with them, and PowerShell is started by its full path.
+function Get-PathWithout([string[]]$Programs) {
+    $kept = @($env:PATH -split $pathSeparator | Where-Object { $_ -and -not (Test-DirectoryHolds $_ $Programs) })
+    return ($kept -join $pathSeparator)
+}
+
+# Each line, indented as a note, is a whole line of the output.
+function Assert-OutputLines([string]$Output, [string[]]$Lines) {
+    foreach ($line in $Lines) {
+        Assert-True ($Output -match ('(?m)^    ' + [regex]::Escape($line) + '\r?$')) "no line '$line':`n$Output"
+    }
 }
 
 # Where install.sh can run from here: bash itself, a WSL distribution, or Git Bash.
@@ -287,6 +351,7 @@ New-Item -ItemType Directory -Force -Path $source | Out-Null
 foreach ($name in @('install.ps1', 'install.sh', 'skills', 'agents', 'statusline')) {
     Copy-Item -LiteralPath (Join-Path $repoRoot $name) -Destination (Join-Path $source $name) -Recurse
 }
+$defaultStubs = New-StubDirectory 'stubs' @('gh', 'glab', 'claude', 'codex')
 $skills = @(Get-ChildItem -LiteralPath (Join-Path $source 'skills') -Directory |
         Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'SKILL.md') } | ForEach-Object Name)
 $claudeAgents = @(Get-ChildItem -LiteralPath (Join-Path $source 'agents') -Filter '*.md' -File | ForEach-Object Name)
@@ -470,6 +535,8 @@ try {
         Assert-Equal $expectedStatusCount $lines.Count "wrong number of status lines:`n$($empty.Output)"
         Assert-Equal 0 (@($lines | Where-Object { $_ -notmatch '^    not installed  ' }).Count) "an empty home reported something installed:`n$($empty.Output)"
         Assert-Equal '.g2w-scratch' ((Get-HomeEntries $scratch) -join ', ') '-Status wrote to an empty home'
+        Assert-OutputLines $empty.Output @('gh (GitHub): installed', 'glab (GitLab): installed')
+        Assert-Equal '' ($empty.Calls -join ' | ') '-Status ran a forge CLI, so it did not stay offline'
 
         Assert-Succeeded (Invoke-Installer $scratch @('-Target', 'both', '-SkipMattPocock')) 'install before -Status'
         $installed = Get-HomeFileMap $scratch
@@ -498,6 +565,80 @@ try {
         Assert-True ($parts[1] -match ('(?m)^    not installed  agents/' + [regex]::Escape($codexAgents[0]) + '\r?$')) "deleted agent not reported as not installed:`n$($drift.Output)"
         Assert-True ($drift.Output -match "==> Status: $($expectedStatusCount - 4) identical, 3 differs, 1 not installed\.") "wrong summary:`n$($drift.Output)"
         Assert-SameLines $changed (Get-HomeFileMap $scratch) '-Status changed a tree that differs'
+    }
+
+    Test-Case 'forge CLIs and MCP servers: reported, registered through the host CLIs, an existing name kept' {
+        if (-not $node) { $script:skipReason = 'no node found to run the CLI stand-ins'; return }
+        $scratch = New-ScratchHome 'mcp'
+        $stubs = New-StubDirectory 'stubs-all' $stubNames
+        $environment = @{
+            PATH = $stubs + $pathSeparator + $env:PATH; G2W_STUB_SIGNED_IN = 'gh'
+            G2W_STUB_CLAUDE_SERVERS = 'playwright'; G2W_STUB_CODEX_SERVERS = 'markitdown'
+        }
+        $plain = Invoke-Installer $scratch @('-Target', 'both', '-SkipMattPocock') $environment
+        Assert-Succeeded $plain 'install without an MCP flag'
+        Assert-Equal 'gh auth status | glab auth status' ($plain.Calls -join ' | ') 'an install without an MCP flag ran more than the sign-in checks'
+        Assert-OutputLines $plain.Output @('gh (GitHub): signed in', 'glab (GitLab): installed, not signed in - run  glab auth login')
+        Assert-True ($plain.Output -notmatch 'neither gh nor glab') "warned about missing forge CLIs:`n$($plain.Output)"
+
+        $run = Invoke-Installer $scratch (@('-Target', 'both', '-SkipMattPocock') + $allMcpFlags) $environment
+        Assert-Succeeded $run 'install with every MCP flag'
+        $markitdown = Join-Path $stubs $(if ($onWindows) { 'markitdown-mcp.cmd' } else { 'markitdown-mcp' })
+        $expected = @(
+            'claude mcp add --scope user playwright -- npx -y @playwright/mcp@latest',
+            'claude mcp add --scope user --transport http context7 https://mcp.context7.com/mcp',
+            "claude mcp add --scope user markitdown -- $markitdown",
+            'codex mcp get playwright', 'codex mcp add playwright -- npx -y @playwright/mcp@latest',
+            'codex mcp get context7', 'codex mcp add context7 -- npx -y @upstash/context7-mcp',
+            'codex mcp get markitdown', 'gh auth status', 'glab auth status')
+        Assert-Equal ($expected -join "`n") ($run.Calls -join "`n") 'the installer made the wrong host CLI calls'
+        Assert-OutputLines $run.Output @(
+            'kept the existing playwright MCP server for Claude Code',
+            'registered context7 for Claude Code:  claude mcp add --scope user --transport http context7 https://mcp.context7.com/mcp',
+            "registered markitdown for Claude Code:  claude mcp add --scope user markitdown -- $markitdown",
+            'registered playwright for Codex CLI:  codex mcp add playwright -- npx -y @playwright/mcp@latest',
+            'registered context7 for Codex CLI:  codex mcp add context7 -- npx -y @upstash/context7-mcp',
+            'kept the existing markitdown MCP server for Codex CLI')
+    }
+
+    Test-Case 'forge CLIs and MCP servers: what is not on PATH is reported, and a server the host has is kept' {
+        if (-not $node) { $script:skipReason = 'no node found to run the CLI stand-ins'; return }
+        $scratch = New-ScratchHome 'mcp-missing'
+        $bare = Get-PathWithout $stubNames
+        $arguments = @('-Target', 'both', '-SkipMattPocock') + $allMcpFlags
+
+        $run = Invoke-Installer $scratch $arguments @{ PATH = $bare }
+        Assert-Succeeded $run 'install with every MCP flag and nothing on PATH'
+        Assert-Equal '' ($run.Calls -join ' | ') 'a CLI ran although none was on PATH'
+        Assert-OutputLines $run.Output @('gh (GitHub): not installed', 'glab (GitLab): not installed')
+        Assert-True ($run.Output -match '(?m)^    WARNING: neither gh nor glab is installed, so the pipeline falls back to local Markdown under \.scratch/\.') `
+            "no warning about the missing forge CLIs:`n$($run.Output)"
+        foreach ($cli in @('claude mcp add --scope user', 'codex mcp add')) {
+            $name = $cli.Split(' ')[0]
+            $hostName = if ($name -eq 'claude') { 'Claude Code' } else { 'Codex CLI' }
+            foreach ($server in @('playwright', 'context7', 'markitdown')) {
+                Assert-True ($run.Output -match "(?m)^    WARNING: $name is not on PATH, so $server was not registered for $hostName\. Run:  $cli ") `
+                    "no warning about $name for ${server}:`n$($run.Output)"
+            }
+        }
+
+        # The host CLIs are there, npx and markitdown-mcp are not, and each host already has one server.
+        $stubs = New-StubDirectory 'stubs-hosts' @('claude', 'codex')
+        $environment = @{ PATH = $stubs + $pathSeparator + $bare; G2W_STUB_CLAUDE_SERVERS = 'playwright'; G2W_STUB_CODEX_SERVERS = 'context7' }
+        $run = Invoke-Installer $scratch $arguments $environment
+        Assert-Succeeded $run 'install with every MCP flag and no npx or markitdown-mcp'
+        $expected = @(
+            'claude mcp get playwright',
+            'claude mcp add --scope user --transport http context7 https://mcp.context7.com/mcp',
+            'claude mcp get markitdown', 'codex mcp get playwright', 'codex mcp get context7', 'codex mcp get markitdown')
+        Assert-Equal ($expected -join "`n") ($run.Calls -join "`n") 'the installer made the wrong host CLI calls'
+        Assert-OutputLines $run.Output @(
+            'kept the existing playwright MCP server for Claude Code',
+            'registered context7 for Claude Code:  claude mcp add --scope user --transport http context7 https://mcp.context7.com/mcp',
+            'WARNING: markitdown-mcp is not on PATH, so markitdown was not registered for Claude Code. Install it with  pip install markitdown-mcp , then run the installer again.',
+            'WARNING: npx is not on PATH, so playwright was not registered for Codex CLI. Install Node.js, which ships npx, then run the installer again.',
+            'kept the existing context7 MCP server for Codex CLI',
+            'WARNING: markitdown-mcp is not on PATH, so markitdown was not registered for Codex CLI. Install it with  pip install markitdown-mcp , then run the installer again.')
     }
 
     Test-Case 'parity: install.ps1 and install.sh produce the same tree for -Target both' {
