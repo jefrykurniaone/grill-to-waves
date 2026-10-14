@@ -81,6 +81,9 @@ cd grill-to-waves
 | `--skip-mattpocock` (`-SkipMattPocock`) | Do not fetch the Matt Pocock skill collection — offline, or where it is installed some other way. |
 | `--mattpocock-exclude "NAME NAME"` (`-MattPocockExclude NAME,NAME`) | Matt Pocock skills to leave out. Default: `pr`. |
 | `--status` (`-Status`) | Install nothing; report each installed skill and agent as `identical`, `differs` or `not installed`. See *Status and tests*. |
+| `--with-playwright-mcp` (`-WithPlaywrightMcp`) | Register the Playwright MCP server on each chosen host. See *MCP servers*. |
+| `--with-context7-mcp` (`-WithContext7Mcp`) | Register the Context7 MCP server on each chosen host. |
+| `--with-markitdown-mcp` (`-WithMarkitdownMcp`) | Register the markitdown MCP server on each chosen host. |
 
 Where it lands:
 
@@ -95,6 +98,7 @@ Claude Code                          Codex CLI
 ~/.claude/agents/*.md                ~/.codex/agents/*.toml
 ~/.claude/statusline.js
 ~/.claude/settings.json  (attribution, statusLine)
+~/.claude.json  (MCP servers)        ~/.codex/config.toml  (MCP servers)      only with --with-*-mcp
 ```
 
 For Claude Code the installer also adds `"attribution": { "commit": "", "pr": "" }` to
@@ -108,7 +112,41 @@ command pointing at it into the same user settings. An existing `statusLine` is 
 `node` is not on `PATH` the script is installed but the settings file is not touched. Codex has no
 statusline, so nothing about it is installed there.
 
+The report ends with `gh` and `glab`, the CLIs the pipeline drives GitHub and GitLab with: whether
+each is installed, and whether it is signed in (`gh auth status`, `glab auth status`). The installer
+installs neither and signs in to nothing. With neither installed it warns, because the pipeline then
+falls back to local Markdown under `.scratch/`.
+
 Restart the session afterwards so the host re-reads its skill and agent directories.
+
+### MCP servers
+
+The installer registers none unless asked. Each flag registers one server on every host you chose,
+through that host's own CLI, at user scope — even with `--project`, because the tools you work with
+are yours, not the repository's:
+
+| Flag | Server | Claude Code runs | Codex CLI runs | Needs on `PATH` |
+|---|---|---|---|---|
+| `--with-playwright-mcp` | `playwright` | `npx -y @playwright/mcp@latest` | the same | `npx` |
+| `--with-context7-mcp` | `context7` | the remote server, `https://mcp.context7.com/mcp` | `npx -y @upstash/context7-mcp` | `npx`, on Codex only |
+| `--with-markitdown-mcp` | `markitdown` | the `markitdown-mcp` found on `PATH` | the same | `markitdown-mcp` (`pip install markitdown-mcp`) |
+
+- Claude Code gets `claude mcp add --scope user …`, which writes `~/.claude.json`; Codex gets
+  `codex mcp add …`, which writes `~/.codex/config.toml`. The installer never edits either file
+  itself, so `--no-backup` has nothing to do with them.
+- A server the host already has under that name is kept, never overwritten, even when the program it
+  runs is not on `PATH` (a `markitdown-mcp` in a virtualenv, say). To change one, remove it first
+  (`claude mcp remove <name> -s user`, `codex mcp remove <name>`) and run the installer again.
+- When the host CLI, or the program a server runs, is not on `PATH`, the installer warns, says what
+  to install or which command to run, and carries on.
+- Codex runs Context7's local package because `codex mcp add` with Context7's URL starts a browser
+  OAuth login and waits for it. Both forms work without an API key, at a lower rate limit. The
+  installer never writes a key: add your own to the host's configuration if you have one.
+- `npx` downloads a package the first time it starts it, which can outlast the host's MCP startup
+  timeout. If the server shows as failed on that first start, start the session again, or raise the
+  timeout (`MCP_TIMEOUT` for Claude Code, `startup_timeout_sec` under the server in
+  `~/.codex/config.toml`).
+- `--status` leaves MCP servers out.
 
 ### Status and tests
 
@@ -120,14 +158,16 @@ the checkout — each skill folder and agent file as `identical`, `differs` or `
 ```
 
 It is read-only and offline, honours `--target` and `--project`, and leaves the Matt Pocock
-collection out. A Codex skill is compared against its rewritten text, so a fresh install is
+collection out. It lists `gh` and `glab` as installed or not, without asking either whether it is
+signed in, since that goes online. A Codex skill is compared against its rewritten text, so a fresh install is
 `identical` on both hosts. It exits 0 whatever it finds: a copy that `differs` — the files are named
 beside it — may be a private variant you keep on purpose, and it stays until the installer runs
 without `--status`.
 
 The installers are tested from `tests/`. Every run installs into a scratch directory under the
 system temp path and checks at the end that the real `~/.claude`, `~/.agents` and `~/.codex` are
-untouched:
+untouched. `gh`, `glab`, `claude` and `codex` are stand-ins throughout (`tests/lib/stub-cli.js`, run
+with `node`), so no test signs in to a forge or registers an MCP server:
 
 ```
 pwsh -NoProfile -File tests/test-install.ps1           # install.ps1 under PowerShell 7
@@ -272,7 +312,8 @@ box, then flip to **Visual** to check it.
 ## Requirements
 
 - **A git repository with a remote**, and an issue tracker CLI for it: `gh` (GitHub) or `glab`
-  (GitLab). With no remote, the pipeline falls back to local markdown under `.scratch/`.
+  (GitLab). With no remote, the pipeline falls back to local markdown under `.scratch/`. The
+  installer reports which of the two it finds and whether each is signed in; it installs neither.
 - **A host with subagent dispatch** for the parallel path — Claude Code's `Agent` tool, or Codex
   CLI's `spawn_agent` with the custom agents this repo installs. A host without one still runs the
   skills: the session executes tickets itself, one at a time, with the agent definitions read as
@@ -282,6 +323,7 @@ box, then flip to **Visual** to check it.
   both hosts. The installer fetches them; see *The Matt Pocock skill collection* above.
 - **Playwright MCP**, optional, for runtime verification of `runtime: dev-server` tickets. Without it
   the walk falls back to scripted Playwright or plain HTTP, and says which it used.
+  `--with-playwright-mcp` registers it; see *MCP servers*.
 - **An Obsidian vault**, optional, for `vault-scribe`. The agent works on the vault as Markdown files,
   so neither the desktop app nor its CLI has to be running. It takes the vault path from the calling
   session's brief, then from the instructions already in its context, and stops rather than
