@@ -36,7 +36,7 @@ production deploy rather than a handed-back ticket.
 | `skills/ship-it-to/SKILL.md` | Promotion to staging or production: contract resolution, branch protections, the pivot, the gate on the pivot, authorship of what travels, the request body, and where the run stops. |
 | `skills/daily-recap/SKILL.md` | The end-of-day recap: evidence collection, what never goes into a team message, the Done / Next / Blocker template. |
 | `skills/daily-recap/scripts/collect-evidence.*` | Read-only collector, PowerShell and bash: the day's commits per repository, and each Claude Code or Codex session's prompts and closing report. |
-| `skills/jira-comment/SKILL.md` | The ticket comment: which event it reports, when "deployed" and "ready for retest" may be written, the language rule, the template. |
+| `skills/jira-comment/SKILL.md` | The ticket comment: which event it reports, when "deployed" and "ready for retest" may be written, the language rule, the Jira markup, the template. |
 | `statusline/statusline.js` | Claude Code statusline: `model │ ctx% │ 5h │ 7d`, each usage percentage coloured and carrying its reset time. Installed for Claude Code only. |
 | `agents/executor-{fable,opus,sonnet}-{medium,high,xhigh}.md` | Nine ticket executors, one per tier/effort pairing. |
 | `agents/scout-{sonnet-medium,sonnet-high,opus-medium,opus-high}.md` | Four read-only scouts: locate, sweep, focused judgment, broad analysis. |
@@ -266,7 +266,8 @@ the comment for it, in the same session or a new one:
 /jira-comment SHOP-412      # or no argument: the keys are read from the branch and the commits
 ```
 
-It only drafts; you paste the comment into Jira.
+It only drafts, in Jira wiki markup: you paste the comment into the **Text** tab of Jira's comment
+box, then flip to **Visual** to check it.
 
 ## Requirements
 
