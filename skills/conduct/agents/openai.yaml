@@ -1,0 +1,10 @@
+# Codex CLI skill metadata. Claude Code ignores this file; it reads only SKILL.md.
+# `allow_implicit_invocation: false` is the Codex equivalent of SKILL.md's
+# `disable-model-invocation: true`: the skill runs only when the user types `$conduct`.
+interface:
+  display_name: "Conduct"
+  short_description: "Drive a paired run's orchestrators across repositories in herdr"
+  default_prompt: "Use $conduct to drive this paired run in its run order."
+
+policy:
+  allow_implicit_invocation: false

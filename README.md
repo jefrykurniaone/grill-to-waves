@@ -1,7 +1,8 @@
 # grill-to-waves
 
 A three-skill delivery pipeline for coding agents, plus the executor, scout and scribe agent
-definitions it dispatches, and two reporting skills: one for the end of the day, one for the ticket.
+definitions it dispatches, a conductor for runs that span several repositories, and two reporting
+skills: one for the end of the day, one for the ticket.
 
 - **`/grill-to-waves`** plans: it grills the idea, writes one spec per shippable slice, tickets each
   spec, proves the specs write-disjoint, publishes an execution map — then stops.
@@ -11,6 +12,10 @@ definitions it dispatches, and two reporting skills: one for the end of the day,
   forge's branch protections, cuts a pivot, gates it, names whose commits are travelling, opens the
   request — and stops where the rules say someone else must merge.
 
+- **`/conduct`** drives a paired run — one run slug across several repositories — from one
+  [herdr](https://herdr.dev) pane: it starts `/orchestrate` in each repository's own pane in the lead
+  map's run order, wakes when a session settles, starts what that releases, and relays every decision
+  to you. It sits beside the pipeline: each repository's run is still an ordinary `/orchestrate`.
 - **`/daily-recap`** reports: at the end of the day it reads that day's commits and agent sessions,
   drafts the Done / Next / Blocker recap you post to your team, and asks once for the meetings and
   offline work no file records. It sits beside the pipeline rather than inside it.
@@ -29,10 +34,12 @@ production deploy rather than a handed-back ticket.
 |---|---|
 | `GLOSSARY.md` | Canonical distinction between executor tier and reasoning effort. |
 | `skills/grill-to-waves/SKILL.md` | The seven-stage pipeline (Stage 0 tracker → Stage 6 stop). |
-| `skills/grill-to-waves/SESSIONS.md` | Write surfaces, the collision rule, ownership, resume. The protocol both skills share. |
-| `skills/grill-to-waves/TRACKERS.md` | The five tracker operations for GitHub (`gh`), GitLab (`glab`) and local markdown. |
+| `skills/grill-to-waves/SESSIONS.md` | Write surfaces, the collision rule, ownership, resume, and a paired run across repositories: its format and how it is planned. The protocol the skills share. |
+| `skills/grill-to-waves/TRACKERS.md` | The five tracker operations for GitHub (`gh`), GitLab (`glab`) and local markdown, and the blocking edges between repositories. |
 | `skills/grill-to-waves/DEFAULTS.md` | Model/effort ladder, the Fable tier, scout tiering, and the junction-safe worktree teardown. |
 | `skills/orchestrate/SKILL.md` | Wave dispatch, verification, merge gate, closing upward, team shape. |
+| `skills/conduct/SKILL.md` | The conductor of a paired run, inside herdr: reading the run order, the states of each launch and the in-flight ceiling, launching each repository's session, relaying decisions, and where it stops. |
+| `skills/conduct/scripts/watch.*` | Read-only watcher, PowerShell and bash: waits until a herdr agent settles after a known state change, so the conductor never misses a wake. |
 | `skills/ship-it-to/SKILL.md` | Promotion to staging or production: contract resolution, branch protections, the pivot, the gate on the pivot, authorship of what travels, the request body, and where the run stops. |
 | `skills/daily-recap/SKILL.md` | The end-of-day recap: evidence collection, what never goes into a team message, the Done / Next / Blocker template. |
 | `skills/daily-recap/scripts/collect-evidence.*` | Read-only collector, PowerShell and bash: the day's commits per repository, and each Claude Code or Codex session's prompts and closing report. |
@@ -91,6 +98,7 @@ Where it lands:
 Claude Code                          Codex CLI
 ~/.claude/skills/grill-to-waves/     ~/.agents/skills/grill-to-waves/
 ~/.claude/skills/orchestrate/        ~/.agents/skills/orchestrate/
+~/.claude/skills/conduct/            ~/.agents/skills/conduct/
 ~/.claude/skills/ship-it-to/         ~/.agents/skills/ship-it-to/
 ~/.claude/skills/daily-recap/        ~/.agents/skills/daily-recap/
 ~/.claude/skills/jira-comment/       ~/.agents/skills/jira-comment/
@@ -216,11 +224,11 @@ Codex reads skills from `~/.agents/skills/` (the agent-skills standard; `~/.code
 legacy root and the installer warns if a copy is there too) and custom agents from
 `~/.codex/agents/*.toml`. Subagents are on by default (`agents.enabled`); the installer warns if
 `~/.codex/config.toml` turns them off, and prints `agents.max_concurrent_threads_per_session` when
-it is set, because a map's in-flight ceiling must stay under it.
+it is set, because a map's in-flight ceiling must not exceed it.
 
 The skill text in this repo is written in Claude Code's vocabulary. For Codex the installer
-rewrites, and only rewrites: `/orchestrate`, `/grill-to-waves`, `/ship-it-to`, `/daily-recap`,
-`/jira-comment`, `/setup-matt-pocock-skills`, `/grilling` and `/domain-modeling` to
+rewrites, and only rewrites: `/orchestrate`, `/conduct`, `/grill-to-waves`, `/ship-it-to`,
+`/daily-recap`, `/jira-comment`, `/setup-matt-pocock-skills`, `/grilling` and `/domain-modeling` to
 Codex `$` mentions; `.claude/worktrees` and `.claude/scratch` to `.codex/…`; and it drops the
 `disable-model-invocation` line, whose Codex equivalent is each skill's `agents/openai.yaml`
 (`allow_implicit_invocation: false`).
@@ -288,6 +296,18 @@ copy:
 /orchestrate map <map> + tail        # the serial owner, once every row is closed
 ```
 
+A paired run — one run across several repositories, one map in each, the lead map carrying the run
+order — is planned by one `/grill-to-waves` session in the lead repository, and driven from one herdr
+pane opened in the folder that holds the repositories:
+
+```
+/conduct <lead map> + check          # read-only: the order, each repository's pane, the next step
+/conduct <lead map>                  # every step of the run order
+```
+
+It starts or reuses one session per repository, in that repository's own pane, and leaves every
+permission prompt and question to you: it sends a session only what you tell it to.
+
 Once a wave is merged into the integration branch, promoting it is its own session:
 
 ```
@@ -324,6 +344,9 @@ box, then flip to **Visual** to check it.
 - **Playwright MCP**, optional, for runtime verification of `runtime: dev-server` tickets. Without it
   the walk falls back to scripted Playwright or plain HTTP, and says which it used.
   `--with-playwright-mcp` registers it; see *MCP servers*.
+- **[herdr](https://herdr.dev)**, optional, for `/conduct` only. Its `herdr` skill is what
+  `/conduct` drives the panes with: install it from `herdr --skill`, or let `/conduct` read that
+  output when it is not installed. The installer installs neither.
 - **An Obsidian vault**, optional, for `vault-scribe`. The agent works on the vault as Markdown files,
   so neither the desktop app nor its CLI has to be running. It takes the vault path from the calling
   session's brief, then from the instructions already in its context, and stops rather than

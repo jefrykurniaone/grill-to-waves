@@ -91,3 +91,37 @@ edge and close. Two things to establish before the first run and record in the m
 executed" section: **how a comment is posted** (a REST call, or the CLI), and **what stands in for
 labels and the assignee** (a field, a component, a tag). Everything else in
 [SESSIONS.md](./SESSIONS.md) is tracker-neutral.
+
+## Across repositories
+
+A paired run ([SESSIONS.md](./SESSIONS.md) §8) writes trackers other than the working directory's
+and records blocking edges between them. Its repositories are sibling folders, each named by its
+folder.
+
+- **Name the other repository on every call**: `gh … -R <owner>/<repo>`,
+  `glab … -R <group>/<project>`, and an `api` endpoint spelled out in full
+  (`repos/<owner>/<repo>/…`, `projects/<url-encoded path>/…`), because `{owner}`, `{repo}`, `:id` and `:fullpath` resolve to the working directory's repository. A
+  local tracker is a path, `../<folder>/.scratch/<run-slug>/`, written only as SESSIONS.md §8
+  allows.
+- **The blocking edge lives on the blocked ticket**, in the form its own tracker's frontier read
+  counts:
+  - **GitHub to GitHub**: native, by the blocker's URL —
+    `gh issue edit <n> -R <owner>/<repo> --add-blocked-by https://github.com/<owner>/<other>/issues/<m>`.
+    The REST form above takes the other repository's issue too, by its database id. As of
+    2026-10-23 both forms held across two repositories of one owner: the frontier read's
+    `blocked_by` counted the open blocker and dropped to 0 once it closed. Across owners it is
+    untested; where GitHub refuses that blocker, write the line of *any other pair* instead.
+  - **GitLab to GitLab**: on Premium, a native link naming the other project —
+    `glab api -X POST projects/<url-encoded path>/issues/<iid>/links -f target_project_id=<url-encoded other path> -f target_issue_iid=<m> -f link_type=is_blocked_by`.
+    On the free tier, the `Blocked by:` line with GitLab's cross-project reference,
+    `<group>/<project>#<m>`.
+  - **Local to local**: the `Blocked by:` header line names the blocker by its path from this
+    repository's root, `../<folder>/.scratch/<run-slug>/issues/NN-<slug>.md`, released as always by
+    that file's `Status: resolved`.
+  - **Any other pair** (a local tracker and a remote one, or two forges) shares no edge. The blocked
+    ticket carries a `Blocked by:` line, a header line on a local tracker and the first line of the
+    body on a remote one, naming the blocker as `<folder>#<m>`, or by its path where the blocker's
+    tracker is local. The frontier read parses that line beside the tracker's own count, resolves
+    `<folder>` to `../<folder>`, and reads the blocker's state through that repository's tracker.
+- **A blocker that cannot be read is open.** A failed read in another repository is a wait, never a
+  release.

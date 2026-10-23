@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-# Install the grill-to-waves, orchestrate, ship-it-to, daily-recap and jira-comment skills and their
-# executor/scout/scribe agents for Claude Code and/or Codex CLI.
+# Install the grill-to-waves, orchestrate, conduct, ship-it-to, daily-recap and jira-comment skills
+# and their executor/scout/scribe agents for Claude Code and/or Codex CLI.
 #
 # Claude Code:
 #   skills/grill-to-waves  ->  ~/.claude/skills/grill-to-waves     (or <project>/.claude/skills/...)
 #   skills/orchestrate     ->  ~/.claude/skills/orchestrate
+#   skills/conduct         ->  ~/.claude/skills/conduct
 #   skills/ship-it-to      ->  ~/.claude/skills/ship-it-to
 #   skills/daily-recap     ->  ~/.claude/skills/daily-recap
 #   skills/jira-comment    ->  ~/.claude/skills/jira-comment
@@ -16,6 +17,7 @@
 # Codex CLI:
 #   skills/grill-to-waves  ->  ~/.agents/skills/grill-to-waves     (or <project>/.agents/skills/...)
 #   skills/orchestrate     ->  ~/.agents/skills/orchestrate
+#   skills/conduct         ->  ~/.agents/skills/conduct
 #   skills/ship-it-to      ->  ~/.agents/skills/ship-it-to
 #   skills/daily-recap     ->  ~/.agents/skills/daily-recap
 #   skills/jira-comment    ->  ~/.agents/skills/jira-comment
@@ -57,7 +59,7 @@
 set -euo pipefail
 
 REPO="https://github.com/jefrykurniaone/grill-to-waves.git"
-SKILLS=(grill-to-waves orchestrate ship-it-to daily-recap jira-comment)
+SKILLS=(grill-to-waves orchestrate conduct ship-it-to daily-recap jira-comment)
 REQUIRED_MATTPOCOCK_SKILLS=(grilling domain-modeling setup-matt-pocock-skills)
 # Agent definitions this repo used to ship and no longer does. A copy left in the agent directory
 # would keep registering a tier the skills no longer dispatch, so the installer removes it.
@@ -334,8 +336,8 @@ install_claude_statusline() {   # $1 source file, $2 user ~/.claude, $3 backup r
 if sed --binary -e '' </dev/null >/dev/null 2>&1; then CODEX_SED=(sed --binary); else CODEX_SED=(sed); fi
 codexify_skill_text() {
   LC_ALL=C "${CODEX_SED[@]}" -E \
-    -e 's#(^|[^[:alnum:]_./\\-])/(orchestrate|grill-to-waves|ship-it-to|daily-recap|jira-comment|setup-matt-pocock-skills|grilling|domain-modeling)([^[:alnum:]_/-]|$)#\1$\2\3#g' \
-    -e 's#(^|[^[:alnum:]_./\\-])/(orchestrate|grill-to-waves|ship-it-to|daily-recap|jira-comment|setup-matt-pocock-skills|grilling|domain-modeling)([^[:alnum:]_/-]|$)#\1$\2\3#g' \
+    -e 's#(^|[^[:alnum:]_./\\-])/(orchestrate|conduct|grill-to-waves|ship-it-to|daily-recap|jira-comment|setup-matt-pocock-skills|grilling|domain-modeling)([^[:alnum:]_/-]|$)#\1$\2\3#g' \
+    -e 's#(^|[^[:alnum:]_./\\-])/(orchestrate|conduct|grill-to-waves|ship-it-to|daily-recap|jira-comment|setup-matt-pocock-skills|grilling|domain-modeling)([^[:alnum:]_/-]|$)#\1$\2\3#g' \
     -e 's#\.claude([/\\])(worktrees|scratch)#.codex\1\2#g' \
     -e '/^disable-model-invocation: true[[:space:]]*$/d'
 }
@@ -612,9 +614,11 @@ fi
 # --- 9. Report ----------------------------------------------------------------------------------
 step "Done."
 [ "$DO_CLAUDE" = 1 ] && note "Claude Code: restart the session, then run  /grill-to-waves , later  /orchestrate , and  /ship-it-to stg|prd  to promote"
+[ "$DO_CLAUDE" = 1 ] && note "Claude Code: a run across several repositories is driven from one herdr pane with  /conduct"
 [ "$DO_CLAUDE" = 1 ] && note "Claude Code: end the day with  /daily-recap  for the team recap"
 [ "$DO_CLAUDE" = 1 ] && note "Claude Code: once a fix has moved, draft its ticket comment with  /jira-comment"
 [ "$DO_CODEX" = 1 ] && note "Codex CLI: restart Codex, then run  \$grill-to-waves , later  \$orchestrate , and  \$ship-it-to stg|prd  to promote"
+[ "$DO_CODEX" = 1 ] && note "Codex CLI: a run across several repositories is driven from one herdr pane with  \$conduct"
 [ "$DO_CODEX" = 1 ] && note "Codex CLI: end the day with  \$daily-recap  for the team recap"
 [ "$DO_CODEX" = 1 ] && note "Codex CLI: once a fix has moved, draft its ticket comment with  \$jira-comment"
 [ "$DO_CODEX" = 1 ] && note "Codex dispatches executors with spawn_agent; the custom agents pin model and reasoning effort per tier."
