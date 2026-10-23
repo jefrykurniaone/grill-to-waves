@@ -42,7 +42,11 @@ Then make sure the repo carries the labels `meta:orchestration`, `ready-for-agen
 `executor:fable`, `executor:opus`, `executor:sonnet`, `effort:medium`,
 `effort:high`, `effort:xhigh`. Create what is missing.
 
-Done when: the tracker is named and the label vocabulary exists.
+**Work that lands in more than one repository is a paired run**, planned by this one session from
+the lead repository. This stage then runs once per repository, and every later stage changes as
+[SESSIONS.md](./SESSIONS.md) §8 *Planning a paired run* says: read it before going on.
+
+Done when: every repository's tracker is named and carries the label vocabulary.
 
 ## Stage 1 — Grill
 
@@ -54,7 +58,9 @@ Facts are yours to find: dispatch `scout-sonnet-medium` (one known thing), `scou
 sweep), `scout-opus-medium` (one precise judgment over narrow evidence) or `scout-opus-high` (a broad
 or uncertain analysis) for anything the codebase can answer, and put only decisions to the user.
 
-Done when: no open question remains and the user has confirmed the consolidated understanding.
+Done when: no open question remains, every repository the work lands in is named, and the user has
+confirmed the consolidated understanding. A repository named here for the first time gets its
+Stage 0 now.
 
 ## Stage 2 — Specs
 
@@ -170,7 +176,7 @@ criterion.
 
 Label every ticket `ready-for-agent`, `run:<slug>`, its spec's `spec:<slug>`, its `executor:` and
 `effort:`, plus the repo's own area/type/priority vocabulary. Link it as a child of its spec and
-record every blocking edge, cross-spec edges included, per TRACKERS.md.
+record every blocking edge, cross-spec and cross-repository edges included, per TRACKERS.md.
 
 Done when: every ticket is a child of its spec, carries executor, effort and run labels, declares a
 surface, and has its edges recorded.
@@ -220,7 +226,8 @@ at an open review request says so from the start rather than closing "waiting on
 never its own.
 
 Done when: every ticket appears in exactly one row and exactly one wave, the table is written, and the
-shape, the close point and its owner are recorded.
+shape, the close point and its owner are recorded — in a paired run, for every repository, with the
+run order derived from the cross-repository edges.
 
 ## Stage 5 — Map
 
@@ -241,9 +248,9 @@ Stage 4: `Run closes at:` and `Steps after close owned by:`. Then, in order:
 3. **How this is executed** — point at the tickets' labels for model and effort; one worktree per
    ticket at `.claude/worktrees/<row>/<ticket>`; `deps: shared` worktrees never install or generate;
    serial merge-commit-only merges on a quiescent tree, and teardown likewise; no dev server from
-   executors; check-versus-fix ownership; the per-wave in-flight ceiling (default three, hard maximum
-   five — raise it to four or five only for a named reason, and never past five; lower it below three
-   for a named reason such as heavy installs or a rate limit); one agent session per working copy; the
+   executors; check-versus-fix ownership; the per-wave in-flight ceiling (default five; above five only
+   on the user's word, written as the number and the reason; below five for a named reason such as
+   heavy installs or a rate limit); one agent session per working copy; the
    write-through rule — every fact the next session needs is posted the moment it becomes true.
 4. **Known shared-file contention** — the files parallel branches will collide on inside a session
    and how each collision is handled (append-plus-append catalogue, wave separation, stop-and-report).
@@ -264,6 +271,10 @@ Stage 4: `Run closes at:` and `Steps after close owned by:`. Then, in order:
 9. **Rework protocol** — hand-backs to the introducing executor, at most twice; gate re-runs whole;
    post-merge defects become new issues; the mirror pass from Stage 2 runs before the map closes.
 10. **Out of scope** — carried from the specs so no executor picks it up opportunistically.
+
+**A paired run** — work that lands in more than one repository — has one map per repository, each in
+that repository's own tracker, and the lead map also carries the *Paired runs* line and the *Run order
+across repositories* section, all as SESSIONS.md §8 says.
 
 Update each spec mirror's header with the map reference. Done when: the map item exists and every
 ticket appears in exactly one wave and one session row.
@@ -296,9 +307,30 @@ A fused row names every member on one line:
 /orchestrate map <map> + spec <spec-b> + spec <spec-c> + team      # dev B, a fused row
 ```
 
-**Measure the gate once and print its duration beside the lines.** A solo session runs the whole gate
-once per wave; a team session runs it once per merge and again after every rejected push. Below roughly
-the executor time per ticket, splitting is not worth the extra context windows. Say which you
+**A paired run** prints, in place of the solo lines, the run order as launch lines: every
+repository's `+ check` line, then one line per launch grouped by step, each led by the folder of the
+repository it runs in, because each repository has its own session started there:
+
+```
+billing-service   /orchestrate map <its map> + check
+portal            /orchestrate map <its map> + check
+# G1
+billing-service   /orchestrate map <its map> + wave 1
+# G2, once billing-service 01 is closed
+portal            /orchestrate map <its map> + wave 1
+```
+
+Then the lines that make those launches from one herdr pane, run from the folder that holds the
+repositories:
+
+```
+/conduct <lead map> + check                                # read-only, starts nothing
+/conduct <lead map>                                        # every step of the run order
+```
+
+**Measure the gate once and print its duration beside the lines** — in a paired run, each
+repository's. A solo session runs the whole gate once per wave; a team session runs it once per merge
+and again after every rejected push. Below roughly the executor time per ticket, splitting is not worth the extra context windows. Say which you
 recommend, and state the residual risks from SESSIONS.md §7 whenever you recommend team.
 
 **For a team run, also print the pre-flight the humans owe**, because no skill can do it for them:

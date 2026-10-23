@@ -197,8 +197,8 @@ Say these to the user when a run is split.
   only net, and it catches only what the gate catches.
 - **Surfaces are prose-derived guesses** made before code is read.
 - **Splitting buys executor parallelism only.** It pays when executor time per ticket clearly exceeds
-  gate time. Measure the gate once and say so, and budget the map's in-flight ceiling — three by
-  default, five at the hard maximum — against that measurement.
+  gate time. Measure the gate once and say so, and budget the map's in-flight ceiling — five by
+  default, more only on the user's word — against that measurement.
 - **Each session pays the full protocol read** — three sessions are three context budgets.
 - **A team's dev databases are separate, and its migrations are not**: the serial owner owns every
   migration, and a row that assumes a column another row has not migrated yet fails at the gate.
@@ -206,3 +206,81 @@ Say these to the user when a run is split.
   runs.
 - **Polling costs API calls.** Retry a failed read; never treat an API or fetch error as "nothing to
   do" or "main is unchanged".
+
+## 8. Paired runs — one run across repositories
+
+Work that lands in several repositories is a **paired run**: one run slug and one branch name in
+every repository, and in each its own tracker, map and `/orchestrate` session — one session per
+working copy, as everywhere. One of the maps, the **lead map**, also carries what crosses them:
+
+- **A `Paired runs` line** under its header lines: `Paired runs (same run slug and branch name, each
+  its own tracker and map):`, then every other repository's map — a path relative to the lead
+  repository (`../billing-service/.scratch/<slug>/map.md`), or, where the tracker is remote, a
+  tracker reference prefixed by the repository's folder (`billing-service#41`). Every other map's
+  header names the lead map the same way.
+- **A section titled *Run order across repositories*** — the schedule:
+
+  ```
+  | Step | Repository · wave · tickets | Released by |
+  |---|---|---|
+  | G1 | billing-service · 1 · 01; ledger-service · 1 · 01 | — |
+  | G2 | payments-service · 1 · 01–03 | billing-service 01; ledger-service 01 |
+  | G3 | portal · 1 · 02, 04 | payments-service wave 1 |
+  ```
+
+  A row lists every repository wave its step starts, `;`-separated, each with that repository's own
+  wave number. *Released by* names what must be closed first: tickets as `<repository> <ticket>`, a
+  whole wave as `<repository> wave <k>`, or the owner's go-ahead — a decision. `—` is released from
+  the start. Repositories are named by their folder names, the lead's included; *this repository* in the table
+  means the lead map's. A row may name part of a wave: its launch still runs the whole wave, whose
+  orchestrator dispatches only the tickets with no open blocker, and a later row takes the rest.
+  Released waves of different repositories run at the same time, since they share no working copy;
+  one repository's waves run one after another, in its one session.
+
+The run order is the schedule, never the proof. Each repository's map still records its own
+cross-repository blocking edges on its tickets, so its orchestrator verifies them itself
+(`/orchestrate` Stage 1, *Cross-run gates*). `/conduct` executes the run order from one herdr pane.
+
+### Planning a paired run
+
+One `/grill-to-waves` session plans the whole run, from the **lead repository**: the one whose spec
+carries the user-facing story, usually the user interface, and whose map becomes the lead map. The
+run's repositories are sibling folders, which is how the maps and the run order name them. Reading
+another repository, by this session or its scouts, is always safe; writing into one follows the rule
+below. The stages change in these ways and no others:
+
+- **Stage 0, once per repository.** Each repository's tracker is resolved from its own
+  `docs/agents/issue-tracker.md` or its own remote, and each tracker gets the label vocabulary; the
+  trackers may differ. A repository that grilling adds later gets its Stage 0 before Stage 2.
+- **Writing into another repository.** A remote tracker is written by naming the repository on every
+  call ([TRACKERS.md](./TRACKERS.md) *Across repositories*), which touches no working copy. A local
+  tracker is written only inside this run's own `.scratch/<run-slug>/` folder. While the run has not
+  started there, that folder belongs to no session, so planning writes it even while another run's
+  session works in the same working copy. Once that repository's map records a started wave, the
+  folder is its orchestrator's: a later change goes to the user, never straight into the folder.
+- **Stage 2, specs per repository.** Every spec belongs to one repository, because its tickets, its
+  map and the session that closes it are that repository's. The lead's spec carries the user-facing
+  story; every other spec, what its repository does for it. A contract between repositories (an API,
+  an event, a stored shape) is owned by the spec of the repository that provides it, and the others
+  name that spec rather than restate it. Every spec lists the run's other specs on a `Paired specs`
+  line at its top, in the notation of the *Paired runs* line. `run:<slug>` is the same in every
+  tracker, and every `spec:<slug>` is unique across the run. Planning writes no mirror, and Stage
+  2's done-when drops the docs pull request. Each repository's orchestrator commits its specs'
+  mirrors onto the branch its run merges into — where the repository's own rules cut one
+  integration branch per run and take it to the base branch in one review request, that branch —
+  with its first wave, and its close's mirror pass regenerates them there.
+- **Stage 3, edges across repositories.** The edge lives on the blocked ticket only, in the form
+  [TRACKERS.md](./TRACKERS.md) *Across repositories* gives for that pair of trackers, so the blocked
+  repository's frontier read counts it live. Blockers-first publishing spans the repositories.
+- **Stage 4, per repository, then the run order.** Collision, waves, the Sessions table and its
+  verdict are each repository's alone: different working copies share no file. The execution shape
+  and the close lines are asked in one exchange and answered per repository, since each has its own
+  review request and reviewer. Then derive the run order. A launch is one repository wave, and it
+  goes one step after the latest of its own repository's previous wave and every launch holding a
+  cross-repository blocker of one of its tickets; a launch with neither goes in G1. *Released by*
+  names those blockers. Where only some tickets of a wave wait, the others may start a step
+  earlier, as a row naming part of the wave.
+- **Stage 5, a map per repository**, in its own tracker, each with every section Stage 5 lists for
+  that repository alone. Its *Parent* names the paired specs, and every cross-repository edge its
+  tickets carry is listed there as a cross-run gate. The lead map adds the *Paired runs* line and the
+  run order; every other map's header names the lead map.

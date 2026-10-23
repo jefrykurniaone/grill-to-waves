@@ -40,6 +40,7 @@ path under `.scratch/`.
 /orchestrate map <map> + wave <k>            solo, one named wave
 /orchestrate map <map> + all                 solo, every remaining wave in order, no stop between them
 /orchestrate map <map> + check               read-only preflight, writes nothing
+/orchestrate map <map> + ceiling <n>         the in-flight ceiling for this session, with any line here
 
 /orchestrate map <map> + spec <s>            one spec row, team shape (`+ team` is the same)
 /orchestrate map <map> + spec <a> + spec <b> a fused row, every member named
@@ -102,8 +103,11 @@ branch protection — required status checks plus "require branches up to date".
 rejected because they landed first, pull, re-merge, re-run the gate, push again.
 
 **Cross-run gates.** Where the map, its comments, or another open map says this run waits on another
-run's tickets, verify it by reading those tickets' states — never by trusting the prose that describes
-it. An unsatisfied gate is a wait, not a failure: say what it waits on and stop.
+run's tickets — or, in a paired run, on another repository's
+([../grill-to-waves/SESSIONS.md](../grill-to-waves/SESSIONS.md) §8), read through that repository's
+own tracker as [../grill-to-waves/TRACKERS.md](../grill-to-waves/TRACKERS.md) *Across repositories*
+says — verify it by reading those tickets' states, never by trusting the prose that describes it.
+An unsatisfied gate is a wait, not a failure: say what it waits on and stop.
 
 **The tree preflight**, run once before the first dispatch and again before each merge batch — not
 before every step:
@@ -150,13 +154,15 @@ label, has zero open blockers on the tracker's own edge read live, and belongs t
 mislabelled item — `ready-for-agent` without the pair — is reported by name, never guessed at.
 
 **Dispatch every dispatchable ticket in the wave in one message, so the subagents run concurrently —
-up to the in-flight ceiling.** The ceiling is **three tickets by default and five at the absolute
-maximum**: a map may raise it to four or five with a named reason, never past five, and a wave holding
-more dispatchable tickets than the ceiling goes out in successive batches of at most that many, each
-batch dispatched in one message. The waves exist precisely to separate contended files, so there is
+up to the in-flight ceiling.** The ceiling is **five tickets by default**. `+ ceiling <n>` sets it for
+this session, and a line in the map giving the number and the reason sets it for the run; above five
+is the user's call either way. A wave holding more
+dispatchable tickets than the ceiling goes out in successive batches of at most that many, each batch
+dispatched in one message. The waves exist precisely to separate contended files, so there is
 normally no overlap to serialise. Two exceptions, both read off the map: if two tickets in the wave
 declare overlapping `writes:`, or the contention table names a file they share, the second waits for
-the first to merge. Honour a ceiling lower than three only where the map states one and gives a reason.
+the first to merge. Honour a ceiling lower than five only where `+ ceiling` sets one, or the map states
+one and gives a reason.
 
 Then, in one pass:
 
@@ -194,7 +200,10 @@ after every merge:
 2. For each green branch, in wave order: `git merge --no-ff` with the ticket number in the merge
    subject, then the **fast** part of the gate only — the test suite — so a break is attributed to the
    merge that caused it. Resolve append-plus-append catalogue conflicts yourself.
-3. After the last merge, the **whole** gate once: lint, type check, tests, build. Restore any file the
+3. After the last merge — and, in a paired run's first wave, after one commit adding this
+   repository's spec mirrors in Stage 2's format, since planning wrote none
+   ([../grill-to-waves/SESSIONS.md](../grill-to-waves/SESSIONS.md) §8) — the **whole** gate once:
+   lint, type check, tests, build. Restore any file the
    test run dirties before judging the tree, and record the result with the commit it ran on — the
    close reuses that record (*Closing upward*).
 4. **Then the runtime walk**, on merged `main`, for every ticket whose `runtime:` is not `none` and for
@@ -313,6 +322,12 @@ review requests, the hand-backs, the defects filed, every account the walk creat
 (a file committed to the repository names the account and never the password), anything outstanding
 for the user, the steps handed over past the close point with their owner, and the next wave with
 what it waits on.
+
+**Every turn ends on an outcome line**, alone on the last line: `orchestrate: done` when the scope
+ran to its end; `orchestrate: stopped — <the reason, in a few words>` for anything else that hands
+the run back to the user, such as a question, a decision, a third hand-back or a gate that stays red;
+and `orchestrate: waiting on executors` when the turn ends while executors still run in the
+background. `/conduct` reads that line to tell a pause from the end.
 
 **This run ends at the integration branch.** Promoting what landed to staging or production is
 `/ship-it-to stg` or `/ship-it-to prd`, in its own session: it reads the repository's promotion

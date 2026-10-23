@@ -1,12 +1,13 @@
 <#
 .SYNOPSIS
-Install the grill-to-waves, orchestrate, ship-it-to, daily-recap and jira-comment skills and their
-executor/scout/scribe agents for Claude Code and/or Codex CLI.
+Install the grill-to-waves, orchestrate, conduct, ship-it-to, daily-recap and jira-comment skills
+and their executor/scout/scribe agents for Claude Code and/or Codex CLI.
 
 .DESCRIPTION
 Claude Code:
   skills/grill-to-waves  ->  ~/.claude/skills/grill-to-waves      (or <project>/.claude/skills/...)
   skills/orchestrate     ->  ~/.claude/skills/orchestrate
+  skills/conduct         ->  ~/.claude/skills/conduct
   skills/ship-it-to      ->  ~/.claude/skills/ship-it-to
   skills/daily-recap     ->  ~/.claude/skills/daily-recap
   skills/jira-comment    ->  ~/.claude/skills/jira-comment
@@ -18,6 +19,7 @@ Claude Code:
 Codex CLI:
   skills/grill-to-waves  ->  ~/.agents/skills/grill-to-waves      (or <project>/.agents/skills/...)
   skills/orchestrate     ->  ~/.agents/skills/orchestrate
+  skills/conduct         ->  ~/.agents/skills/conduct
   skills/ship-it-to      ->  ~/.agents/skills/ship-it-to
   skills/daily-recap     ->  ~/.agents/skills/daily-recap
   skills/jira-comment    ->  ~/.agents/skills/jira-comment
@@ -101,7 +103,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $Repo = 'https://github.com/jefrykurniaone/grill-to-waves.git'
-$Skills = @('grill-to-waves', 'orchestrate', 'ship-it-to', 'daily-recap', 'jira-comment')
+$Skills = @('grill-to-waves', 'orchestrate', 'conduct', 'ship-it-to', 'daily-recap', 'jira-comment')
 $RequiredMattPocockSkills = @('grilling', 'domain-modeling', 'setup-matt-pocock-skills')
 # Agent definitions this repo used to ship and no longer does. A copy left in the agent directory
 # would keep registering a tier the skills no longer dispatch, so the installer removes it.
@@ -366,7 +368,7 @@ function Install-ClaudeStatusLine([string]$Source, [string]$ClaudeUserHome, [str
 function ConvertTo-CodexSkillText([string]$Text) {
     # Slash commands -> Codex skill mentions.
     # A path segment (`../grill-to-waves/DEFAULTS.md`, `skills/grill-to-waves`) is left alone.
-    $Text = [regex]::Replace($Text, '(?<![\w./\\-])/(orchestrate|grill-to-waves|ship-it-to|daily-recap|jira-comment|setup-matt-pocock-skills|grilling|domain-modeling)(?![\w/-])', '$$$1')
+    $Text = [regex]::Replace($Text, '(?<![\w./\\-])/(orchestrate|conduct|grill-to-waves|ship-it-to|daily-recap|jira-comment|setup-matt-pocock-skills|grilling|domain-modeling)(?![\w/-])', '$$$1')
     # The agent directory inside the repository.
     $Text = [regex]::Replace($Text, '\.claude([/\\])(worktrees|scratch)', '.codex$1$2')
     # Codex reads only `name` and `description` from the frontmatter; agents/openai.yaml carries the
@@ -699,11 +701,13 @@ if ($mcpServers.Count -gt 0) {
 Write-Step 'Done.'
 if ($doClaude) {
     Write-Note 'Claude Code: restart the session, then run  /grill-to-waves , later  /orchestrate , and  /ship-it-to stg|prd  to promote'
+    Write-Note 'Claude Code: a run across several repositories is driven from one herdr pane with  /conduct'
     Write-Note 'Claude Code: end the day with  /daily-recap  for the team recap'
     Write-Note 'Claude Code: once a fix has moved, draft its ticket comment with  /jira-comment'
 }
 if ($doCodex) {
     Write-Note 'Codex CLI: restart Codex, then run  $grill-to-waves , later  $orchestrate , and  $ship-it-to stg|prd  to promote'
+    Write-Note 'Codex CLI: a run across several repositories is driven from one herdr pane with  $conduct'
     Write-Note 'Codex CLI: end the day with  $daily-recap  for the team recap'
     Write-Note 'Codex CLI: once a fix has moved, draft its ticket comment with  $jira-comment'
     Write-Note 'Codex dispatches executors with spawn_agent; the custom agents pin model and reasoning effort per tier.'

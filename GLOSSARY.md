@@ -30,6 +30,16 @@ is never where a conflict is resolved and the request reaching it is already gat
 once merged.
 _Avoid_: Release branch, integration branch
 
+**Paired run**:
+One run slug delivered in several repositories, each with its own working copy, tracker, map and
+orchestrator session. The lead map holds the run order across the repositories.
+_Avoid_: Multi-repo run, cross-repo map
+
+**Conductor**:
+The one session that starts each repository's orchestrator of a paired run in the run order and
+relays the user's decisions to them. It executes, verifies and decides nothing itself.
+_Avoid_: Orchestrator, coordinator
+
 **Promotion contract**:
 What a repository states about how a change reaches a target branch — the branches, the gate, the
 shape of the promotion, and who may merge. It is read per repository, never carried over from
