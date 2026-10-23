@@ -19,7 +19,10 @@ merges, its map and its close. You own the schedule only. Every decision stays t
 /conduct <lead map> + step <G>       the launches of one named step
 /conduct <lead map> + check          read-only: the launches, panes and sessions, and what is ready
 /conduct <lead map> + sessions <n>   up to n sessions in flight instead of five
+/conduct <lead map> + bypass         the sessions you start skip permission prompts (Claude Code)
 ```
+
+`+ bypass` combines with `+ step` and `+ sessions`.
 
 The lead map is a path, or a tracker reference prefixed by its repository's folder (`portal#12`):
 your working directory is no repository, so a bare `#12` resolves nowhere.
@@ -32,8 +35,10 @@ your working directory is no repository, so a bare `#12` resolves nowhere.
 3. Your working directory is the folder that holds the run's repositories, outside every one of them
    (`git rev-parse --show-toplevel` fails there). Inside one of them you would be a second agent
    session in its working copy: say so and stop.
+4. Under `+ bypass`, you run on Claude Code. On any other host, say that `+ bypass` is Claude Code
+   only, and stop.
 
-Done when all three hold.
+Done when all of them hold.
 
 ## Stage 1 — Read the run
 
@@ -98,8 +103,11 @@ For each ready launch, in step order, while a slot is free:
    characters, and suffixed `-2` on a clash. A repository without a session gets one:
    `herdr agent start <name> --kind <host> --pane <pane>`, where `<host>` is the agent CLI you run on
    (`claude`, or `codex`). Pass no agent arguments: the user's own settings choose the model and the
-   permissions. `agent_not_ready` is a dialog on that pane — folder trust, a sign-in — and the user's
-   to answer: name the tab, arm its watcher, and go on with the other launches.
+   permissions. The one exception is `+ bypass`: append `-- --dangerously-skip-permissions`. Claude
+   Code enters that mode only at launch, so a session that was already running keeps its own: name
+   each such session in your first report. `agent_not_ready` is a dialog on that pane — folder
+   trust, a sign-in, bypass mode's first-use warning — and the user's to answer: name the tab, arm
+   its watcher, and go on with the other launches.
 2. **The prompt**: `herdr agent prompt <name> '<launch line>'`, in single quotes so no shell expands
    it, with any `'` inside escaped the way your shell does. Then arm its watcher.
 
