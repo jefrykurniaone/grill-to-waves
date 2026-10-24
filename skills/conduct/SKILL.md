@@ -60,8 +60,9 @@ Done when all of them hold.
 
    Arm a watcher (Stage 3) on every session in flight or held, from its current `state_change_seq`,
    and tell the user about every one that is `blocked` or held. An agent under any other name is the
-   user's own session in that working copy: name it and ask whether to drive it or wait, because a
-   second session there is the collision SESSIONS.md stops on. Go-aheads and relays from before a
+   user's own session in that working copy: name it and ask whether to drive it, which clears its
+   conversation before each launch (Stage 3), or wait, because a second session there is the
+   collision SESSIONS.md stops on. Go-aheads and relays from before a
    context clear are kept nowhere: ask for them again.
 
 Done when every repository in the run order has a pane, or the user declined one, and a session
@@ -108,7 +109,13 @@ For each ready launch, in step order, while a slot is free:
    each such session in your first report. `agent_not_ready` is a dialog on that pane — folder
    trust, a sign-in, bypass mode's first-use warning — and the user's to answer: name the tab, arm
    its watcher, and go on with the other launches.
-2. **The prompt**: `herdr agent prompt <name> '<launch line>'`, in single quotes so no shell expands
+2. **The clear.** One launch, one conversation: unless you started the session for this launch, send
+   `herdr agent prompt <name> '/clear'` first, so no earlier wave's context rides into this one.
+   Claude Code and Codex both start a fresh conversation in the same process: the session keeps its
+   name, its pane and the permission mode it started with, and herdr records no state change. Its
+   launch is ready, so the session is free and nothing anyone still has to answer is lost. Go on
+   once `herdr agent read <name> --source visible` shows the cleared screen.
+3. **The prompt**: `herdr agent prompt <name> '<launch line>'`, in single quotes so no shell expands
    it, with any `'` inside escaped the way your shell does. Then arm its watcher.
 
 **The watcher.** Every session you are responsible for has exactly one armed, from the moment you
@@ -139,7 +146,7 @@ A watcher exited. Act on the session it names, by its exit and its state:
 - **`blocked`**: a permission prompt or a question on that pane. Tell the user the repository, its tab
   and what the screen asks. Re-arm.
 - **`idle` or `done`, not prompted yet**: the dialog that held its start is answered. Send its launch
-  line now (Stage 3, step 2).
+  line now (Stage 3, step 3).
 - **`idle` or `done`**: read the session's last lines. Its **outcome line**, the last line of
   `/orchestrate`'s turn, decides:
   - `orchestrate: waiting on executors`: paused while its executors run in the background. Re-arm.
@@ -160,8 +167,8 @@ comes back blank, read the last assistant message of the session's transcript, a
 message: herdr gives the transcript's id as `agent_session.value`, and Claude Code keeps it under
 `~/.claude/projects/`.
 
-**Relay**: besides launch lines, the only input you give a session is what the user tells you to
-send, verbatim. Send text with `herdr agent prompt <name> '<text>'` and a dialog choice with
+**Relay**: besides `/clear` and launch lines, the only input you give a session is what the user
+tells you to send, verbatim. Send text with `herdr agent prompt <name> '<text>'` and a dialog choice with
 `herdr agent send-keys`, never with `--wait`, because the session's watcher is already armed.
 Approvals, answers and go-aheads you were not given wait for the user.
 

@@ -305,8 +305,10 @@ pane opened in the folder that holds the repositories:
 /conduct <lead map>                  # every step of the run order
 ```
 
-It starts or reuses one session per repository, in that repository's own pane, and leaves every
-permission prompt and question to you: it sends a session only what you tell it to.
+It starts or reuses one session per repository, in that repository's own pane, and clears its
+conversation before each launch, so every wave starts on a fresh context. It leaves every permission
+prompt and question to you: besides `/clear` and the launch line, it sends a session only what you
+tell it to.
 
 Once a wave is merged into the integration branch, promoting it is its own session:
 
