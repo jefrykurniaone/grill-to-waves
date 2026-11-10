@@ -231,7 +231,8 @@ stop: a session that settles afterwards is picked up by the next `/conduct`.
 
 The report names each launch with its state, what every open launch waits on and on whom, each
 relayed question still unanswered, and the next `/conduct` line — without `+ watch`, the line to run
-once a session settles. It names the sessions still running, by pane label or tab, and marks as safe
+once a session settles. It names the sessions still running, read from `herdr agent list` at the
+stop because the user may have closed one meanwhile, by pane label or tab, and marks as safe
 to close each one whose repository has no launch left: an idle session still holds memory. The slots
 stay open at the stop, and closing them is the user's. A wave that is not in the run order, such as
 a follow-up added after planning, is named with its repository's own `/orchestrate` line for the user

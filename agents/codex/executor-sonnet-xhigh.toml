@@ -1,7 +1,7 @@
 # Codex CLI custom agent. Same role as ../executor-sonnet-xhigh.md; the body below is that file's body.
 # Tier mapping (DEFAULTS.md, "Hosts"): Sonnet tier = GPT-5.6 Terra. Edit `model` to re-map.
 name = "executor-sonnet-xhigh"
-description = "Ticket executor at the mid tier and x-high effort, for a ticket whose attempt at high was handed back for a reasoning failure. Rarely the right pairing: a hand-back that exposes an open decision moves the ticket up a tier instead. Used by $orchestrate only when a ticket is re-graded to executor:sonnet effort:xhigh. On Codex: GPT-5.6 Terra at xhigh effort."
+description = "Ticket executor at the mid tier and x-high effort, for a ticket whose attempt at high was handed back for a reasoning failure. Rarely the right pairing, because a hand-back that exposes an open decision moves the ticket up a tier instead. Used by $orchestrate only when a ticket is re-graded to executor:sonnet effort:xhigh. On Codex: GPT-5.6 Terra at xhigh effort."
 model = "gpt-5.6-terra"
 model_reasoning_effort = "xhigh"
 sandbox_mode = "workspace-write"

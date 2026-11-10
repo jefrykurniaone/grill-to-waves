@@ -1,6 +1,7 @@
 <#
 .SYNOPSIS
-Fail when a tracked Markdown or agent file names a Claude model with a version number.
+Fail when a tracked Markdown or agent file names a Claude model with a version number, or when an
+agent file's frontmatter holds a value YAML cannot read as plain text.
 
 .DESCRIPTION
   pwsh -NoProfile -File tests/check-docs.ps1
@@ -60,4 +61,34 @@ if ($hits -gt 0) {
     exit 1
 }
 Write-Host "docs check: $checked files, no Claude model named with a version."
+
+# An agent's frontmatter is YAML. A plain value holding a colon followed by a space is read as a
+# nested mapping, the file fails to parse, and the host registers no agent for it - silently.
+$broken = 0
+$agents = @(git -C $repoRoot ls-files -- 'agents/*.md')
+if ($LASTEXITCODE -ne 0) { throw "git ls-files failed with exit code $LASTEXITCODE." }
+foreach ($relative in $agents) {
+    $path = Join-Path $repoRoot $relative
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { continue }
+    $lines = [System.IO.File]::ReadAllText($path, $utf8NoBom) -split "`r?`n"
+    if ($lines[0] -ne '---') {
+        $broken++
+        Write-Host ("{0}:1: no frontmatter" -f $relative)
+        continue
+    }
+    for ($i = 1; $i -lt $lines.Count -and $lines[$i] -ne '---'; $i++) {
+        if ($lines[$i] -notmatch '^[A-Za-z][A-Za-z0-9_-]*:\s*(.*)$') { continue }
+        $value = $Matches[1]
+        if ($value -match '^["''\[{|>]') { continue }
+        if ($value -match ':\s' -or $value -match ':$' -or $value -match '\s#') {
+            $broken++
+            Write-Host ("{0}:{1}: {2}" -f $relative, ($i + 1), $lines[$i].Trim())
+        }
+    }
+}
+if ($broken -gt 0) {
+    Write-Host "docs check: $broken agent frontmatter line(s) hold a colon-space, a trailing colon or a ' #' in a plain value. Reword the value or quote it."
+    exit 1
+}
+Write-Host "docs check: $($agents.Count) agent files, every frontmatter value is plain YAML."
 exit 0

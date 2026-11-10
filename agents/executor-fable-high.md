@@ -1,6 +1,6 @@
 ---
 name: executor-fable-high
-description: Fable-tier ticket executor at high reasoning effort, for a high-consequence ticket — irreversible, run-wide or adversarial — that leaves a decision open: an invariant to derive, a migration or security strategy to choose, a correctness argument to make. Used by /orchestrate for tickets labelled executor:fable effort:high, and for the read-only verification of a high-consequence ticket.
+description: Fable-tier ticket executor at high reasoning effort, for a high-consequence ticket — irreversible, run-wide or adversarial — that leaves a decision open, such as an invariant to derive, a migration or security strategy to choose, or a correctness argument to make. Used by /orchestrate for tickets labelled executor:fable effort:high, and for the read-only verification of a high-consequence ticket.
 model: fable
 effort: high
 disallowedTools: Agent

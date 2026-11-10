@@ -127,7 +127,7 @@ before every step:
 **`+ check`** runs Stage 1 read-only and prints: the waves with each ticket's state and open blockers,
 what the guard found, what the preflight found, cross-run gates with the tickets they wait on, and the
 line to run next. It also prints what will actually run: the model and effort of this session as the
-host reports them, the advisor where the host has one, any environment variable that overrides an
+host reports them, the advisor configured for this session if any, any environment variable that overrides an
 agent file ([../grill-to-waves/DEFAULTS.md](../grill-to-waves/DEFAULTS.md) *Hosts*), and every
 high-consequence ticket with the executor and the second verification it will get. It writes nothing.
 
@@ -221,7 +221,7 @@ failures verbatim; attributing a break and judging the tree stay here:
 
 1. Preflight the tree.
 2. For each green branch, in wave order: `git merge --no-ff` with the ticket number in the merge
-   subject, then the **fast** part of the gate only — the test suite — so a break is attributed to the
+   subject as `#<n>`, the form the reconcile grep of Stage 1 matches, then the **fast** part of the gate only — the test suite — so a break is attributed to the
    merge that caused it. Resolve append-plus-append catalogue conflicts yourself.
 3. After the last merge — and, in a paired run's first wave, after one commit adding this
    repository's spec mirrors in Stage 2's format, since planning wrote none

@@ -81,7 +81,8 @@ One run per directory, `.scratch/<run-slug>/`.
   rewrite the execution-progress section to the bounded state `/orchestrate`'s *Record, close, tear
   down* prescribes, and say so in the wave report. Done when `map.md` has no `## <ISO date>` heading.
 - **Deliver**: no review request. The orchestrator merges the branch with a merge commit whose
-  subject carries the ticket number — the only reconcile evidence this tracker leaves. References in
+  subject carries the ticket number as `#NN` — the only reconcile evidence this tracker leaves, and
+  the form `/orchestrate`'s reconcile grep matches. References in
   the map and mirrors are file paths, not numbers.
 
 ## Other trackers (Jira, Linear, …)

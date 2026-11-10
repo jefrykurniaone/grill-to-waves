@@ -1,6 +1,6 @@
 ---
 name: executor-sonnet-xhigh
-description: Ticket executor — Sonnet at x-high reasoning effort, for a mid-tier ticket whose attempt at high was handed back for a reasoning failure. Rarely the right pairing: a hand-back that exposes an open decision moves the ticket up a tier instead. Used by /orchestrate only when a ticket is re-graded to executor:sonnet effort:xhigh.
+description: Ticket executor — Sonnet at x-high reasoning effort, for a mid-tier ticket whose attempt at high was handed back for a reasoning failure. Rarely the right pairing, because a hand-back that exposes an open decision moves the ticket up a tier instead. Used by /orchestrate only when a ticket is re-graded to executor:sonnet effort:xhigh.
 model: sonnet
 effort: xhigh
 disallowedTools: Agent

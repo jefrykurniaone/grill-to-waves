@@ -71,6 +71,15 @@ account without Fable and costs less on one that has it.
 - `watch.ps1` takes `-Sessions <name>:<seq>,…` and `watch.sh` takes `<name>:<seq> …`; the earlier
   `-Agent`/`-AfterSeq` and positional forms are gone.
 
+### Fixed
+
+- **A merge subject carries the ticket as `#<n>`**, on a local tracker too. `/orchestrate`'s
+  reconcile grep matches that form, and a sandbox run showed one orchestrator writing
+  `merge ticket 02 …` instead, which the grep would not have found.
+- **`tests/check-docs.ps1` also checks agent frontmatter.** A plain YAML value holding a colon
+  followed by a space fails to parse, and the host then registers no agent for that file, silently.
+  Two descriptions written for this change had one, and the test run caught it.
+
 ### Added
 
 - **`scout-haiku-medium`** — the locate scout, on the narrow tier (Luna on Codex).
@@ -100,3 +109,12 @@ stays with the orchestrator or `executor-sonnet-medium` and is never a clerk cho
 Host facts were read from the Claude Code documentation on 2026-11-10: the advisor tool and its
 pairing rules, sub-agent frontmatter (`disallowedTools`, `effort`), sub-agent nesting, and the model
 and effort precedence.
+
+### Tested
+
+On 2026-11-10, before the merge, against three throwaway repositories with one paired run on a local
+tracker, under herdr with Claude Code: `/orchestrate + check`, `/conduct + check`, `/conduct`,
+`/conduct + watch` through to the close of all three repositories, and one `/orchestrate` run on an
+Opus session whose high-consequence ticket was verified by `executor-fable-high`. Not exercised: Codex,
+a remote tracker, a runtime walk, a hand-back to `xhigh`, an account without Fable, and a session
+that sits `idle` at the pause line — herdr kept reporting `working` while executors ran.
