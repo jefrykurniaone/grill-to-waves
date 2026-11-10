@@ -60,6 +60,10 @@ account without Fable and costs less on one that has it.
   settle instead of waiting indefinitely, and waits through `orchestrate: waiting on executors` by
   itself, so a pause no longer costs the conductor a turn. A held session gets no watcher, and none
   outlives the stop.
+- **One tab, split.** The sessions `/conduct` starts run in panes split from its own tab — the
+  conductor on the left, two slots stacked on the right, labelled `conduct:<folder>` — instead of
+  one new tab per repository. A slot is closed and reused for the next repository once its session
+  is free. `+ tabs` keeps the earlier layout, and a session beyond the second gets a tab.
 - **Two sessions in flight** by default instead of five; `+ sessions <n>` changes it.
 - **Five executors per session**: the launch line carries `+ ceiling 5` when a map plans more.
 - **Ticket states** are read through `clerk-haiku-medium` where it is installed.

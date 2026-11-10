@@ -21,14 +21,16 @@ and leave unanswered what you were not told to send.
 /conduct <lead map> + step <G>       the launches of one named step
 /conduct <lead map> + check          read-only: the launches, panes and sessions, and what is ready
 /conduct <lead map> + sessions <n>   up to n sessions in flight instead of two
+/conduct <lead map> + tabs           one tab per repository instead of splitting your own tab
 /conduct <lead map> + bypass         the sessions you start skip permission prompts (Claude Code)
 ```
 
-`+ watch`, `+ bypass`, `+ step` and `+ sessions` combine.
+`+ watch`, `+ tabs`, `+ bypass`, `+ step` and `+ sessions` combine.
 
 **The numbers are sized for one laptop**: two sessions in flight, five executors in each, no
 background process unless you ask for one. Each executor runs the gate in its own worktree, so the
-peak is ten test and build runs at once.
+peak is ten test and build runs at once. **The layout is one tab**: you on the left, the two
+sessions stacked on the right.
 
 The lead map is a path, or a tracker reference prefixed by its repository's folder (`portal#12`):
 your working directory is no repository, so a bare `#12` resolves nowhere.
@@ -57,9 +59,11 @@ Done when all of them hold.
    repository — run the tracker's list command from inside that repository, return each named
    ticket's state as printed, touch nothing in the tree — and read them yourself where it is not.
 3. **Panes**: `herdr pane list` in every workspace. A repository's pane is the one whose cwd is that
-   repository's root; where there are several, ask which. Put every repository without a pane into
-   one question, and create a tab only for those the user agrees to:
-   `herdr tab create --cwd <root> --label <folder> --no-focus`, in your own workspace.
+   repository's root; where there are several, ask which. A repository without a pane gets a slot in
+   your own tab when its launch is ready (Stage 3, *The slots*), and this stage creates none. Under
+   `+ tabs`, put every repository without a pane into one question instead, and create a tab only
+   for those the user agrees to: `herdr tab create --cwd <root> --label <folder> --no-focus`, in
+   your own workspace.
 4. **Each repository's session**, the agent in its pane under the name Stage 3 gives it:
    - none, or a shell at its prompt: no session yet;
    - `working` or `blocked`: in flight;
@@ -74,8 +78,8 @@ Done when all of them hold.
    collision SESSIONS.md stops on. Go-aheads and relays from before a
    context clear are kept nowhere: ask for them again.
 
-Done when every repository in the run order has a pane, or the user declined one, and a session
-state, and every ticket the order names has a state read from its tracker.
+Done when every repository in the run order has a pane, waits for a slot, or was declined a tab by
+the user; has a session state; and every ticket the order names has a state read from its tracker.
 
 **`+ check`** prints exactly that — every launch with its state (Stage 2), each repository's pane and
 session, the repositories without a pane, and what is ready — and stops. It creates, starts and sends
@@ -109,7 +113,31 @@ ceiling, because the machine and the rate limit both see that number.
 
 ## Stage 3 — Launch
 
-For each ready launch, in step order, while a slot is free:
+**The slots.** A repository without a pane runs in a slot: a pane split from your own tab and
+labelled `conduct:<folder>`. There are two, stacked to the right of you, and you create one only
+when a ready launch needs it:
+
+- **No slot open**: `herdr pane split --current --direction right --ratio 0.4 --cwd <root> --no-focus`.
+  The ratio is the share the pane being split keeps, so you keep two fifths of the width.
+- **One slot open**: `herdr pane split <that slot> --direction down --ratio 0.5 --cwd <root> --no-focus`.
+
+Read the new pane's id from `.result.pane.pane_id`, then `herdr pane rename <pane> conduct:<folder>`.
+The label is how you recognise your slots after a context clear.
+
+**Two slots hold any number of repositories.** Every launch starts a fresh conversation (step 2),
+so a free session has nothing left to keep. When a ready launch has no slot and both exist, take a
+slot whose session is free: `herdr pane close <pane>` — it asks nothing and ends that session at
+once — then split again for the new repository. Close a pane only when it carries the `conduct:`
+label and its session is free; a held or blocked session is waiting on the user. With both slots in
+flight or held, the launch waits.
+
+A repository that already has a pane keeps it and takes no slot. Sessions beyond the second, under
+`+ sessions <n>`, each get a tab as `+ tabs` gives every repository. Where your own pane is narrower
+than about 120 columns (`herdr pane layout --pane <your pane>`), a split leaves nothing readable:
+use tabs for this run and say so.
+
+For each ready launch, in step order, while fewer sessions are in flight than the limit, give its
+repository a pane and then:
 
 1. **The session.** Its name is the repository folder lower-cased, every character outside `a-z`,
    `0-9`, `_` and `-` replaced by `-`, prefixed `r-` when it does not start with a letter, cut to 32
@@ -119,7 +147,7 @@ For each ready launch, in step order, while a slot is free:
    permissions. The one exception is `+ bypass`: append `-- --dangerously-skip-permissions`. Claude
    Code enters that mode only at launch, so a session that was already running keeps its own: name
    each such session in your first report. `agent_not_ready` is a dialog on that pane — folder
-   trust, a sign-in, bypass mode's first-use warning — and the user's to answer: name the tab and go
+   trust, a sign-in, bypass mode's first-use warning — and the user's to answer: name the pane and go
    on with the other launches. Its launch line goes out once the dialog is answered (Stage 4).
 2. **The clear.** One launch, one conversation: unless you started the session for this launch, send
    `herdr agent prompt <name> '/clear'` first, so no earlier wave's context rides into this one.
@@ -135,7 +163,7 @@ For each ready launch, in step order, while a slot is free:
 **The watcher runs only under `+ watch`, and there is one.** A single background process covers
 every session in flight and every session whose start waits on a dialog. Arm it once, after this
 turn's launches, by this skill's full path, in the background so its exit wakes you (on Claude Code,
-`run_in_background`), giving each session with the `state_change_seq` you read for it:
+`run_in_background`), naming each session with the `state_change_seq` you read for it:
 
 ```powershell
 powershell -NoProfile -File <this skill's directory>/scripts/watch.ps1 -Sessions <name>:<seq>,<name>:<seq>
@@ -162,8 +190,8 @@ The watcher exited. `settled <name>` names the session to act on, by its state. 
 ran out: read every session in flight the same way, because a session whose turn ended without an
 outcome line can still show an old pause line.
 
-- **`blocked`**: a permission prompt or a question on that pane. Tell the user the repository, its tab
-  and what the screen asks. It is still in flight.
+- **`blocked`**: a permission prompt or a question on that pane. Tell the user the repository, its
+  pane or tab, and what the screen asks. It is still in flight.
 - **`idle` or `done`, not prompted yet**: the dialog that held its start is answered. Send its launch
   line now (Stage 3, step 3).
 - **`idle` or `done`**: read the session's last lines. Its **outcome line**, the last line of
@@ -203,8 +231,8 @@ stop: a session that settles afterwards is picked up by the next `/conduct`.
 
 The report names each launch with its state, what every open launch waits on and on whom, each
 relayed question still unanswered, and the next `/conduct` line — without `+ watch`, the line to run
-once a session settles. It names the sessions still running, by tab, and marks as safe to close each
-one whose repository has no launch left: an idle session still holds memory, and closing it is the
-user's. A wave that is not in the run order, such as
+once a session settles. It names the sessions still running, by pane label or tab, and marks as safe
+to close each one whose repository has no launch left: an idle session still holds memory. The slots
+stay open at the stop, and closing them is the user's. A wave that is not in the run order, such as
 a follow-up added after planning, is named with its repository's own `/orchestrate` line for the user
 to launch. Each repository's closing chain and its promotion stay with its orchestrator and the user.
