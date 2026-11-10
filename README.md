@@ -1,6 +1,6 @@
 # grill-to-waves
 
-A three-skill delivery pipeline for coding agents, plus the executor, scout and scribe agent
+A three-skill delivery pipeline for coding agents, plus the executor, scout, clerk and scribe agent
 definitions it dispatches, a conductor for runs that span several repositories, and two reporting
 skills: one for the end of the day, one for the ticket.
 
@@ -33,10 +33,11 @@ production deploy rather than a handed-back ticket.
 | Piece | What it is |
 |---|---|
 | `GLOSSARY.md` | Canonical distinction between executor tier and reasoning effort. |
+| `CHANGELOG.md` | What changed in the pipeline's rules and agent set, by date, and what to do after updating. |
 | `skills/grill-to-waves/SKILL.md` | The seven-stage pipeline (Stage 0 tracker → Stage 6 stop). |
 | `skills/grill-to-waves/SESSIONS.md` | Write surfaces, the collision rule, ownership, resume, and a paired run across repositories: its format and how it is planned. The protocol the skills share. |
 | `skills/grill-to-waves/TRACKERS.md` | The five tracker operations for GitHub (`gh`), GitLab (`glab`) and local markdown, and the blocking edges between repositories. |
-| `skills/grill-to-waves/DEFAULTS.md` | Model/effort ladder, the Fable tier, scout tiering, and the junction-safe worktree teardown. |
+| `skills/grill-to-waves/DEFAULTS.md` | The session's model floor, the effort ladder, high-consequence tickets and the Fable tier, scouts and the clerk, and the junction-safe worktree teardown. |
 | `skills/orchestrate/SKILL.md` | Wave dispatch, verification, merge gate, closing upward, team shape. |
 | `skills/conduct/SKILL.md` | The conductor of a paired run, inside herdr: reading the run order, the states of each launch and the in-flight ceiling, launching each repository's session, relaying decisions, and where it stops. |
 | `skills/conduct/scripts/watch.*` | Read-only watcher, PowerShell and bash: waits until a herdr agent settles after a known state change, so the conductor never misses a wake. |
@@ -45,10 +46,11 @@ production deploy rather than a handed-back ticket.
 | `skills/daily-recap/scripts/collect-evidence.*` | Read-only collector, PowerShell and bash: the day's commits per repository, and each Claude Code or Codex session's prompts and closing report. |
 | `skills/jira-comment/SKILL.md` | The ticket comment: which event it reports, when "deployed" and "ready for retest" may be written, the language rule, the Jira markup, the template. |
 | `statusline/statusline.js` | Claude Code statusline: `model │ ctx% │ 5h │ 7d`, each usage percentage coloured and carrying its reset time. Installed for Claude Code only. |
-| `agents/executor-{fable,opus,sonnet}-{medium,high,xhigh}.md` | Nine ticket executors, one per tier/effort pairing. |
-| `agents/scout-{sonnet-medium,sonnet-high,opus-medium,opus-high}.md` | Four read-only scouts: locate, sweep, focused judgment, broad analysis. |
+| `agents/executor-fable-{high,xhigh}.md`, `agents/executor-{opus,sonnet}-{medium,high,xhigh}.md` | Eight ticket executors, one per tier/effort pairing the ladder uses. |
+| `agents/scout-{haiku-medium,sonnet-high,opus-medium,opus-high}.md` | Four read-only scouts: locate, sweep, focused judgment, broad analysis. |
+| `agents/clerk-haiku-medium.md` | The orchestrator's clerk: runs a gate command and condenses its output, reads the tracker, drafts records from given facts, copies a spec into its mirror. Decides, posts and commits nothing. |
 | `agents/vault-scribe.md` | Optional Obsidian scribe. Owns every vault read and write so the orchestrator's session spends no context on note prose. Available on both hosts. |
-| `agents/codex/*.toml` | The same fourteen executor, scout and scribe agents as Codex custom agents — same names, same bodies, Codex models per the `Hosts` table in `DEFAULTS.md`. |
+| `agents/codex/*.toml` | The same fourteen executor, scout, clerk and scribe agents as Codex custom agents — same names, same bodies, Codex models per the `Hosts` table in `DEFAULTS.md`. |
 | `skills/*/agents/openai.yaml` | Codex skill metadata: user-invocation only, the equivalent of `disable-model-invocation`. Claude Code ignores it. |
 
 The tracker is the state store — specs, tickets and the map are issues, and the repo keeps a durable
@@ -234,27 +236,27 @@ Codex `$` mentions; `.claude/worktrees` and `.claude/scratch` to `.codex/…`; a
 (`allow_implicit_invocation: false`).
 
 The tier names in the labels and agent names are tiers, not vendors or model generations. Claude
-Code agents use the host's aliases (`fable`, `opus`, `sonnet`), so each tier follows the current
-generation without an edit. The Codex agents pin these models; edit the `.toml` to re-map:
+Code agents use the host's aliases (`fable`, `opus`, `sonnet`, `haiku`), so each tier follows the
+current generation without an edit. The Codex agents pin these models; edit the `.toml` to re-map:
 
 | Tier (label) | Claude Code | Codex CLI |
 |---|---|---|
-| Fable (`executor:fable`) | Fable (alias `fable`) at `medium` / `high` / `xhigh` | `gpt-6-astra` at the same effort |
+| Fable (`executor:fable`) | Fable (alias `fable`) at `high` / `xhigh` | `gpt-6-astra` at the same effort |
 | frontier (`executor:opus`) | Opus at `medium` / `high` / `xhigh` | `gpt-5.6-sol` at the same effort |
 | mid (`executor:sonnet`) | Sonnet at `medium` / `high` / `xhigh` | `gpt-5.6-terra` at the same effort |
+| narrow (`scout-haiku-medium`, `clerk-haiku-medium`) | Haiku at `medium` | `gpt-5.6-luna` at `medium` |
 | `scout-sonnet-high` | Sonnet at `high` | `gpt-5.6-terra` at `high` |
-| `scout-sonnet-medium` | Sonnet at `medium` | `gpt-5.6-luna` at `medium` |
 | `scout-opus-*` | Opus at `medium` / `high` | `gpt-5.6-sol` at the same effort |
 
 Codex positions the four models as Astra "our most capable", Sol "the most capable GPT-5.6 model
 for complex coding", Terra "balanced ... for everyday work" and Luna "fast and affordable ... lowest
-cost in the family" (`learn.chatgpt.com/docs/models`), so the three tiers land on Astra, Sol and
-Terra, and Luna takes only the two narrowly scoped agents. A plan without access to a pinned model
-may be served a cheaper one without an error (openai/codex#46632); check the plan before trusting
-the Fable tier on Codex.
+cost in the family" (`learn.chatgpt.com/docs/models`), so the three executor tiers land on Astra,
+Sol and Terra, and Luna takes only the narrowly scoped agents: the locate scout, the clerk and the
+scribe. A plan without access to a pinned model may be served a cheaper one without an error
+(openai/codex#46632); check the plan before trusting the Fable tier on Codex.
 
-`vault-scribe` is installed on both hosts. Its Codex definition uses `workspace-write` and the
-Sonnet-tier model at `medium` effort, as defined in `DEFAULTS.md`. Pass the vault's absolute path
+`vault-scribe` is installed on both hosts. Its Codex definition uses `workspace-write` and
+`gpt-5.6-luna` at `medium` effort, as defined in `DEFAULTS.md`. Pass the vault's absolute path
 in the dispatch brief. Writing requires the session's permissions to cover that path; when access
 is denied, the scribe reports the target and proposed note to the calling session for permission
 handling. The installer does not grant vault access or disable the sandbox.
@@ -340,6 +342,12 @@ box, then flip to **Visual** to check it.
   CLI's `spawn_agent` with the custom agents this repo installs. A host without one still runs the
   skills: the session executes tickets itself, one at a time, with the agent definitions read as
   role briefs (see *Hosts without subagent dispatch* in `skills/orchestrate/SKILL.md`).
+- **An Opus-class session at `high`** is the floor the pipeline is written for, on both hosts: it
+  plans, orchestrates and verifies. Fable is optional and used per ticket — as the executor of a
+  high-consequence ticket that leaves a decision open, as that ticket's second verifier, and on
+  Claude Code as the session's advisor. Without it those tickets run on Opus with an independent
+  check, and an irreversible one waits for your go-ahead. Haiku runs only the locate scout and the
+  clerk. `DEFAULTS.md` has the rules.
 - **[mattpocock/skills](https://github.com/mattpocock/skills)**, required — `grilling` and
   `domain-modeling` for Stage 1, and `setup-matt-pocock-skills` for the Stage 0 tracker record on
   both hosts. The installer fetches them; see *The Matt Pocock skill collection* above.
@@ -367,8 +375,13 @@ re-detecting it every run.
 - **The orchestrator verifies; the executor does not self-certify.** An executor's account of its own
   work is a claim. The orchestrator reads the diff, runs the gate, and measures rather than eyeballs.
 - **Executor tier and effort are separate axes.** Consequence and reach choose Sonnet, Opus or Fable;
-  exploration and unresolved decisions choose `medium`, `high` or `xhigh`. Fable covers failure that
-  would be irreversible, run-wide or adversarial. Fallback preserves effort.
+  exploration and unresolved decisions choose `medium` or `high`, and `xhigh` is earned by a hand-back
+  rather than planned. Fable takes a ticket whose failure would be irreversible, run-wide or
+  adversarial *and* that leaves a decision open; with the design settled, the same ticket runs on
+  Opus and keeps its second verification. Fallback preserves effort.
+- **The most capable model is spent per ticket, never per session.** The session's floor is Opus at
+  `high`, so the pipeline runs on an account without Fable, and an account with it pays for Fable
+  where a wrong decision cannot be caught afterwards.
 - **Two agent sessions never share one working copy.** They contend on the tree, the dev server and
   the dev database at once. Splitting a run means one developer per clone.
 - **Nothing is true until it is on the tracker** — and the map's *body* is where a resuming session

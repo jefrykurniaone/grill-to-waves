@@ -371,7 +371,8 @@ try {
     Test-Case 'end to end: -Target both installs every skill and agent into the scratch home' {
         $scratch = New-ScratchHome 'e2e'
         # A retired agent left by an earlier release has to go.
-        foreach ($retired in @('.claude/agents/executor-fable-five-one-high.md', '.codex/agents/executor-fable-five-one-high.toml')) {
+        foreach ($retired in @('.claude/agents/executor-fable-five-one-high.md', '.codex/agents/executor-fable-five-one-high.toml',
+                '.claude/agents/scout-sonnet-medium.md', '.codex/agents/scout-sonnet-medium.toml')) {
             New-Item -ItemType Directory -Force -Path (Split-Path (Join-Path $scratch $retired) -Parent) | Out-Null
             [System.IO.File]::WriteAllText((Join-Path $scratch $retired), "retired`n", $utf8NoBom)
         }
@@ -410,6 +411,8 @@ try {
 
         Assert-True (-not (Test-Path -LiteralPath (Join-Path $scratch '.claude/agents/executor-fable-five-one-high.md'))) 'retired Claude Code agent was kept'
         Assert-True (-not (Test-Path -LiteralPath (Join-Path $scratch '.codex/agents/executor-fable-five-one-high.toml'))) 'retired Codex agent was kept'
+        Assert-True (-not (Test-Path -LiteralPath (Join-Path $scratch '.claude/agents/scout-sonnet-medium.md'))) 'retired Claude Code scout was kept'
+        Assert-True (-not (Test-Path -LiteralPath (Join-Path $scratch '.codex/agents/scout-sonnet-medium.toml'))) 'retired Codex scout was kept'
         Assert-True (@(Get-ChildItem -LiteralPath (Join-Path $scratch '.claude/backups') -Filter 'executor-fable-five-one-high.md-*').Count -eq 1) `
             'retired Claude Code agent was not backed up'
 

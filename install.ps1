@@ -107,7 +107,8 @@ $Skills = @('grill-to-waves', 'orchestrate', 'conduct', 'ship-it-to', 'daily-rec
 $RequiredMattPocockSkills = @('grilling', 'domain-modeling', 'setup-matt-pocock-skills')
 # Agent definitions this repo used to ship and no longer does. A copy left in the agent directory
 # would keep registering a tier the skills no longer dispatch, so the installer removes it.
-$RetiredAgents = @('executor-fable-five-one-medium', 'executor-fable-five-one-high', 'executor-fable-five-one-xhigh')
+$RetiredAgents = @('executor-fable-five-one-medium', 'executor-fable-five-one-high', 'executor-fable-five-one-xhigh',
+    'executor-fable-medium', 'scout-sonnet-medium')
 $MattPocockRepo = 'mattpocock/skills'
 # The CLIs the pipeline drives each forge with, and the forge each one serves.
 $ForgeClis = [ordered]@{ gh = 'GitHub'; glab = 'GitLab' }

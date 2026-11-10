@@ -14,10 +14,31 @@ The depth allocated to an executor from the exploration required and the decisio
 make. It is independent of executor tier.
 _Avoid_: Model tier, executor tier
 
+**High-consequence ticket**:
+A ticket whose incorrect implementation can escape the gate, the orchestrator's verification and one
+hand-back, because it is irreversible, run-wide or adversarial. It gets a second verification in a
+fresh context whichever tier runs it.
+_Avoid_: Fable ticket, critical ticket, risky ticket
+
 **Fable tier**:
-The highest executor tier, for work whose failure is irreversible, run-wide, or adversarial. It is
-independent of reasoning effort and of which Fable generation the host currently serves.
+The highest executor tier, for a high-consequence ticket that leaves a decision open to the executor.
+With the design settled the same ticket runs on the frontier tier. It is independent of reasoning
+effort and of which Fable generation the host currently serves.
 _Avoid_: Fable model, xhigh tier, a tier named with a version number
+
+**Session floor**:
+The least capable model and effort the planning and orchestrating session is written for: the
+frontier tier at `high`. A more capable session is the user's choice, never a requirement.
+_Avoid_: Orchestrator model, required model
+
+**Narrow tier**:
+The tier of the two agents that run no ticket and make no decision: the locate scout and the clerk.
+_Avoid_: Haiku executor, cheap tier
+
+**Clerk**:
+The narrow-tier agent that does one of the orchestrator's chores needing no judgment and returns the
+result for the orchestrator to judge. It posts nothing and commits nothing.
+_Avoid_: Helper, assistant, mini-executor
 
 **Promotion**:
 Moving what already landed on the integration branch to a staging or production branch. It is one

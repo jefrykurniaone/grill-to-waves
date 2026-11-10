@@ -63,7 +63,8 @@ SKILLS=(grill-to-waves orchestrate conduct ship-it-to daily-recap jira-comment)
 REQUIRED_MATTPOCOCK_SKILLS=(grilling domain-modeling setup-matt-pocock-skills)
 # Agent definitions this repo used to ship and no longer does. A copy left in the agent directory
 # would keep registering a tier the skills no longer dispatch, so the installer removes it.
-RETIRED_AGENTS=(executor-fable-five-one-medium executor-fable-five-one-high executor-fable-five-one-xhigh)
+RETIRED_AGENTS=(executor-fable-five-one-medium executor-fable-five-one-high executor-fable-five-one-xhigh
+  executor-fable-medium scout-sonnet-medium)
 MATTPOCOCK_REPO="mattpocock/skills"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
