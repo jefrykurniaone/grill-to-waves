@@ -17,9 +17,9 @@ There are **two shapes**, and neither takes a lock:
   the tracker: `origin/main` is serialised by the forge's branch protection, and ownership is the
   tracker's assignee.
 
-**Two agent sessions never share one working copy.** That is the case locks used to buy, and this
-protocol no longer covers it: a second session in the same working copy contends on the tree, the
-dev server and the dev database at once, and the only supported answer is a second clone. Splitting a
+**Two agent sessions never share one working copy.** A second session in the same working copy
+contends on the tree, the dev server and the dev database at once, and the only supported answer is
+a second clone. Splitting a
 run means splitting it across working copies — one per developer — or not splitting it at all.
 
 ## Invariants

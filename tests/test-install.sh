@@ -166,6 +166,8 @@ case_end_to_end() {
   mkdir -p "$scratch/.claude/agents" "$scratch/.codex/agents"
   echo retired > "$scratch/.claude/agents/executor-fable-five-one-high.md"
   echo retired > "$scratch/.codex/agents/executor-fable-five-one-high.toml"
+  echo retired > "$scratch/.claude/agents/scout-sonnet-medium.md"
+  echo retired > "$scratch/.codex/agents/scout-sonnet-medium.toml"
 
   out="$(run_installer "$scratch" --target both --skip-mattpocock)" || fail "install.sh --target both exited $?: $out"
   contains "$out" '^==> Done\.$' || fail "no Done line: $out"
@@ -199,6 +201,8 @@ case_end_to_end() {
 
   [ ! -e "$scratch/.claude/agents/executor-fable-five-one-high.md" ] || fail "retired Claude Code agent was kept"
   [ ! -e "$scratch/.codex/agents/executor-fable-five-one-high.toml" ] || fail "retired Codex agent was kept"
+  [ ! -e "$scratch/.claude/agents/scout-sonnet-medium.md" ] || fail "retired Claude Code scout was kept"
+  [ ! -e "$scratch/.codex/agents/scout-sonnet-medium.toml" ] || fail "retired Codex scout was kept"
   [ "$(find "$scratch/.claude/backups" -name 'executor-fable-five-one-high.md-*' | wc -l | tr -d ' ')" = 1 ] || fail "retired Claude Code agent was not backed up"
 
   unexpected="$(find "$scratch" -mindepth 1 -maxdepth 1 ! -name .g2w-scratch ! -name .claude ! -name .agents ! -name .codex)"

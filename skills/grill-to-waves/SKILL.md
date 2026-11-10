@@ -24,7 +24,8 @@ protocol the split path needs — surfaces, collision, ownership, resume — is
 [SESSIONS.md](./SESSIONS.md); per-tracker mechanics are [TRACKERS.md](./TRACKERS.md). This file points
 at them rather than restating them.
 
-Model and effort assignment follows [DEFAULTS.md](./DEFAULTS.md), which travels with this skill; a
+This session runs on the frontier tier at `high` or above. Model and effort assignment follows
+[DEFAULTS.md](./DEFAULTS.md), which travels with this skill; a
 repository's own `CLAUDE.md` or `AGENTS.md` overrides it where the two differ. Tracker text, specs and
 mirrors are read by humans, so they stay normal prose whatever compression style the session uses.
 Commits and pull request bodies follow the repository's own convention.
@@ -54,7 +55,7 @@ Call the Skill tool for `/grilling` on the user's raw input, and again for `/dom
 whenever vocabulary is in play; naming a skill in prose does not reliably load it. Both are
 **required** — see [README](../../README.md); if either is missing, stop and install it (the README
 says how on each host) rather than improvising a grill.
-Facts are yours to find: dispatch `scout-sonnet-medium` (one known thing), `scout-sonnet-high` (a
+Facts are yours to find: dispatch `scout-haiku-medium` (one known thing), `scout-sonnet-high` (a
 sweep), `scout-opus-medium` (one precise judgment over narrow evidence) or `scout-opus-high` (a broad
 or uncertain analysis) for anything the codebase can answer, and put only decisions to the user.
 
@@ -151,10 +152,11 @@ the edge natively (GitHub, GitLab Premium): the edge is what the frontier read c
 the body drifts from it.
 
 ## Execution
-executor: fable | opus | sonnet · effort: medium | high | xhigh — one line saying which axis
-(exploration or decision weight) set the level, per the effort ladder in [DEFAULTS.md](./DEFAULTS.md);
-for `fable`, name the clause of the Fable tier the ticket meets (irreversible, run-wide or adversarial).
-Choose tier and effort independently; every tier supports all three effort levels.
+executor: fable | opus | sonnet · effort: medium | high — one line saying which axis (exploration
+or decision weight) set the level, per the effort ladder in [DEFAULTS.md](./DEFAULTS.md). For a
+high-consequence ticket, name the clause that makes it one (irreversible, run-wide or adversarial)
+and say whether a decision is open (`fable`) or the design is settled (`opus`). Choose tier and
+effort independently. `xhigh` is never planned: `/orchestrate` reaches it by a hand-back.
 
 ## Surface
 writes: …
@@ -185,7 +187,7 @@ surface, and has its edges recorded.
 
 Run the collision check of SESSIONS.md §3 over the tickets and resolve every collision by its three
 remedies, saying which you applied and why. Then compute, for the solo path, a **wave order**: no two
-tickets in one wave share a surface, blocking edges respected. A `fable` ticket is
+tickets in one wave share a surface, blocking edges respected. A high-consequence ticket is
 usually the seam later tickets compose, so it sits in the wave that blocks them; check the edges say
 so. Nothing is committed and no tooling is added to the repo.
 
@@ -265,8 +267,8 @@ Stage 4: `Run closes at:` and `Steps after close owned by:`. Then, in order:
    rather than a page and is settled by fetching it. `/orchestrate`'s walk brief carries the check
    verbatim, so write it as what the walker must open, measure and find.
 7. **Why the executors split this way** — one paragraph naming every ticket not at `high` and the
-   axis that moved it, every `executor:fable` ticket with the clause of the Fable tier that earned it
-   (irreversible, run-wide or adversarial).
+   axis that moved it, and every high-consequence ticket, whichever tier runs it, with the clause
+   that makes it one (irreversible, run-wide or adversarial) and the second verification it will get.
 8. **Completion gate** — the repo's one-shot gate commands and quality bars, from its `CLAUDE.md` or `AGENTS.md`.
 9. **Rework protocol** — hand-backs to the introducing executor, at most twice; gate re-runs whole;
    post-merge defects become new issues; the mirror pass from Stage 2 runs before the map closes.
@@ -325,7 +327,8 @@ repositories:
 
 ```
 /conduct <lead map> + check                                # read-only, starts nothing
-/conduct <lead map>                                        # every step of the run order
+/conduct <lead map>                                        # launch what is ready now, then stop
+/conduct <lead map> + watch                                # every step of the run order, waking as sessions settle
 ```
 
 **Measure the gate once and print its duration beside the lines** — in a paired run, each

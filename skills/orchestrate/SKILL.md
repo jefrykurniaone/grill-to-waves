@@ -126,26 +126,45 @@ before every step:
 
 **`+ check`** runs Stage 1 read-only and prints: the waves with each ticket's state and open blockers,
 what the guard found, what the preflight found, cross-run gates with the tickets they wait on, and the
-line to run next. It writes nothing.
+line to run next. It also prints what will actually run: the model and effort of this session as the
+host reports them, the advisor configured for this session if any, any environment variable that overrides an
+agent file ([../grill-to-waves/DEFAULTS.md](../grill-to-waves/DEFAULTS.md) *Hosts*), and every
+high-consequence ticket with the executor and the second verification it will get. It writes nothing.
 
 ## Model and effort
 
 [../grill-to-waves/DEFAULTS.md](../grill-to-waves/DEFAULTS.md) is the source of truth, overridden only
-by the repository's own `CLAUDE.md` or `AGENTS.md`. Executors are Fable, Opus or Sonnet at
-`medium`, `high` or `xhigh`, from the ticket's labels. Select the axes independently: consequence and
-reach set the tier; exploration and unresolved decisions set the effort; default effort is `high`
-when unlabelled. Re-grade only when the body contradicts a label: a `medium` brief that leaves a design
-or correctness argument open moves to `high` or `xhigh`; an Opus ticket whose failure would be
-irreversible, run-wide or adversarial moves to Fable. Do not change effort unless the workload also
-contradicts that label. Correct the affected label and say why in one line.
-Dispatch `executor-<tier>-<effort>` by the host's mechanism in DEFAULTS.md's *Hosts* table (Claude
-Code: `subagent_type`; Codex: `spawn_agent` naming that custom agent). Scouts are
-`scout-sonnet-medium`, `scout-sonnet-high`, `scout-opus-medium`, `scout-opus-high`; the Fable tier
-has no scout. The *Hosts* table says which model each host runs. If the matching
-`executor-fable-<effort>` is missing or the Fable model is unavailable, dispatch
-`executor-opus-<effort>`. Record every substitution on the ticket and in the wave report. If any
-other agent is missing, fall back to the host's general agent with the mapped model and effort stated
-in the prompt, and record that too.
+by the repository's own `CLAUDE.md` or `AGENTS.md`. This session runs on the frontier tier at `high`.
+Executors are Fable, Opus or Sonnet at `medium`, `high` or `xhigh`, from the ticket's labels; default
+effort is `high` when unlabelled. Dispatch `executor-<tier>-<effort>` by the host's mechanism in
+DEFAULTS.md's *Hosts* table (Claude Code: `subagent_type`; Codex: `spawn_agent` naming that custom
+agent). Scouts are `scout-haiku-medium`, `scout-sonnet-high`, `scout-opus-medium` and
+`scout-opus-high`; `clerk-haiku-medium` takes the chores DEFAULTS.md's *The clerk* lists.
+
+**Re-grade only when the body contradicts a label**, then correct the label and say why in one line:
+
+- A `medium` brief that leaves a decision open moves to `high`.
+- A ticket that meets a consequence clause and leaves a decision open moves to Fable. One whose design
+  is settled runs on Opus. Either way it keeps its second verification.
+- `xhigh` is reached only by a hand-back: an attempt at `high` that came back wrong for a reasoning
+  failure goes to `executor-<tier>-xhigh` as a fresh dispatch carrying the original brief plus the
+  finding.
+
+**Substitutions.** If the matching `executor-fable-<effort>` is missing or the Fable model is
+unavailable, dispatch `executor-opus-<effort>`. If any other agent is missing, fall back to the host's
+general agent with the mapped model and effort stated in the prompt. Record every substitution on the
+ticket and in the wave report.
+
+**When an executor stops on a decision**, it reports one question with its evidence. Answer by what
+the decision is:
+
+- **A missing fact or a wrong premise**: correct the ticket and send the answer to the same executor.
+- **A high-consequence decision, Fable available**: re-grade the ticket to `executor:fable` and
+  dispatch it there.
+- **A high-consequence decision, Fable unavailable**: decide it, send the decision to the same
+  executor, and name it in the wave report as a decision made without the Fable tier.
+
+Record the decision and the path it took in the ticket's comment.
 
 ## Dispatch the whole wave at once
 
@@ -189,16 +208,20 @@ An executor's account of its own work is a claim, not evidence. Before a branch 
 - **A wrong ticket premise is the common failure**, and an executor that refuses its own ticket is
   usually right. Verify the claim against the code; if the ticket is wrong, correct its body and any
   acceptance criterion quoting it, record why, and re-dispatch. That is not a hand-back.
+- **A high-consequence ticket gets a second verification** in a fresh context before it merges, and an
+  irreversible one that Fable did not verify waits for the user's go-ahead before the push —
+  [../grill-to-waves/DEFAULTS.md](../grill-to-waves/DEFAULTS.md) *Verifying a high-consequence ticket*.
 - **The runtime is walked after the merge, by a sub-agent you judge** — *The runtime walk*, below.
 
 ## Merge the batch — one gate, and nothing pushed until it is green
 
 One session owns every merge in this working copy, so the whole gate runs once per batch rather than
-after every merge:
+after every merge. A gate command may go to `clerk-haiku-medium`, which returns its exit code and its
+failures verbatim; attributing a break and judging the tree stay here:
 
 1. Preflight the tree.
 2. For each green branch, in wave order: `git merge --no-ff` with the ticket number in the merge
-   subject, then the **fast** part of the gate only — the test suite — so a break is attributed to the
+   subject as `#<n>`, the form the reconcile grep of Stage 1 matches, then the **fast** part of the gate only — the test suite — so a break is attributed to the
    merge that caused it. Resolve append-plus-append catalogue conflicts yourself.
 3. After the last merge — and, in a paired run's first wave, after one commit adding this
    repository's spec mirrors in Stage 2's format, since planning wrote none
@@ -255,6 +278,8 @@ measured value or a named failure.
 
 Per ticket, **one comment**: what landed, the gate result with its start time and the commit it ran
 on, the runtime finding, the merge sha and the review request. Then close it, and drop the assignee if the tracker set one.
+`clerk-haiku-medium` may draft a comment or the log entry into `.claude/scratch/` from the facts you
+give it; read the draft, then post it yourself.
 
 Per wave, **two writes on the map, and the body is the one that matters**:
 
@@ -280,10 +305,12 @@ substitute for it, and where no such agent exists this step does not exist eithe
 Rework goes back to the introducing executor — by a follow-up message to the same executor where the
 host has one (`SendMessage` on Claude Code, `followup_task` on Codex), otherwise as a fresh dispatch
 carrying the original brief plus the finding — at most twice; the third failure is a stop and a
-report. A defect found in code a ticket did not own is **filed as its own item**, never an
+report. A hand-back for a reasoning failure at `high` is the fresh dispatch at `xhigh` that *Model and
+effort* describes, and counts as one of the two. A defect found in code a ticket did not own is **filed as its own item**, never an
 opportunistic fix and never a hot fix on `main`.
 
-Tear down every worktree of the wave in one pass, by the junction-safe procedure in
+Tear down every worktree of the wave in one pass — yourself, or through `executor-sonnet-medium`
+carrying the procedure verbatim — by the junction-safe procedure in
 [../grill-to-waves/DEFAULTS.md](../grill-to-waves/DEFAULTS.md): unlink every reparse point or symlink
 deepest-first — the `.next/node_modules/*` junctions a
 build leaves, then `node_modules` — confirm none remain, then remove, `git worktree prune`, and confirm
@@ -306,7 +333,7 @@ green on `HEAD` — a recorded gate run stands when `HEAD` is the commit it ran 
 `git status --porcelain` is empty, and is run again only otherwise; the walk's screenshots posted on
 the review request as one captioned note; and the mirror pass from `/grill-to-waves` Stage 2 run over
 every spec this run produced — the delivery notes written on the spec item, each mirror regenerated
-from it. Then post the execution record, close the map, and where a spec has a parent item above it,
+from it (the copy is a clerk chore; the delivery notes are yours). Then post the execution record, close the map, and where a spec has a parent item above it,
 post a delivery summary there and close it too. Closing upward is part of finishing.
 
 ## Stop rule
