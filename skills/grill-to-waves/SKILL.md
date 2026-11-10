@@ -327,7 +327,8 @@ repositories:
 
 ```
 /conduct <lead map> + check                                # read-only, starts nothing
-/conduct <lead map>                                        # every step of the run order
+/conduct <lead map>                                        # launch what is ready now, then stop
+/conduct <lead map> + watch                                # every step of the run order, waking as sessions settle
 ```
 
 **Measure the gate once and print its duration beside the lines** — in a paired run, each

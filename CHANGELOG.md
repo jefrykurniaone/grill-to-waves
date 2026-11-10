@@ -19,6 +19,8 @@ account without Fable and costs less on one that has it.
    `executor-opus-medium`, which is where the new rule sends it, and a ticket planned at
    `effort:xhigh` still dispatches.
 4. Optional, Claude Code only: `/advisor fable` in a session below Fable.
+5. `/conduct <lead map>` now launches what is ready and stops. Add `+ watch` for the earlier
+   behaviour of running the whole order, and `+ sessions <n>` for more than two repositories at once.
 
 ### Changed
 
@@ -48,6 +50,22 @@ account without Fable and costs less on one that has it.
   `CLAUDE_CODE_EFFORT_LEVEL`, which override an agent file's `model` and `effort`.
 - `SESSIONS.md` states the one-session-per-working-copy rule without reference to an earlier
   protocol.
+
+### Changed — `/conduct`, sized for one laptop
+
+- **No watcher unless asked.** Plain `/conduct` launches what is ready, reports, and stops; Stage 1
+  and `+ check` never arm one. `+ watch` keeps the run going.
+- **One watcher for the whole run** instead of one process per session. It takes every session as
+  `<name>:<seq>`, polls once a minute instead of every twenty seconds, exits after an hour without a
+  settle instead of waiting indefinitely, and waits through `orchestrate: waiting on executors` by
+  itself, so a pause no longer costs the conductor a turn. A held session gets no watcher, and none
+  outlives the stop.
+- **Two sessions in flight** by default instead of five; `+ sessions <n>` changes it.
+- **Five executors per session**: the launch line carries `+ ceiling 5` when a map plans more.
+- **Ticket states** are read through `clerk-haiku-medium` where it is installed.
+- **The stop report** marks the sessions whose repository has no launch left as safe to close.
+- `watch.ps1` takes `-Sessions <name>:<seq>,…` and `watch.sh` takes `<name>:<seq> …`; the earlier
+  `-Agent`/`-AfterSeq` and positional forms are gone.
 
 ### Added
 

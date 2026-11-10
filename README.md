@@ -39,8 +39,8 @@ production deploy rather than a handed-back ticket.
 | `skills/grill-to-waves/TRACKERS.md` | The five tracker operations for GitHub (`gh`), GitLab (`glab`) and local markdown, and the blocking edges between repositories. |
 | `skills/grill-to-waves/DEFAULTS.md` | The session's model floor, the effort ladder, high-consequence tickets and the Fable tier, scouts and the clerk, and the junction-safe worktree teardown. |
 | `skills/orchestrate/SKILL.md` | Wave dispatch, verification, merge gate, closing upward, team shape. |
-| `skills/conduct/SKILL.md` | The conductor of a paired run, inside herdr: reading the run order, the states of each launch and the in-flight ceiling, launching each repository's session, relaying decisions, and where it stops. |
-| `skills/conduct/scripts/watch.*` | Read-only watcher, PowerShell and bash: waits until a herdr agent settles after a known state change, so the conductor never misses a wake. |
+| `skills/conduct/SKILL.md` | The conductor of a paired run, inside herdr: reading the run order, the states of each launch, launching each repository's session, relaying decisions, and where it stops. Sized for one laptop: two sessions in flight, five executors in each, and a watcher only under `+ watch`. |
+| `skills/conduct/scripts/watch.*` | Read-only watcher, PowerShell and bash, started only under `+ watch`: one process waits until one of the run's herdr agents settles after a known state change, and waits through an orchestrator's pause by itself. |
 | `skills/ship-it-to/SKILL.md` | Promotion to staging or production: contract resolution, branch protections, the pivot, the gate on the pivot, authorship of what travels, the request body, and where the run stops. |
 | `skills/daily-recap/SKILL.md` | The end-of-day recap: evidence collection, what never goes into a team message, the Done / Next / Blocker template. |
 | `skills/daily-recap/scripts/collect-evidence.*` | Read-only collector, PowerShell and bash: the day's commits per repository, and each Claude Code or Codex session's prompts and closing report. |
@@ -304,11 +304,14 @@ pane opened in the folder that holds the repositories:
 
 ```
 /conduct <lead map> + check          # read-only: the order, each repository's pane, the next step
-/conduct <lead map>                  # every step of the run order
+/conduct <lead map>                  # launch what is ready now, then stop
+/conduct <lead map> + watch          # every step of the run order, waking as sessions settle
 ```
 
 It starts or reuses one session per repository, in that repository's own pane, and clears its
-conversation before each launch, so every wave starts on a fresh context. It leaves every permission
+conversation before each launch, so every wave starts on a fresh context. At most two repositories
+run at once with five executors in each, and no background process is left running unless you pass
+`+ watch`, which starts one watcher for the whole run. It leaves every permission
 prompt and question to you: besides `/clear` and the launch line, it sends a session only what you
 tell it to.
 
