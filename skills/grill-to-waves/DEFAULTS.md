@@ -71,8 +71,8 @@ Exploration breadth alone never earns Fable — a large sweep is Opus at most.
 
 Rules that follow:
 
-- **Name every high-consequence ticket in the map**, whichever tier runs it, with the clause that
-  makes it one. A wave normally holds one or two at most; a run where most tickets are
+- **Name every high-consequence ticket in the map**, whichever tier runs it, with every clause it
+  meets: its second verifier follows the strongest. A wave normally holds one or two at most; a run where most tickets are
   high-consequence has been split too coarsely, or its specs have left their decisions to the
   executors.
 - **High-consequence tickets sit early.** They are usually the seam others build on, so they belong
@@ -85,14 +85,27 @@ Rules that follow:
 ### Verifying a high-consequence ticket
 
 Before its branch merges, a high-consequence ticket gets one verification in a fresh context, besides
-the orchestrator's own reading of the diff. The brief writes nothing and carries the ticket, the diff
-and the invariant to check:
+the orchestrator's own reading of the diff. The verifier follows the strongest clause the ticket
+meets:
 
-- **Fable available**: `executor-fable-high`. A session that itself runs on Fable is this
-  verification, and dispatches nothing.
+- **Adversarial or irreversible, or a decision the ticket left to the executor**:
+  `executor-fable-high`. A session that itself runs on Fable is this verification, and dispatches
+  nothing.
+- **Run-wide only, with the design settled in the ticket**: `scout-opus-high`. Checking an
+  implementation against a written design is a diff review.
 - **Fable unavailable**: `scout-opus-high`.
 - **The ticket is irreversible and Fable did not verify it**: stop before the push and get the
   user's go-ahead, naming the ticket and what a reset of the branch will not undo.
+
+The brief writes nothing. It carries the ticket, the diff and the checks: the invariant each clause
+names, and each decision the executor made that the ticket did not settle. Scope against `writes:`,
+layering, regenerated files and lint belong to the orchestrator's diff read and the batch gate, so
+the brief leaves them out. The verifier runs a probe only where reading leaves a check undecided, and
+is done when every listed check has a verdict with its evidence.
+
+A re-verification after a hand-back goes to the same agent with a delta brief: `git diff <verified
+commit>..<new commit>`, the findings that must now be closed, and the original checks for whatever
+the rework touched.
 
 Record which of these ran in the ticket's closing comment.
 

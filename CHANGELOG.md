@@ -3,6 +3,31 @@
 What changed in the pipeline's rules and agent set, newest first. The repository carries no version
 tags, so entries are dated. Tiers are named by alias only, as everywhere else in this repository.
 
+## 2026-11-13 — A narrower second verification
+
+The second verification of a high-consequence ticket was a full review on the most expensive tier.
+In one five-ticket run it cost close to half of what the five executors cost together, mostly in
+reading and in re-running gates the batch gate runs anyway. It now checks what can escape the net,
+on the tier that check needs.
+
+### After updating
+
+Run the installer again (`./install.ps1 -Target both` or `./install.sh --target both`). An open map
+needs no edit; a ticket whose map names one clause keeps the verifier that clause selects.
+
+### Changed
+
+- **The verifier follows the strongest clause.** Adversarial, irreversible, or a decision left to the
+  executor: `executor-fable-high`, as before. Run-wide only, with the design settled in the ticket:
+  `scout-opus-high`, because checking an implementation against a written design is a diff review.
+- **The brief lists its checks.** The invariant each clause names, and each decision the executor
+  made that the ticket did not settle. Scope against `writes:`, layering, regenerated files and lint
+  stay with the orchestrator's diff read and the batch gate. A probe runs only where reading leaves a
+  check undecided, and the verifier is done when every listed check has a verdict with its evidence.
+- **A re-verification reads the delta**: the diff since the verified commit, the findings to close,
+  and the original checks for whatever the rework touched, on the same agent.
+- **The map names every clause a ticket meets**, since the verifier follows the strongest.
+
 ## 2026-11-10 — Opus session floor, Fable per ticket, Haiku for narrow agents
 
 The most capable model is now spent per ticket instead of per session, so the pipeline runs on an
