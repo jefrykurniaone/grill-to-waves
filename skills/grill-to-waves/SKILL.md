@@ -154,8 +154,8 @@ the body drifts from it.
 ## Execution
 executor: fable | opus | sonnet · effort: medium | high — one line saying which axis (exploration
 or decision weight) set the level, per the effort ladder in [DEFAULTS.md](./DEFAULTS.md). For a
-high-consequence ticket, name the clause that makes it one (irreversible, run-wide or adversarial)
-and say whether a decision is open (`fable`) or the design is settled (`opus`). Choose tier and
+high-consequence ticket, name every clause it meets (irreversible, run-wide or adversarial) and
+say whether a decision is open (`fable`) or the design is settled (`opus`). Choose tier and
 effort independently. `xhigh` is never planned: `/orchestrate` reaches it by a hand-back.
 
 ## Surface
@@ -267,8 +267,8 @@ Stage 4: `Run closes at:` and `Steps after close owned by:`. Then, in order:
    rather than a page and is settled by fetching it. `/orchestrate`'s walk brief carries the check
    verbatim, so write it as what the walker must open, measure and find.
 7. **Why the executors split this way** — one paragraph naming every ticket not at `high` and the
-   axis that moved it, and every high-consequence ticket, whichever tier runs it, with the clause
-   that makes it one (irreversible, run-wide or adversarial) and the second verification it will get.
+   axis that moved it, and every high-consequence ticket, whichever tier runs it, with every clause
+   it meets (irreversible, run-wide or adversarial) and the second verification it will get.
 8. **Completion gate** — the repo's one-shot gate commands and quality bars, from its `CLAUDE.md` or `AGENTS.md`.
 9. **Rework protocol** — hand-backs to the introducing executor, at most twice; gate re-runs whole;
    post-merge defects become new issues; the mirror pass from Stage 2 runs before the map closes.
