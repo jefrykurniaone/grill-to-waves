@@ -305,8 +305,9 @@ and print the solo launch lines ready to copy:
 repository's `+ check` line, then one line per launch grouped by step, each led by the folder of the
 repository it runs in, because each repository has its own session started there, and ending on the
 launch's `· borrows` suffix, as a comment, where it has one. A launch started by hand goes only while
-no session runs in any repository it occupies, its own and every one it borrows
-([SESSIONS.md](./SESSIONS.md) §6):
+no other launch is in flight or held in, or borrowing, any repository it occupies, its own and every
+one it borrows: a borrower waits on the lender's session, and the lender's next launch waits on the
+borrower ([SESSIONS.md](./SESSIONS.md) §6):
 
 ```
 billing-service    /orchestrate map <its map> + check

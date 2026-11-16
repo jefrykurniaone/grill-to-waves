@@ -92,10 +92,11 @@ the recorded commit and run the wave or the close they belong to again from ther
 stop. The exception is a batch awaiting an irreversible go-ahead: the execution progress carries
 `awaiting go-ahead: #<n>[, #<m>…] @ <batch head sha>`. Where a ticket the line names now carries
 `ready-for-human`, the go-ahead was refused and its re-run did not finish, wherever `HEAD` is: the
-tickets the line names that carry that label are the refused ones, the line exempts nothing any
-more, and once the guard below has been answered and the reconcile has taken the batch's worktrees
-by their labels, reset and re-run that batch without the refused tickets (*Merge the batch*, *Reset
-and re-run*), rather than stopping. Otherwise, where the integration branch's `HEAD` is that sha,
+tickets the line names that carry that label are the refused ones, and the line exempts nothing any
+more. Once the guard below has been answered, the refused tickets' worktrees go by their
+`ready-for-human` label, and the batch's other tickets' surviving worktrees are verified as *Verify*
+says and merged in the re-run, never torn down and dispatched again; then reset and re-run that
+batch without the refused tickets (*Merge the batch*, *Reset and re-run*), rather than stopping. Otherwise, where the integration branch's `HEAD` is that sha,
 ask the user for that go-ahead again, for the batch at that commit, instead of resetting past the
 batch and re-running it (*Merge the batch*, step 5); with `HEAD` anywhere else, the line is a stop
 with a report. While the line stands, nothing is dispatched (*Dispatch the whole wave at once*).
@@ -496,7 +497,9 @@ go-ahead or a breach — has its worktree torn down in that same pass by the sam
 branch is kept: skip the procedure's `git branch -D`. Before the procedure runs, read the
 worktree's `git status --porcelain`, and commit any change it shows onto the ticket's branch
 yourself, as one work-in-progress commit, never the dependency tree, its link or the environment
-file the dispatch placed there, so `git worktree remove --force` discards nothing handed to the human. That
+file the dispatch placed there, so `git worktree remove --force` discards nothing handed to the
+human. A work-in-progress commit that fails, a pre-commit hook rejecting it for one, is a stop with
+a report before the teardown: the worktree is not removed while it holds uncommitted work. That
 branch is the work handed to the human, and no session merges or deletes it. Name it, and the
 work-in-progress commit where there is one, in the ticket's comment and in the wave report. A
 teardown delegated to `executor-sonnet-medium` carries in its brief the kept branches by name and
