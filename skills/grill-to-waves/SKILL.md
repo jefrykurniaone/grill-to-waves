@@ -33,12 +33,15 @@ Commits and pull request bodies follow the repository's own convention.
 1. Read `docs/agents/issue-tracker.md` in the repo. If it exists it is the answer: follow it for
    creating, reading, commenting, labelling, linking and closing.
 2. Otherwise detect: `git remote -v` at GitHub → `gh`; at GitLab → `glab`; no remote → local markdown
-   under `.scratch/`. Confirm in one line with the user and suggest recording the choice in
-   `docs/agents/issue-tracker.md` so the next run does not re-detect it —
-   `/setup-matt-pocock-skills` from the required Matt Pocock skills writes that file.
+   under `.scratch/`. Confirm in one line with the user, and record the detected tracker in the
+   map's *How this is executed* (Stage 5); planning writes no file. The run's orchestrator writes
+   `docs/agents/issue-tracker.md` from that record and commits it onto the integration branch with
+   the first merge batch's mirror commits (`/orchestrate`, *Merge the batch*), so the next run does
+   not re-detect it. Outside a run, `/setup-matt-pocock-skills` from the required Matt Pocock skills
+   writes that file.
 
 Then make sure the repo carries the labels `meta:orchestration`, `ready-for-agent`,
-`executor:fable`, `executor:opus`, `executor:sonnet`, `effort:medium`,
+`ready-for-human`, `executor:fable`, `executor:opus`, `executor:sonnet`, `effort:medium`,
 `effort:high`, `effort:xhigh`. Create what is missing.
 
 **Work that lands in more than one repository is a paired run**, planned by this one session from
@@ -71,8 +74,9 @@ files cannot ship separately, so they are one spec wearing two titles.
 Pick a run slug and create `run:<slug>` (description: "Belongs to delivery run <slug> - <title>").
 Before writing, sketch the seams the work will be tested at — existing seams first, the highest seam
 possible, ideally one, each with a one-line note on what it catches and what it misses — and confirm
-them with the user. Then write each spec on this template, opening it with the as-of line, and publish it with `ready-for-agent`,
-`run:<slug>` and its own `spec:<slug>` label (description: "Belongs to spec <ref> - <title>"). No
+them with the user. Then write each spec on this template, opening it with the as-of line — in a
+paired run followed by its `Paired specs` line ([SESSIONS.md](./SESSIONS.md) §6) — and publish it
+with `ready-for-agent`, `run:<slug>` and its own `spec:<slug>` label (description: "Belongs to spec <ref> - <title>"). No
 file paths and no code in a spec; those belong to tickets. The exception is a prototype snippet that
 encodes a decision more precisely than prose (a state machine, a schema, a type shape), trimmed to
 the decision.
@@ -226,8 +230,9 @@ from the cross-repository edges.
 
 Author one execution map for the run as its own item, titled
 `map: <run-slug> delivery - execution plan for run <run-slug>`, labelled `run:<slug>`. Mirror the
-repo's most recent map (search `map in:title`) for shape. Under the title, the header lines from
-Stage 4: `Run closes at:`, `Steps after close owned by:`, and beside them
+repo's most recent map (search `map in:title`) for shape, keeping only the sections listed below:
+an older map can carry a Sessions section and push-per-wave text. Under the title, the header lines
+from Stage 4: `Run closes at:`, `Steps after close owned by:`, and beside them
 `Integration branch: <name>, cut from <base>`. Then, in order:
 
 1. **Execution progress** — first, above everything else, because it is the first thing a resuming
@@ -244,7 +249,8 @@ Stage 4: `Run closes at:`, `Steps after close owned by:`, and beside them
    state satisfies it and carrying a real blocking edge on the tickets it gates.
 3. **How this is executed** — the integration branch from the header, cut by `/orchestrate` at the
    first wave's preflight, merged into locally, synced from the base and pushed only at the close,
-   and its residual risk: until the close, the run's code exists only in this working copy; point at
+   and its residual risk: until the close, the run's code exists only in this working copy; the
+   tracker Stage 0 detected, where the repository had no `docs/agents/issue-tracker.md`; point at
    the tickets' labels for model and effort; one worktree per
    ticket at `.claude/worktrees/<run-slug>/<ticket>`, its branch never nested under the integration
    branch's name; `deps: shared` worktrees never install or generate;
