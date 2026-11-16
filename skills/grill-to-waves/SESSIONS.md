@@ -152,10 +152,12 @@ of the maps, the **lead map**, also carries what crosses them:
   means the lead map's. A row may name part of a wave: its launch still runs the whole wave, whose
   orchestrator dispatches only the tickets with no open blocker, and a later row takes the rest.
 
-  A launch whose tickets' `runtime:` names `peer:<folder>` (§2) **borrows** that repository's working
-  copy, written after its tickets as `· borrows <folder>[, <folder>]`: `portal · 1 · 02, 04 · borrows
-  payments-service`, several as `· borrows billing-service, payments-service`. It is a suffix, not a
-  column, because one row holds several launches and only some of them borrow. **The borrowing
+  A launch **borrows** a repository's working copy when any ticket of the repository wave it runs
+  names that repository as `peer:<folder>` in its `runtime:` (§2) — any ticket of the whole wave, not
+  only those its row names, because the launch runs the whole wave. The borrows are written after its
+  tickets as `· borrows <folder>[, <folder>]`: `portal · 1 · 02, 04 · borrows payments-service`,
+  several as `· borrows billing-service, payments-service`. It is a suffix, not a column, because one
+  row holds several launches and only some of them borrow. **The borrowing
   rule:** the launch occupies each working copy it borrows for its whole duration, as it occupies
   its own, so no session of that repository runs meanwhile and the borrower's session is the only
   one there; its walk uses that working copy only at that repository's recorded commit and writes
@@ -204,8 +206,10 @@ below. The stages change in these ways and no others:
   launch is one repository wave, and it goes one step after the latest of its own repository's
   previous wave and every launch holding a cross-repository blocker of one of its tickets; a launch with neither goes in G1. *Released by*
   names those blockers. Where only some tickets of a wave wait, the others may start a step
-  earlier, as a row naming part of the wave. Every `peer:` entry of a launch's tickets is carried
-  onto that launch as its `· borrows` suffix, each folder once.
+  earlier, as a row naming part of the wave. Every `peer:` entry of every ticket in the repository
+  wave a launch runs, not only of the tickets its row names, is carried onto that launch as its
+  `· borrows` suffix, each folder once: two rows naming parts of one wave each carry the whole
+  wave's borrows.
 - **Stage 5, a map per repository**, in its own tracker, each with every section Stage 5 lists for
   that repository alone. Its *Parent* names the paired specs, and every cross-repository edge its
   tickets carry is listed there as a cross-run gate. The lead map adds the *Paired runs* line and the

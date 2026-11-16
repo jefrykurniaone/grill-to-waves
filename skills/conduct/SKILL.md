@@ -168,6 +168,10 @@ repository a pane and then:
    with `herdr agent get <name>` before you send anything to it: that number is what a watcher
    starts from.
 
+A launch counts as in flight from the moment its launch line is sent, so recompute readiness
+(Stage 2) before the next launch of the same pass: a borrower and the next launch of the repository
+it borrows are never both started from one pass.
+
 **The watcher runs only under `+ watch`, and there is one.** A single background process covers
 every session in flight and every session whose start waits on a dialog. Arm it once, after this
 turn's launches, by this skill's full path, in the background so its exit wakes you (on Claude Code,
