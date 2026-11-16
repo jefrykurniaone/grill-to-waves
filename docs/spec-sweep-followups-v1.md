@@ -1,8 +1,8 @@
 # spec: sweep-followups v1 - borrowed working copies, ignored run paths and complete batch exits
 
-Spec: [#24](https://github.com/jefrykurniaone/grill-to-waves/issues/24) · Map: [#29](https://github.com/jefrykurniaone/grill-to-waves/issues/29) · Tickets: [#25](https://github.com/jefrykurniaone/grill-to-waves/issues/25), [#26](https://github.com/jefrykurniaone/grill-to-waves/issues/26), [#27](https://github.com/jefrykurniaone/grill-to-waves/issues/27), [#28](https://github.com/jefrykurniaone/grill-to-waves/issues/28)
+Spec: [#24](https://github.com/jefrykurniaone/grill-to-waves/issues/24) · Map: [#29](https://github.com/jefrykurniaone/grill-to-waves/issues/29) · Tickets: [#25](https://github.com/jefrykurniaone/grill-to-waves/issues/25), [#26](https://github.com/jefrykurniaone/grill-to-waves/issues/26), [#27](https://github.com/jefrykurniaone/grill-to-waves/issues/27), [#28](https://github.com/jefrykurniaone/grill-to-waves/issues/28), [#30](https://github.com/jefrykurniaone/grill-to-waves/issues/30)
 
-Copied 2026-11-16 onto `feat/sweep-followups`. Below this header, the body of #24 verbatim; the issue, not this file, is the spec.
+Copied 2026-11-16 onto `feat/sweep-followups`, and regenerated from #24 at the run's close on 2026-11-16. Below this header, the body of #24 verbatim; the issue, not this file, is the spec.
 
 ---
 
@@ -151,3 +151,39 @@ Prior art: the previous run's map and its consistency sweep (seam 2) and CI (sea
 ## Further notes
 
 The source is #18, #19 and #22, filed by the closing consistency sweep of run `integration-branch` (map #16, spec #11), and the owner's grilling of 2026-11-16, which chose option 2 of #18 in the borrowing form above. Those three issues do not carry this run's label; the run's review request names them to close on merge.
+
+## Delivery notes
+
+Delivered on 2026-11-16 by run `sweep-followups` (map #29) on `feat/sweep-followups`, cut at `e11a8e4` from `origin/main`, and taken to `main` in one draft pull request opened at the run's close.
+
+| Ticket | Merge on `feat/sweep-followups` | Executor | Second verification |
+| --- | --- | --- | --- |
+| #25 Borrow another repository's working copy in a paired run | `1255f97` | Opus, `high`, two hand-backs | Opus scout, read-only against *Borrowed working copy*: three passes, merge on the third |
+| #26 Keep the run's own paths out of git status | `185eb8a` | Sonnet, `high` | — |
+| #27 Complete the ways out of a merge batch, the ready-for-human teardown and the tracker record's layout | `1b5d26a` | Opus, `high` | — |
+| #28 Changelog entry and README | `b687ff2` | Sonnet, `medium` | — |
+| #30 Close the consistency sweep's in-scope findings (added at the close) | `d102b40` | Opus, `high` (#27's executor), one hand-back | — (the sweep's reviewer read its delta) |
+
+This spec's mirror was committed in wave 1's batch as `32a113f`.
+
+Decisions made in delivery that this spec did not settle:
+
+- **Borrowing covers the whole wave.** A launch's `· borrows` suffix carries the `peer:` entries of every ticket of the repository wave it runs, not only of the tickets its row names, because a partial-wave row's launch still runs the whole wave (#25, from its second verification).
+- **`/conduct` counts a launch as in flight from its launch line**, recomputes readiness within one launch pass, and sends a launch deferred by a dialog only while it is still ready (#25).
+- **`runtime:` grammar:** `peer:` entries go only beside `dev-db` or `dev-server`, never beside `none`, so a ticket with one is always walked (#30).
+- **The paired launch lines** `/grill-to-waves` prints carry each launch's `· borrows` suffix, and a hand-started launch waits both ways, as `/conduct` does (#30).
+- **The exclude rule in another repository** is applied with `git -C ../<folder>` and an absolute `--git-common-dir`; SESSIONS §6 sanctions that one entry beside a local tracker's folder (#26, #30).
+- **One *Reset and re-run* path** for a red fast gate, a red whole gate, a failed walk row and a refused go-ahead: reset, sync wherever `origin/<base>` holds commits the recorded commit lacks, steps 2 to 5 again without the dropped tickets (#27, #30).
+- **A refused go-ahead is recorded first** (labels and comments), and Stage 1 finishes an unfinished refusal's re-run, keeping the batch's other tickets (#30).
+- **A `ready-for-human` worktree's uncommitted work** is committed onto its branch as one work-in-progress commit before teardown; a failing commit is a stop; a delegated teardown names the kept branches (#30).
+- **The awaiting-go-ahead dispatch block** is stated once, in *Dispatch the whole wave at once*; the single-session guard's question covers `ready-for-human` worktrees too (#27).
+- **The tracker record's** title is `# Issue tracker`; its *Operations* rows point at a bold entry where the tracker's section has one, and an other tracker's record describes each operation in prose (#27, #30).
+
+Left open, outside this run's close: #31 (a waiting borrowed walk can stall the conductor; a live lender outside the schedule; leftovers of a borrowed walk), #32 (a launch holding a `ready-for-human` or third-hand-back ticket never lands; a third hand-back reads as a crash leftover; wave order in `/conduct`), #33 (the dev database after a refused irreversible go-ahead), #34 (merge-batch exits still unstated; the other-tracker record).
+
+Seams:
+
+1. The install test: green at every wave and on every ticket branch (11 passed, 1 skipped for want of `pwsh`).
+2. The consistency sweep: the leftovers grep and the `§` and step references were clean; one read-only reviewer read the skills end to end; the in-scope findings were fixed by #30, its delta read again, and the rest filed (#31 to #34).
+3. CI on the draft pull request: its result is recorded on the map, #29.
+4. The sandbox run: the owner's, after the close.
