@@ -177,10 +177,8 @@ below. The stages change in these ways and no others:
   an event, a stored shape) is owned by the spec of the repository that provides it, and the others
   name that spec rather than restate it. Every spec lists the run's other specs on a `Paired specs`
   line at its top, in the notation of the *Paired runs* line. `run:<slug>` is the same in every
-  tracker, and every `spec:<slug>` is unique across the run. Planning writes no mirror, and Stage
-  2's done-when drops the docs pull request. Each repository's orchestrator commits its specs'
-  mirrors onto its integration branch with its first wave, and its close's mirror pass regenerates
-  them there.
+  tracker, and every `spec:<slug>` is unique across the run. Each repository's mirrors follow the
+  general rule of Stage 2, written onto its own integration branch.
 - **Stage 3, edges across repositories.** The edge lives on the blocked ticket only, in the form
   [TRACKERS.md](./TRACKERS.md) *Across repositories* gives for that pair of trackers, so the blocked
   repository's frontier read counts it live. Blockers-first publishing spans the repositories.
