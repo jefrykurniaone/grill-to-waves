@@ -209,7 +209,8 @@ before every step:
 
 **`+ check`** runs Stage 1 read-only and prints: the waves with each ticket's state and open blockers,
 the integration branch with its base, its last green point and how far `origin/<base>` is ahead of it,
-its upstream where it has one other than `origin/<integration branch>` (the preflight's step 4 unsets it; `+ check` writes nothing),
+its upstream where it has one other than `origin/<integration branch>` (the preflight's step 4
+unsets it; `+ check` writes nothing),
 an `awaiting go-ahead:` line as the state the run is in, never as a failing preflight step 4, with
 no wave dispatchable until it is answered,
 a `dev database:` line as part of that state, with its answer or that it has none,
@@ -228,9 +229,10 @@ merges into it, it is kept current with the base, and the close takes it to the 
 request.
 
 - **The cut.** At the first wave's preflight, when the branch does not exist locally, cut it from the
-  base as just fetched: `git switch --no-track -c <integration branch> origin/<base>` (git's default gives a branch cut
-  from a remote-tracking branch that branch as its upstream, and the integration branch has none
-  before the close, so a bare `git pull` or `git push` cannot reach the base), and record the cut in
+  base as just fetched: `git switch --no-track -c <integration branch> origin/<base>` (git's
+  default gives a branch cut from a remote-tracking branch that branch as its upstream, and the
+  integration branch has none before the close, so a bare `git pull` or `git push` cannot reach the
+  base), and record the cut in
   the map's execution progress at once, `<integration branch> cut at <sha>`. A resuming session uses
   the existing local branch, trusted as Stage 1 says. Planning cuts nothing. The name is the map's,
   in the repository's branch-prefix vocabulary, `feat/<run-slug>` by default, and ticket branches
@@ -393,7 +395,8 @@ failures verbatim; attributing a break and judging the tree stay here:
    mirrors the integration branch holds — not a wave number, so it survives a reset and a resume. A
    clerk may do the copy; you commit it. The **tracker record** is a commit of its own and follows
    the same state rule: where the map's *How this is executed* records a tracker Stage 0 detected
-   (GitHub, GitLab or local) and `docs/agents/issue-tracker.md` is absent from the integration branch, write that file from the
+   (GitHub, GitLab or local) and `docs/agents/issue-tracker.md` is absent from the integration
+   branch, write that file from the
    map's record, in the layout [../grill-to-waves/TRACKERS.md](../grill-to-waves/TRACKERS.md)
    *The tracker record* names, and commit it beside this batch's
    mirror commits, which puts it in the first merge batch: planning wrote none. Where a ticket's

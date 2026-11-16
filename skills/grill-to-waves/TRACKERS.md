@@ -174,7 +174,8 @@ this layout:
    outside the repository. A row whose operation has no bold entry in its section (GitLab and local
    markdown have no **Frontier read**) points at the section alone. The commands are not restated.
 
-For any other tracker, whose section here is *Other trackers* and carries no commands, the record
+For any other tracker, whose section here is *Other trackers* and carries no commands, the record,
+which the owner writes by hand before planning and `/orchestrate` never writes (*Other trackers*),
 describes each operation in prose instead of pointing at one — publish, link, blocking edge, label,
 frontier read and close — and says **how a comment is posted** and **what stands in for labels**,
 the two facts that section requires; its *Operations* row for delivering the run points at that
