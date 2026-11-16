@@ -111,6 +111,28 @@ branches never nest under the integration branch's name, because git refuses `fe
 dependency tree is a link is torn down only by the junction-safe procedure in
 [DEFAULTS.md](./DEFAULTS.md).
 
+**The run's own paths stay ignored.** They are the worktree and scratch folders under the host's
+agent directory — `.claude/worktrees/` and `.claude/scratch/` on Claude Code, `.codex/worktrees/`
+and `.codex/scratch/` on Codex ([DEFAULTS.md](./DEFAULTS.md) *Hosts*) — and `.scratch/` where the
+tracker is local. Test each with `git check-ignore -q <path>x`, which holds even when the folder does
+not exist yet; one that is not reported as ignored (exit 1) is appended, as its own line with the
+trailing slash, to the clone's local exclude file: `info/exclude` under `git rev-parse
+--git-common-dir`, created if missing. That file sits in the common git directory, so it covers every
+worktree of the clone, and nothing is committed. In bash:
+
+```sh
+git check-ignore -q .claude/scratch/x || echo '.claude/scratch/' >> "$(git rev-parse --git-common-dir)/info/exclude"
+```
+
+In PowerShell:
+
+```powershell
+git check-ignore -q .claude/scratch/x; if ($LASTEXITCODE -ne 0) { Add-Content -Path (Join-Path (git rev-parse --git-common-dir) 'info/exclude') -Value '.claude/scratch/' }
+```
+
+Not a committed ignore entry: it would arrive with the first merge batch, after the first preflight
+had already met the untracked paths.
+
 ## 5. Breach and stop
 
 An executor that must write outside `writes:` stops and reports. The session then swaps the ticket's

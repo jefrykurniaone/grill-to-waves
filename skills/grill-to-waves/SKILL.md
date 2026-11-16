@@ -34,7 +34,9 @@ Commits and pull request bodies follow the repository's own convention.
    creating, reading, commenting, labelling, linking and closing.
 2. Otherwise detect: `git remote -v` at GitHub → `gh`; at GitLab → `glab`; no remote → local markdown
    under `.scratch/`. Confirm in one line with the user, and record the detected tracker in the
-   map's *How this is executed* (Stage 5); planning writes no file. The run's orchestrator writes
+   map's *How this is executed* (Stage 5); planning writes no file. Where the detected tracker is
+   local, first make sure `.scratch/` is ignored, before anything is written there, as
+   [SESSIONS.md](./SESSIONS.md) §4 *The run's own paths stay ignored* says. The run's orchestrator writes
    `docs/agents/issue-tracker.md` from that record and commits it onto the integration branch with
    the first merge batch's mirror commits (`/orchestrate`, *Merge the batch*), so the next run does
    not re-detect it. Outside a run, `/setup-matt-pocock-skills` from the required Matt Pocock skills

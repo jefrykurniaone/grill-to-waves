@@ -141,7 +141,11 @@ else of it: a walk that needs its running app uses its working copy only by borr
 before every step:
 
 1. `git fetch --prune` exits 0 (retry a few times; a persistent failure is a wait, never a pass).
-2. `git status --porcelain` is empty. When it is not and a dispatch has just finished, suspect
+2. The run's own paths are ignored, and then `git status --porcelain` is empty. Apply
+   [../grill-to-waves/SESSIONS.md](../grill-to-waves/SESSIONS.md) §4 *The run's own paths stay
+   ignored* first: each path not yet ignored is appended to the clone's local exclude file, and the
+   wave report names every entry added (`+ check` only reports them). Then the status check. When
+   it is not empty and a dispatch has just finished, suspect
    **executor leakage** before anything else: an executor that wrote outside its worktree leaves
    exactly this, and the merge is what catches it. Read the file, prove the branch is a strict
    superset of what it holds, then discard it and name the breach in the wave report. Never discard
@@ -162,7 +166,8 @@ before every step:
 **`+ check`** runs Stage 1 read-only and prints: the waves with each ticket's state and open blockers,
 the integration branch with its base, its last green point and how far `origin/<base>` is ahead of it,
 an `awaiting go-ahead:` line as the state the run is in, never as a failing preflight step 4,
-what the guard found, what the preflight found, cross-run gates with the tickets they wait on, and the
+what the guard found, what the preflight found, which of the run's own paths
+([../grill-to-waves/SESSIONS.md](../grill-to-waves/SESSIONS.md) §4) are not yet ignored, cross-run gates with the tickets they wait on, and the
 line to run next. It also prints what will actually run: the model and effort of this session as the
 host reports them, the advisor configured for this session if any, any environment variable that overrides an
 agent file ([../grill-to-waves/DEFAULTS.md](../grill-to-waves/DEFAULTS.md) *Hosts*), and every
