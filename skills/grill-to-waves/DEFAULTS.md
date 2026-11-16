@@ -183,7 +183,7 @@ label names is not the one that runs.
 | Message a running executor | `SendMessage` | `send_message` |
 | In-flight ceiling | the map's (default five; more only on the user's word) | the map's, and never above `agents.max_concurrent_threads_per_session` in `~/.codex/config.toml` |
 | Skill invocation | a slash command: the skill name after `/` | a skill mention: the skill name after `$` |
-| Agent directory in the repo | `.claude/` — `worktrees/<row>/<ticket>` and `scratch/` under it | `.codex/` — the same two paths under it, inside the workspace so a `workspace-write` sandbox can write there |
+| Agent directory in the repo | `.claude/` — `worktrees/<run-slug>/<ticket>` and `scratch/` under it | `.codex/` — the same two paths under it, inside the workspace so a `workspace-write` sandbox can write there |
 | Required Matt Pocock skills | `grilling`, `domain-modeling` and `setup-matt-pocock-skills`, fetched by this repo's installer from the latest release of the `mattpocock/skills` GitHub repository into the project or user `.claude/skills/` directory — never the plugin, whose `mattpocock-skills:<name>` names the skill text does not use | `$grilling`, `$domain-modeling`, and `$setup-matt-pocock-skills`, fetched from the same release into the project or user `.agents/skills/` directory |
 | Read-only scouts | `permissionMode: plan` in the frontmatter (Write and Edit denied by the host; a shell command outside the built-in read-only set is reviewed or prompted, never silently run) plus the tool list | by `sandbox_mode = "read-only"` |
 
@@ -222,7 +222,7 @@ worktree **deepest first**, confirm none remain, and only then remove the worktr
 PowerShell (Windows):
 
 ```powershell
-$wt = "<repo>\.claude\worktrees\<row>\<ticket>"
+$wt = "<repo>\.claude\worktrees\<run-slug>\<ticket>"
 $links = Get-ChildItem -Path $wt -Recurse -Force -Attributes ReparsePoint |
     Sort-Object { $_.FullName.Length } -Descending
 foreach ($l in $links) { (Get-Item -LiteralPath $l.FullName -Force).Delete() }
@@ -235,7 +235,7 @@ git branch -D <branch>
 POSIX (macOS, Linux):
 
 ```bash
-wt="<repo>/.claude/worktrees/<row>/<ticket>"
+wt="<repo>/.claude/worktrees/<run-slug>/<ticket>"
 find "$wt" -depth -type l -delete
 [ -z "$(find "$wt" -type l -print -quit)" ] && git worktree remove "$wt" --force
 git branch -D <branch>

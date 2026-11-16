@@ -1,6 +1,6 @@
 ---
 name: orchestrate
-description: Execute an execution map from /grill-to-waves in one session — dispatching ticket executors as subagents, verifying their work, merging a whole wave under one gate, and closing specs and the map. A team can split a map by spec instead, one developer per row, opt-in.
+description: Execute an execution map from /grill-to-waves in one session — dispatching ticket executors as subagents, verifying their work, merging a whole wave under one gate, and closing specs and the map.
 disable-model-invocation: true
 ---
 
@@ -12,23 +12,19 @@ brief them, they work in their own worktrees and report back, and you verify, me
 
 ## Two shapes
 
-A run's shape is decided by **what is actually contended**, and the coordination must match it.
+| Shape | Repositories | Sessions | Launched by |
+|---|---|---|---|
+| **solo** | one | one `/orchestrate` session, wave by wave | the user |
+| **paired** | several, one run slug | one `/orchestrate` session per repository, each in its own working copy | `/conduct`, in the lead map's run order |
 
-| Shape | Who | Working copies | What is contended | Coordination |
-|---|---|---|---|---|
-| **solo** | one person, one session | one | nothing | none |
-| **team** | several developers, their own machines | several | `origin/main`, the tracker | the forge: branch protection and assignees |
+**This file is the whole protocol of one session, in either shape.** A solo session owns the map and
+runs it wave by wave; there is no second session to coordinate with. In a paired run each
+repository's session is exactly that, against its own map, and a blocker in another repository
+reaches it as a cross-run gate (Stage 1). [../grill-to-waves/SESSIONS.md](../grill-to-waves/SESSIONS.md) has
+the surfaces and collision the waves were built from, and the paired-run format (§6).
 
-**solo is the default, and this file is its whole protocol.** One session owns the map and runs it wave
-by wave. There is no second session to coordinate with.
-
-**team** scopes a session to one spec row while keeping solo's mechanics, because a second developer on
-a second machine shares no filesystem with you. Ownership is the tracker's assignee; `origin/main` is
-serialised by the forge, not by this skill. See **Team shape**, and
-[../grill-to-waves/SESSIONS.md](../grill-to-waves/SESSIONS.md) for surfaces, collision and ownership.
-
-**Two agent sessions never share one working copy**, in either shape. Splitting a run means one
-developer per clone. A second session found in this working copy is a stop, not a shape.
+**Two agent sessions never share one working copy**, in either shape. A second session found in this
+working copy is a stop, not a shape.
 
 ## Arguments
 
@@ -41,14 +37,7 @@ path under `.scratch/`.
 /orchestrate map <map> + all                 solo, every remaining wave in order, no stop between them
 /orchestrate map <map> + check               read-only preflight, writes nothing
 /orchestrate map <map> + ceiling <n>         the in-flight ceiling for this session, with any line here
-
-/orchestrate map <map> + spec <s>            one spec row, team shape (`+ team` is the same)
-/orchestrate map <map> + spec <a> + spec <b> a fused row, every member named
-/orchestrate map <map> + tail                the tail row, then the map close
 ```
-
-`+ team` may also be given with `+ wave <k>` or bare, when a team divides a map by wave rather than by
-spec. `+ check` reports the shape it would run without acting on it.
 
 ## Stage 0 — Resolve the tracker
 
@@ -78,6 +67,10 @@ because the tracker and git already carry the state that matters.
 4. **The repo's agent rules** — `CLAUDE.md`, `AGENTS.md`, and anything they include: the gate
    commands, the seams, the hard rules an executor brief has to carry.
 
+**Retry a failed read.** An API, tracker or fetch error is never an answer — never "nothing to do",
+never "no open tickets", never "main is unchanged". Retry it, and a read that keeps failing is a wait
+with its reason stated, never a pass.
+
 **Reconcile before dispatching anything.** A merged review request on a still-open ticket means a
 previous run died between merge and close: post the record and close it, never re-run it. A branch with
 no review request and no worktree: inspect, salvage or delete, and say which. A worktree whose ticket is
@@ -91,20 +84,9 @@ database at once. An empty leftover directory under `.claude/worktrees/` is not 
 so read the list, never the filesystem. That is one cheap read, and if it is clear nothing else can
 collide with you here.
 
-**A human assignee is not a collision.** Assignees are how people divide work between themselves, and
-on a team every ticket may carry one. Treat an assignee as **scope**: when the tickets in scope are
-assigned to someone other than the user you are working for, say so and confirm before dispatching,
-rather than stopping.
-
-**Another developer on another machine is also not a collision.** They have their own working copy,
-their own dev server and their own dev database; nothing you do here reaches them. The only thing you
-genuinely share is `origin/main`, and the way to serialise that across machines is the forge's own
-branch protection — required status checks plus "require branches up to date". Push, and if the push is
-rejected because they landed first, pull, re-merge, re-run the gate, push again.
-
 **Cross-run gates.** Where the map, its comments, or another open map says this run waits on another
 run's tickets — or, in a paired run, on another repository's
-([../grill-to-waves/SESSIONS.md](../grill-to-waves/SESSIONS.md) §8), read through that repository's
+([../grill-to-waves/SESSIONS.md](../grill-to-waves/SESSIONS.md) §6), read through that repository's
 own tracker as [../grill-to-waves/TRACKERS.md](../grill-to-waves/TRACKERS.md) *Across repositories*
 says — verify it by reading those tickets' states, never by trusting the prose that describes it.
 An unsatisfied gate is a wait, not a failure: say what it waits on and stop.
@@ -185,9 +167,8 @@ one and gives a reason.
 
 Then, in one pass:
 
-1. **Worktrees** at `.claude/worktrees/<row>/<ticket>` — `solo` as the row name in a solo run — one
-   branch per ticket in the repo's prefix
-   vocabulary, off `origin/main` as just fetched — never off local `main`. `deps: shared` → copy
+1. **Worktrees** at `.claude/worktrees/<run-slug>/<ticket>`, one branch per ticket in the repo's
+   prefix vocabulary, off `origin/main` as just fetched — never off local `main`. `deps: shared` → copy
    the local environment file and link the dependency tree (a junction on Windows, a symlink
    elsewhere); **no install and no code generation inside it, by anyone,
    orchestrator included**, because the generator empties the shared copy for every tree at once.
@@ -216,7 +197,10 @@ An executor's account of its own work is a claim, not evidence. Before a branch 
 ## Merge the batch — one gate, and nothing pushed until it is green
 
 One session owns every merge in this working copy, so the whole gate runs once per batch rather than
-after every merge. A gate command may go to `clerk-haiku-medium`, which returns its exit code and its
+after every merge — and it runs after every batch, whatever the tickets' surfaces say. Disjoint writes
+prove non-collision, never independence: two tickets can share a type, a translation key or a seam
+contract without sharing a file, and the whole-gate re-run is the only net, catching only what the
+gate catches. A gate command may go to `clerk-haiku-medium`, which returns its exit code and its
 failures verbatim; attributing a break and judging the tree stay here:
 
 1. Preflight the tree.
@@ -225,7 +209,7 @@ failures verbatim; attributing a break and judging the tree stay here:
    merge that caused it. Resolve append-plus-append catalogue conflicts yourself.
 3. After the last merge — and, in a paired run's first wave, after one commit adding this
    repository's spec mirrors in Stage 2's format, since planning wrote none
-   ([../grill-to-waves/SESSIONS.md](../grill-to-waves/SESSIONS.md) §8) — the **whole** gate once:
+   ([../grill-to-waves/SESSIONS.md](../grill-to-waves/SESSIONS.md) §6) — the **whole** gate once:
    lint, type check, tests, build. Restore any file the
    test run dirties before judging the tree, and record the result with the commit it ran on — the
    close reuses that record (*Closing upward*).
@@ -277,7 +261,7 @@ measured value or a named failure.
 ## Record, close, tear down
 
 Per ticket, **one comment**: what landed, the gate result with its start time and the commit it ran
-on, the runtime finding, the merge sha and the review request. Then close it, and drop the assignee if the tracker set one.
+on, the runtime finding, the merge sha and the review request. Then close it.
 `clerk-haiku-medium` may draft a comment or the log entry into `.claude/scratch/` from the facts you
 give it; read the draft, then post it yourself.
 
@@ -360,65 +344,8 @@ background. `/conduct` reads that line to tell a pause from the end.
 `/ship-it-to stg` or `/ship-it-to prd`, in its own session: it reads the repository's promotion
 contract and the forge's protections rather than inheriting anything from this run. Name it in the
 report when a wave is worth promoting; never promote from here. A map whose `Run closes at:` is
-*deployed* closes once that session has reported the promotion, which the tail waits on.
-
-## Team shape — `+ team`
-
-**Scope is one spec row; mechanics are solo's.** A developer on another machine shares no filesystem,
-no dev server and no dev database with you. You share `origin/main` and the tracker, and nothing else.
-Read [../grill-to-waves/SESSIONS.md](../grill-to-waves/SESSIONS.md) §2–§4 for the surface block, the
-collision rule and ownership. Six differences from solo, and they are the whole of it:
-
-1. **Frontier is the spec row, not the wave.** A ticket is in scope when it carries a `spec:` label in
-   this row; the map's waves are advice about ordering, not a filter. In-row overlaps still never run
-   together: two of your own tickets that declare overlapping `writes:` go one after the other.
-2. **Ownership is the tracker's assignee**, the mechanism people already use. Assign yourself before
-   dispatching, and **skip any ticket assigned to someone else**, naming it in the report.
-3. **Refuse every `exclusive: run` ticket unless the map names you the serial owner** — schema,
-   migrations, `package.json`, the lockfile, an environment target. Two developers running the
-   migration tool in the same week produce divergent migration histories that do not reconcile
-   cleanly, and no protocol here can undo that. Report it and hand it to the serial owner.
-4. **A rejected push is normal, not a failure.** Someone landed first. Pull, re-merge onto the new
-   `origin/main`, **re-run the whole gate** — their change plus yours is a combination neither of you
-   has gated — and push again. Never force-push, and never skip the second gate.
-5. **Pull and gate before you dispatch**, every session, not only when something looks wrong. Disjoint
-   writes prove non-collision, never independence: a shared type, a translation key or a seam contract
-   can move under you with no file conflict at all.
-6. **A defect in another row's surface is filed, never fixed.** You cannot see what they are mid-way
-   through changing.
-
-**The forge is the serialiser.** Branch protection with required status checks and *require branches to
-be up to date before merging* is what makes a team's merges safe. Check it once at Stage 1 and say so
-plainly if it is missing or if the required checks are weaker than the map's completion gate — a gate
-you ran locally proves your merge, not the combination that lands after someone else's.
-
-## Refusals and retrofit — every `+ spec` run
-
-The map's **Sessions table** decides which rows are legal. Refusals, all hard stops:
-
-1. **`+ spec` names something that is not a whole spec row** — a member of a fused row, a spec of another
-   run, a slug the map does not know. Print the corrected line from the table.
-2. **`+ spec` on a map with no Sessions table.** Offer the retrofit below, or the solo line.
-3. **The verdict is `not splittable`.** Print the fusing surface and offer the solo line. A run whose
-   specs fuse does not become splittable by handing it to a second developer — it becomes one person's
-   work with an audience.
-4. **An `exclusive: run` ticket in scope and you are not the serial owner.** Name it and hand it on.
-5. **The collision re-check disagrees with the published table.** Post the disagreement on the map and
-   stop. Never proceed on a freshly derived split.
-6. **Another agent session's worktrees are registered in this working copy** — the single-session
-   guard. One developer per clone.
-7. **`+ tail` before every spec row's spec item is closed.** List what is outstanding.
-
-**Retrofit — a map that predates surfaces.** When `+ spec` is given and any open ticket under the run
-label has no `## Surface` block, derive one for each from its acceptance criteria and the map's
-contention table, and `runtime:`, `deps:` and `exclusive:` from the map's execution section. **Show the
-derived blocks to the user and get confirmation before writing anything** — the whole split rests on
-them, and every glob you are tempted to write is a decision that fuses specs. Then, on a quiescent
-tree, write each block into its ticket, run the collision check, and append a `## Sessions` section to
-the map body in the format `/grill-to-waves` Stage 4 prescribes. Stop with a named list of any ticket
-whose surface cannot be derived — that ticket is the user's to write. Do the retrofit **once**, by
-agreement, before anyone dispatches; two developers retrofitting the same map at once is the one race
-the tracker cannot arbitrate.
+*deployed* closes once that session has reported the promotion; the closing session waits on that
+report.
 
 ## Hosts without subagent dispatch
 
@@ -435,7 +362,3 @@ executor brief names the worktree's absolute path and tells the executor to work
 worktree sits inside the repository (`.codex/worktrees/…` on Codex) precisely so a workspace-scoped
 sandbox can write to it. An executor whose sandbox has no network cannot push or open a review
 request: the orchestrator does both from the executor's branch, and the ticket's record says so.
-
-**A spec row closes** by posting the spec's completion record and closing the spec item; the closed
-spec item is the signal every other row reads, and the report names it. The map itself closes in the
-tail run, once every row is done.
