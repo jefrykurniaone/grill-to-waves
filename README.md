@@ -8,7 +8,8 @@ skills: one for the end of the day, one for the ticket.
   spec, checks the tickets for collisions and orders them into waves, publishes an execution map —
   then stops.
 - **`/orchestrate`** executes that map: it dispatches ticket executors as subagents, verifies their
-  work itself, merges a whole wave under one gate, and closes the specs and the map.
+  work itself, merges a whole wave under one gate onto the run's integration branch, takes that
+  branch to the base branch in one review request at the close, and closes the specs and the map.
 - **`/ship-it-to stg|prd`** promotes what landed: it reads the repo's own promotion contract and the
   forge's branch protections, cuts a pivot, gates it, names whose commits are travelling, opens the
   request — and stops where the rules say someone else must merge.
@@ -26,20 +27,20 @@ skills: one for the end of the day, one for the ticket.
 
 Planning and execution are deliberately separate sessions. The pipeline ends at a published map so
 that execution starts on a fresh context window with the plan as its only input. Promotion is
-separate again: it happens once per release rather than once per wave, and its failure mode is a
-production deploy rather than a handed-back ticket.
+separate again: it starts from the base branch a run delivers to, happens once per release rather
+than once per run, and its failure mode is a production deploy rather than a handed-back ticket.
 
 ## What it gives you
 
 | Piece | What it is |
 |---|---|
-| `GLOSSARY.md` | Canonical distinction between executor tier and reasoning effort. |
+| `GLOSSARY.md` | Canonical distinctions: executor tier and reasoning effort, base branch and integration branch. |
 | `CHANGELOG.md` | What changed in the pipeline's rules and agent set, by date, and what to do after updating. |
 | `skills/grill-to-waves/SKILL.md` | The seven-stage pipeline (Stage 0 tracker → Stage 6 stop). |
 | `skills/grill-to-waves/SESSIONS.md` | The solo and paired shapes, write surfaces, the collision rule that orders the waves, worktrees, the breach stop, and a paired run across repositories: its format and how it is planned. The protocol the skills share. |
 | `skills/grill-to-waves/TRACKERS.md` | The five tracker operations for GitHub (`gh`), GitLab (`glab`) and local markdown, and the blocking edges between repositories. |
 | `skills/grill-to-waves/DEFAULTS.md` | The session's model floor, the effort ladder, high-consequence tickets and the Fable tier, scouts and the clerk, and the junction-safe worktree teardown. |
-| `skills/orchestrate/SKILL.md` | Wave dispatch, verification, merge gate, closing upward. |
+| `skills/orchestrate/SKILL.md` | The integration branch, wave dispatch, verification, merge gate, the close and closing upward. |
 | `skills/conduct/SKILL.md` | The conductor of a paired run, inside herdr: reading the run order, the states of each launch, launching each repository's session, relaying decisions, and where it stops. Sized for one laptop: one tab split three ways, two sessions in flight, five executors in each, and a watcher only under `+ watch`. |
 | `skills/conduct/scripts/watch.*` | Read-only watcher, PowerShell and bash, started only under `+ watch`: one process waits until one of the run's herdr agents settles after a known state change, and waits through an orchestrator's pause by itself. |
 | `skills/ship-it-to/SKILL.md` | Promotion to staging or production: contract resolution, branch protections, the pivot, the gate on the pivot, authorship of what travels, the request body, and where the run stops. |
@@ -269,9 +270,9 @@ rewrites preserve the workflow, including execution-progress updates in the map 
 
 Read-only scouts are read-only by `sandbox_mode = "read-only"` (on Claude Code, by
 `permissionMode: plan`). Codex subagents share the parent's
-working directory, so the orchestrator names each executor's worktree path in its brief; an executor
-whose sandbox has no network reports its branch and the orchestrator pushes and opens the review
-request itself. The full table, including dispatch tool names, is the `Hosts` section of
+working directory, so the orchestrator names each executor's worktree path in its brief. Executors
+on either host commit on their ticket branch and report it with the commit; they push nothing and
+open no review request. The full table, including dispatch tool names, is the `Hosts` section of
 `skills/grill-to-waves/DEFAULTS.md`.
 
 ## Use
@@ -310,7 +311,7 @@ unless you pass `+ watch`, which starts one watcher for the whole run. It leaves
 prompt and question to you: besides `/clear` and the launch line, it sends a session only what you
 tell it to.
 
-Once a wave is merged into the integration branch, promoting it is its own session:
+Once a run's work has reached the base branch, promoting it is its own session:
 
 ```
 /ship-it-to stg      # to the staging branch
@@ -380,6 +381,10 @@ re-detecting it every run.
 - **The most capable model is spent per ticket, never per session.** The session's floor is Opus at
   `high`, so the pipeline runs on an account without Fable, and an account with it pays for Fable
   where a wrong decision cannot be caught afterwards.
+- **One integration branch per run, pushed once.** Tickets merge into it locally, it is kept current
+  with the base branch, and the close pushes it and opens one review request to the base. Executors
+  push nothing and open no review request; until the close, the run's code exists only in the
+  working copy.
 - **Two agent sessions never share one working copy.** They contend on the tree, the dev server and
   the dev database at once.
 - **Nothing is true until it is on the tracker** — and the map's *body* is where a resuming session

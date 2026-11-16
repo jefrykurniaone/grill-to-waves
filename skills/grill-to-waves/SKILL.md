@@ -186,36 +186,55 @@ tickets in one wave collide, blocking edges respected. A high-consequence ticket
 usually the seam later tickets compose, so it sits in the wave that blocks them; check the edges say
 so. Nothing is committed and no tooling is added to the repo.
 
-### Settle where the run closes
+### Settle the base and where the run closes
 
-Ask the user once, in one question: `Run closes at:` — *merge request opened*, *merged* or
-*deployed* — and `Steps after close owned by:`, the person who takes what follows (the
-merge, the deploy, a data cleanup, a seed). Stage 5 writes both as the map's header lines, and
-`/orchestrate` reports every step past that point as handed over to that person, so a run that ends
-at an open review request says so from the start rather than closing "waiting on" a step that was
-never its own.
+Every run delivers through one **integration branch**, cut from the run's **base branch**, merged
+into locally ticket by ticket, kept current with the base, pushed only at the close and taken to the
+base in one review request (`/orchestrate`, *The integration branch*). Read the base from the
+repository's own rules (`CLAUDE.md`, `AGENTS.md`, a conventions document), otherwise take the
+remote's default branch (`git ls-remote --symref origin HEAD`); with no remote, ask. Name the
+integration branch in the repository's branch-prefix vocabulary, `feat/<run-slug>` by default.
+Planning cuts nothing: `/orchestrate` cuts it at the first wave.
 
-Done when: every ticket appears in exactly one wave, and the close point and its owner are recorded —
-in a paired run, for every repository, with the run order derived from the cross-repository edges.
+Then ask the user once, in one question, confirming the base with it: `Run closes at:` —
+*draft review request opened*, *review request opened*, *merged* or *deployed*; in a repository
+without a forge, *branch ready* (the integration branch pushed where a remote exists, the merge
+handed to the owner) or *merged* (`/orchestrate` merges it into the base with `--no-ff` after the
+final gate and pushes the base where a remote exists) — and `Steps after close owned by:`, the
+person who takes what follows (the merge, the deploy, a data cleanup, a seed). Stage 5 writes these
+as the map's header lines, and `/orchestrate` reports every step past that point as handed over to
+that person, so a run that ends at an open review request says so from the start rather than closing
+"waiting on" a step that was never its own.
+
+Done when: every ticket appears in exactly one wave, and the base, the integration branch, the close
+point and its owner are recorded — in a paired run, for every repository, with the run order derived
+from the cross-repository edges.
 
 ## Stage 5 — Map
 
 Author one execution map for the run as its own item, titled
 `map: <run-slug> delivery - execution plan for run <run-slug>`, labelled `run:<slug>`. Mirror the
-repo's most recent map (search `map in:title`) for shape. Under the title, two header lines from
-Stage 4: `Run closes at:` and `Steps after close owned by:`. Then, in order:
+repo's most recent map (search `map in:title`) for shape. Under the title, the header lines from
+Stage 4: `Run closes at:`, `Steps after close owned by:`, and beside them
+`Integration branch: <name>, cut from <base>`. Then, in order:
 
 1. **Execution progress** — first, above everything else, because it is the first thing a resuming
    session reads. At publication it is one line: the run has not started, wave 1 is next, and this
-   section is rewritten whole in the map's body by `/orchestrate` after every wave. It is live state,
+   section is rewritten whole in the map's body by `/orchestrate` after every wave, carrying the
+   integration branch's cut, `<integration branch> cut at <sha>`, and, once one is recorded, its
+   last green point, `<integration branch> @ <sha>`. It is live state,
    never a log: wave reports and dated notes go to the comment thread, or beside a local map to
    `map-log.md` ([TRACKERS.md](./TRACKERS.md)). Leaving the slot empty invites the progress to live
    in that log instead, where the next session acts without it.
 2. **Parent** — the spec items, their docs mirrors, binding ADRs and seams, and any
    cross-run gate ("must not start until run X closes"), each gate naming the tickets whose closed
    state satisfies it and carrying a real blocking edge on the tickets it gates.
-3. **How this is executed** — point at the tickets' labels for model and effort; one worktree per
-   ticket at `.claude/worktrees/<run-slug>/<ticket>`; `deps: shared` worktrees never install or generate;
+3. **How this is executed** — the integration branch from the header, cut by `/orchestrate` at the
+   first wave's preflight, merged into locally, synced from the base and pushed only at the close,
+   and its residual risk: until the close, the run's code exists only in this working copy; point at
+   the tickets' labels for model and effort; one worktree per
+   ticket at `.claude/worktrees/<run-slug>/<ticket>`, its branch never nested under the integration
+   branch's name; `deps: shared` worktrees never install or generate;
    serial merge-commit-only merges on a quiescent tree, and teardown likewise; no dev server from
    executors; check-versus-fix ownership; the per-wave in-flight ceiling (default five; above five only
    on the user's word, written as the number and the reason; below five for a named reason such as

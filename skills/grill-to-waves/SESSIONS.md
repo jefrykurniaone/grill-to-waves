@@ -63,8 +63,9 @@ deps: shared
 
 - `writes:` is a **contract**. An executor that must write outside it stops and reports; it never
   widens the edit. The ticket's acceptance criteria say so. It covers tracked repository content
-  only — the ticket's branch, its review request, its comments and anything gitignored are outside
-  it. Generated output or a lockfile the ticket did not declare **is** a breach.
+  only — the ticket's branch, its comments and anything gitignored are outside it; a ticket has no
+  review request of its own. Generated output or a lockfile the ticket did not declare **is** a
+  breach.
 - `reads:` is informational and never used for collision.
 - `runtime:` is `dev-db`, `dev-server` or `none` — what the **orchestrator's verification** of the
   ticket needs. Executors never touch the dev server or the dev database (no migrations, no seeds);
@@ -98,7 +99,11 @@ Two tickets that overlap are never in flight together: planning puts them in dif
 
 Every ticket runs in its own worktree at `.claude/worktrees/<run-slug>/<ticket>`, under about 120
 characters end to end; set `core.longpaths true` on the clone before the first run that uses them.
-Each ticket gets its own branch, named in the repository's prefix vocabulary. A worktree whose
+Each ticket gets its own branch, named in the repository's prefix vocabulary and cut from the run's
+recorded commit on its integration branch (`/orchestrate`, *The integration branch*). Ticket
+branches never nest under the integration branch's name, because git refuses `feat/x` and
+`feat/x/…` side by side: with `feat/<run-slug>` as the integration branch, a ticket branch is
+`feat/<n>-<short-slug>`, never `feat/<run-slug>/<n>`. A worktree whose
 dependency tree is a link is torn down only by the junction-safe procedure in
 [DEFAULTS.md](./DEFAULTS.md).
 
@@ -114,13 +119,14 @@ working copy.
 
 ## 6. Paired runs — one run across repositories
 
-Work that lands in several repositories is a **paired run**: one run slug and one branch name in
-every repository, and in each its own tracker, map and `/orchestrate` session — one session per
-working copy, as everywhere. One of the maps, the **lead map**, also carries what crosses them:
+Work that lands in several repositories is a **paired run**: one run slug and one integration branch
+name in every repository, and in each its own tracker, map, `/orchestrate` session, integration
+branch and review request to its own base branch — one session per working copy, as everywhere. One
+of the maps, the **lead map**, also carries what crosses them:
 
 - **A `Paired runs` line** under its header lines: `Paired runs (same run slug and branch name, each
-  its own tracker and map):`, then every other repository's map — a path relative to the lead
-  repository (`../billing-service/.scratch/<slug>/map.md`), or, where the tracker is remote, a
+  its own tracker, map, integration branch and review request):`, then every other repository's
+  map — a path relative to the lead repository (`../billing-service/.scratch/<slug>/map.md`), or, where the tracker is remote, a
   tracker reference prefixed by the repository's folder (`billing-service#41`). Every other map's
   header names the lead map the same way.
 - **A section titled *Run order across repositories*** — the schedule:
@@ -136,7 +142,9 @@ working copy, as everywhere. One of the maps, the **lead map**, also carries wha
   A row lists every repository wave its step starts, `;`-separated, each with that repository's own
   wave number. *Released by* names what must be closed first: tickets as `<repository> <ticket>`, a
   whole wave as `<repository> wave <k>`, or the owner's go-ahead — a decision. `—` is released from
-  the start. Repositories are named by their folder names, the lead's included; *this repository* in the table
+  the start. A blocker is released once it is merged onto its own repository's integration branch,
+  locally, and closed — long before that repository's close: the repositories are sibling working
+  copies on one machine, so a dependent walk can use the blocker's working copy. Repositories are named by their folder names, the lead's included; *this repository* in the table
   means the lead map's. A row may name part of a wave: its launch still runs the whole wave, whose
   orchestrator dispatches only the tickets with no open blocker, and a later row takes the rest.
   Released waves of different repositories run at the same time, since they share no working copy;
@@ -171,15 +179,15 @@ below. The stages change in these ways and no others:
   line at its top, in the notation of the *Paired runs* line. `run:<slug>` is the same in every
   tracker, and every `spec:<slug>` is unique across the run. Planning writes no mirror, and Stage
   2's done-when drops the docs pull request. Each repository's orchestrator commits its specs'
-  mirrors onto the branch its run merges into — where the repository's own rules cut one
-  integration branch per run and take it to the base branch in one review request, that branch —
-  with its first wave, and its close's mirror pass regenerates them there.
+  mirrors onto its integration branch with its first wave, and its close's mirror pass regenerates
+  them there.
 - **Stage 3, edges across repositories.** The edge lives on the blocked ticket only, in the form
   [TRACKERS.md](./TRACKERS.md) *Across repositories* gives for that pair of trackers, so the blocked
   repository's frontier read counts it live. Blockers-first publishing spans the repositories.
 - **Stage 4, per repository, then the run order.** Collision and waves are each repository's alone:
-  different working copies share no file. The close lines are asked in one exchange and answered per
-  repository, since each has its own review request and reviewer. Then derive the run order. A
+  different working copies share no file. The base, the integration branch and the close lines are
+  settled in one exchange and answered per repository, since each has its own base branch,
+  integration branch, review request and reviewer. Then derive the run order. A
   launch is one repository wave, and it goes one step after the latest of its own repository's
   previous wave and every launch holding a cross-repository blocker of one of its tickets; a launch with neither goes in G1. *Released by*
   names those blockers. Where only some tickets of a wave wait, the others may start a step
