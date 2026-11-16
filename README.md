@@ -17,7 +17,8 @@ skills: one for the end of the day, one for the ticket.
 - **`/conduct`** drives a paired run — one run slug across several repositories — from one
   [herdr](https://herdr.dev) pane: it starts `/orchestrate` in each repository's own pane in the lead
   map's run order, wakes when a session settles, starts what that releases, parks a launch whose
-  tickets went to a human, and relays every decision to you. It sits beside the pipeline: each repository's run is still an ordinary `/orchestrate`.
+  tickets went to a human, and relays every decision to you. It sits beside the pipeline: each repository's run is still an
+  ordinary `/orchestrate`.
 - **`/daily-recap`** reports: at the end of the day it reads that day's commits and agent sessions,
   drafts the Done / Next / Blocker recap you post to your team, and asks once for the meetings and
   offline work no file records. It sits beside the pipeline rather than inside it.
