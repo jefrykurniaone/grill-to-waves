@@ -68,7 +68,12 @@ deps: shared
   breach.
 - `reads:` is informational and never used for collision.
 - `runtime:` is `dev-db`, `dev-server` or `none` — what the **orchestrator's verification** of the
-  ticket needs. Executors never touch the dev server or the dev database (no migrations, no seeds);
+  ticket needs — and `dev-db` or `dev-server`, never `none`, may be followed by any number of
+  `peer:<folder>` entries, so a ticket with one is always walked. Each `peer:` entry names, by its
+  folder, a repository of the paired run whose running app that verification needs, and makes the ticket's
+  launch borrow that repository's working copy (§6): `runtime: dev-server, peer:payments-service`.
+  A `peer:` entry takes no part in collision, since different working copies share no file.
+  Executors never touch the dev server or the dev database (no migrations, no seeds);
   only the orchestrator does. A `dev-server` verification is driven by **Playwright MCP**
   (`mcp__playwright__*`) where that server is connected, and by the scripted Playwright fallback or
   plain HTTP where it is not — which of the two was used is stated in the report, never left implied.
@@ -107,11 +112,50 @@ branches never nest under the integration branch's name, because git refuses `fe
 dependency tree is a link is torn down only by the junction-safe procedure in
 [DEFAULTS.md](./DEFAULTS.md).
 
+**The run's own paths stay ignored.** They are the worktree and scratch folders under the host's
+agent directory — `.claude/worktrees/` and `.claude/scratch/` on Claude Code, `.codex/worktrees/`
+and `.codex/scratch/` on Codex ([DEFAULTS.md](./DEFAULTS.md) *Hosts*) — and `.scratch/` where the
+tracker is local. Test each with `git check-ignore -q <path>x`, which holds even when the folder does
+not exist yet; one that is not reported as ignored (exit 1) is appended, as its own line with the
+trailing slash, to the clone's local exclude file: `info/exclude` under `git rev-parse
+--git-common-dir`, created if missing. That file sits in the common git directory, so it covers every
+worktree of the clone, and nothing is committed. In bash:
+
+```sh
+git check-ignore -q .claude/scratch/x || echo '.claude/scratch/' >> "$(git rev-parse --git-common-dir)/info/exclude"
+```
+
+In PowerShell:
+
+```powershell
+git check-ignore -q .claude/scratch/x; if ($LASTEXITCODE -ne 0) { Add-Content -Path (Join-Path (git rev-parse --git-common-dir) 'info/exclude') -Value '.claude/scratch/' }
+```
+
+For a repository other than the current folder — another repository's local tracker that planning
+writes in a paired run (§6) — run the same test there with `git -C ../<folder>`, and take that
+clone's exclude file as an absolute path, because `--git-common-dir` is otherwise relative to
+`../<folder>`, not to the current folder:
+
+```sh
+git -C ../<folder> check-ignore -q .scratch/x || echo '.scratch/' >> "$(git -C ../<folder> rev-parse --path-format=absolute --git-common-dir)/info/exclude"
+```
+
+```powershell
+git -C ../<folder> check-ignore -q .scratch/x; if ($LASTEXITCODE -ne 0) { Add-Content -Path (Join-Path (git -C ../<folder> rev-parse --path-format=absolute --git-common-dir) 'info/exclude') -Value '.scratch/' }
+```
+
+Not a committed ignore entry: it would arrive with the first merge batch, after the first preflight
+had already met the untracked paths.
+
 ## 5. Breach and stop
 
-An executor that must write outside `writes:` stops and reports. The session then swaps the ticket's
-`ready-for-agent` for `ready-for-human`, posts a comment naming the ticket and the path, and stops —
-a surface breach is a re-planning decision, never a widening.
+An executor that must write outside `writes:` stops and reports. A surface breach, whether the
+executor reports it or the diff the session reads shows it, is a re-planning decision, never a
+widening: the session swaps the ticket's `ready-for-agent` for `ready-for-human`, posts a comment
+naming the ticket and the path, and drops it from the batch. The batch's other green tickets merge,
+gate, walk and record green as usual, the wave is torn down — the dropped ticket's worktree with it,
+its branch kept and named (`/orchestrate`, *Record, close, tear down*) — and the session stops at
+the end of that wave, under `+ all` too.
 
 Stop and hand the decision to the user, with the reason posted on the ticket or the map, for: a third
 hand-back, a non-quiescent tree that cannot be cleaned, or a second agent session found in this
@@ -137,19 +181,31 @@ of the maps, the **lead map**, also carries what crosses them:
   |---|---|---|
   | G1 | billing-service · 1 · 01; ledger-service · 1 · 01 | — |
   | G2 | payments-service · 1 · 01–03 | billing-service 01; ledger-service 01 |
-  | G3 | portal · 1 · 02, 04 | payments-service wave 1 |
+  | G3 | portal · 1 · 02, 04 · borrows payments-service | payments-service wave 1 |
   ```
 
   A row lists every repository wave its step starts, `;`-separated, each with that repository's own
   wave number. *Released by* names what must be closed first: tickets as `<repository> <ticket>`, a
   whole wave as `<repository> wave <k>`, or the owner's go-ahead — a decision. `—` is released from
   the start. A blocker is released once it is merged onto its own repository's integration branch,
-  locally, and closed — long before that repository's close: the repositories are sibling working
-  copies on one machine, so a dependent walk can use the blocker's working copy. Repositories are named by their folder names, the lead's included; *this repository* in the table
+  locally, and closed — long before that repository's close. Repositories are named by their folder names, the lead's included; *this repository* in the table
   means the lead map's. A row may name part of a wave: its launch still runs the whole wave, whose
   orchestrator dispatches only the tickets with no open blocker, and a later row takes the rest.
-  Released waves of different repositories run at the same time, since they share no working copy;
-  one repository's waves run one after another, in its one session.
+
+  A launch **borrows** a repository's working copy when any ticket of the repository wave it runs
+  names that repository as `peer:<folder>` in its `runtime:` (§2) — any ticket of the whole wave, not
+  only those its row names, because the launch runs the whole wave. The borrows are written after its
+  tickets as `· borrows <folder>[, <folder>]`: `portal · 1 · 02, 04 · borrows payments-service`,
+  several as `· borrows billing-service, payments-service`. It is a suffix, not a column, because one
+  row holds several launches and only some of them borrow. **The borrowing
+  rule:** the launch occupies each working copy it borrows for its whole duration, as it occupies
+  its own, so no session of that repository runs meanwhile and the borrower's session is the only
+  one there; its walk uses that working copy only at that repository's recorded commit and writes
+  nothing to it. `/orchestrate` *The runtime walk* has the walk's procedure, and `/conduct` Stage 2
+  when a launch is ready. A dependent uses another repository's working copy only by borrowing it.
+
+  Released launches of different repositories run at the same time when they occupy no repository
+  in common; one repository's waves run one after another, in its one session.
 
 The run order is the schedule, never the proof. Each repository's map still records its own
 cross-repository blocking edges on its tickets, so its orchestrator verifies them itself
@@ -168,10 +224,12 @@ below. The stages change in these ways and no others:
   trackers may differ. A repository that grilling adds later gets its Stage 0 before Stage 2.
 - **Writing into another repository.** A remote tracker is written by naming the repository on every
   call ([TRACKERS.md](./TRACKERS.md) *Across repositories*), which touches no working copy. A local
-  tracker is written only inside this run's own `.scratch/<run-slug>/` folder. While the run has not
-  started there, that folder belongs to no session, so planning writes it even while another run's
-  session works in the same working copy. Once that repository's map records a started wave, the
-  folder is its orchestrator's: a later change goes to the user, never straight into the folder.
+  tracker is written only inside this run's own `.scratch/<run-slug>/` folder, beside the one entry
+  that keeps `.scratch/` ignored in that repository's clone, appended to its local exclude file with
+  `git -C ../<folder>` as §4 says. While the run has not started there, that folder belongs to no
+  session, so planning writes it even while another run's session works in the same working copy.
+  Once that repository's map records a started wave, the folder is its orchestrator's: a later
+  change goes to the user, never straight into the folder.
 - **Stage 2, specs per repository.** Every spec belongs to one repository, because its tickets, its
   map and the session that closes it are that repository's. The lead's spec carries the user-facing
   story; every other spec, what its repository does for it. A contract between repositories (an API,
@@ -190,7 +248,10 @@ below. The stages change in these ways and no others:
   launch is one repository wave, and it goes one step after the latest of its own repository's
   previous wave and every launch holding a cross-repository blocker of one of its tickets; a launch with neither goes in G1. *Released by*
   names those blockers. Where only some tickets of a wave wait, the others may start a step
-  earlier, as a row naming part of the wave.
+  earlier, as a row naming part of the wave. Every `peer:` entry of every ticket in the repository
+  wave a launch runs, not only of the tickets its row names, is carried onto that launch as its
+  `· borrows` suffix, each folder once: two rows naming parts of one wave each carry the whole
+  wave's borrows.
 - **Stage 5, a map per repository**, in its own tracker, each with every section Stage 5 lists for
   that repository alone. Its *Parent* names the paired specs, and every cross-repository edge its
   tickets carry is listed there as a cross-run gate. The lead map adds the *Paired runs* line and the

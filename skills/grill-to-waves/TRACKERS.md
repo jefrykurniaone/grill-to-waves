@@ -2,8 +2,10 @@
 
 How each tracker implements the five operations the pipeline and the orchestrator need: **publish**
 an item, **link as child**, **record a blocking edge**, **label**, and **read the frontier**. A repo's
-own `docs/agents/issue-tracker.md` is read first and governs which tracker is used and its item,
-label, link and close mechanics.
+own tracker record, `docs/agents/issue-tracker.md` (*The tracker record*, below), is read first and
+governs which tracker is used and how items, labels and links are recorded on it; the commands stay
+in this file, and only a tracker this file has no section of commands for has them described in its
+record (*Other trackers*).
 
 Each tracker's **Deliver** line covers only the run's close. Up to then delivery is the same on every
 tracker: the orchestrator merges each ticket's branch into the run's integration branch locally, with
@@ -140,3 +142,36 @@ folder.
     `<folder>` to `../<folder>`, and reads the blocker's state through that repository's tracker.
 - **A blocker that cannot be read is open.** A failed read in another repository is a wait, never a
   release.
+
+## The tracker record
+
+`docs/agents/issue-tracker.md` names a repository's tracker, so that planning and orchestration do
+not detect it again, and says how items, labels and links are recorded on it. The mechanics, the
+commands that carry the operations out, stay in this file for every tracker it has a section of
+commands for. Where the repository has none, `/orchestrate` writes it from the map's record of the
+tracker planning's Stage 0 detected (its *Merge the batch*, step 3), in this layout:
+
+1. **A title**: `# Issue tracker`.
+2. **One paragraph** naming the tracker, its CLI where it has one, and the repository or project it
+   is driven on — for a local tracker, the `.scratch/` folder — and saying that a session that plans
+   or orchestrates a run here uses the tracker as recorded and does not re-detect it.
+3. **`## Structure`**: how children and blocking edges are recorded on that tracker — on GitHub,
+   native sub-issues and native dependencies; on GitLab, the `Part of` line with its link, and the
+   native link or the `Blocked by:` line; on a local tracker, the `Part of:` and `Blocked by:`
+   header lines.
+4. **`## Labels`**: the vocabulary, each label with its meaning — `meta:orchestration`, the ticket
+   states `ready-for-agent`, `ready-for-human`, `needs-info` and `wontfix`, `run:<slug>`,
+   `spec:<slug>`, `executor:<tier>` and `effort:<level>` — and, on a local tracker, the header lines
+   that stand in for them.
+5. **`## Operations`**: a table of the operations — publish an item, link as child, record a
+   blocking edge, label, read the frontier, comment, deliver the run — each row pointing at that
+   tracker's section of `TRACKERS.md` in the `grill-to-waves` skill and, where the section has one,
+   the operation's bold name there, never at a repository path, because the skill is installed
+   outside the repository. A row whose operation has no bold entry in its section (GitLab and local
+   markdown have no **Frontier read**) points at the section alone. The commands are not restated.
+
+For any other tracker, whose section here is *Other trackers* and carries no commands, the record
+describes each operation in prose instead of pointing at one — publish, link, blocking edge, label,
+frontier read and close — and says **how a comment is posted** and **what stands in for labels**,
+the two facts that section requires; its *Operations* row for delivering the run points at that
+section's **Deliver**.

@@ -34,7 +34,9 @@ Commits and pull request bodies follow the repository's own convention.
    creating, reading, commenting, labelling, linking and closing.
 2. Otherwise detect: `git remote -v` at GitHub → `gh`; at GitLab → `glab`; no remote → local markdown
    under `.scratch/`. Confirm in one line with the user, and record the detected tracker in the
-   map's *How this is executed* (Stage 5); planning writes no file. The run's orchestrator writes
+   map's *How this is executed* (Stage 5); planning writes no file. Where the detected tracker is
+   local, first make sure `.scratch/` is ignored, before anything is written there, as
+   [SESSIONS.md](./SESSIONS.md) §4 *The run's own paths stay ignored* says. The run's orchestrator writes
    `docs/agents/issue-tracker.md` from that record and commits it onto the integration branch with
    the first merge batch's mirror commits (`/orchestrate`, *Merge the batch*), so the next run does
    not re-detect it. Outside a run, `/setup-matt-pocock-skills` from the required Matt Pocock skills
@@ -174,7 +176,7 @@ effort independently. `xhigh` is never planned: `/orchestrate` reaches it by a h
 ## Surface
 writes: …
 reads: …
-runtime: dev-db | dev-server | none
+runtime: dev-db | dev-server[, peer:<folder>, …] | none
 deps: shared | own
 ```
 
@@ -186,7 +188,10 @@ driven by **Playwright MCP** where the server is connected — the executor neve
 Write the ticket's runtime criterion as what a walk must *observe*, not as an instruction to the
 executor: the surface to open, the role to sign in as, the property to measure, and the value it
 must hold. A criterion an executor cannot satisfy and a walk cannot check is not a
-criterion.
+criterion. In a paired run, a walk that needs another repository's running app declares it on the
+same line, one `peer:<folder>` entry per repository (`runtime: dev-server, peer:payments-service`):
+the launch then borrows that working copy (SESSIONS.md §2 and §6), and an undeclared need stops the
+walk.
 
 Label every ticket `ready-for-agent`, `run:<slug>`, its spec's `spec:<slug>`, its `executor:` and
 `effort:`, plus the repo's own area/type/priority vocabulary. Link it as a child of its spec and
@@ -224,7 +229,8 @@ that person, so a run that ends at an open review request says so from the start
 
 Done when: every ticket appears in exactly one wave, and the base, the integration branch, the close
 point and its owner are recorded — in a paired run, for every repository, with the run order derived
-from the cross-repository edges.
+from the cross-repository edges and every launch carrying its `· borrows` suffix where a ticket of
+its wave has a `peer:` entry.
 
 ## Stage 5 — Map
 
@@ -297,15 +303,22 @@ and print the solo launch lines ready to copy:
 
 **A paired run** prints, in place of the solo lines, the run order as launch lines: every
 repository's `+ check` line, then one line per launch grouped by step, each led by the folder of the
-repository it runs in, because each repository has its own session started there:
+repository it runs in, because each repository has its own session started there, and ending on the
+launch's `· borrows` suffix, as a comment, where it has one. A launch started by hand goes only while
+no other launch is in flight or held in, or borrowing, any repository it occupies, its own and every
+one it borrows: a borrower waits on the lender's session, and the lender's next launch waits on the
+borrower ([SESSIONS.md](./SESSIONS.md) §6):
 
 ```
-billing-service   /orchestrate map <its map> + check
-portal            /orchestrate map <its map> + check
+billing-service    /orchestrate map <its map> + check
+payments-service   /orchestrate map <its map> + check
+portal             /orchestrate map <its map> + check
 # G1
-billing-service   /orchestrate map <its map> + wave 1
+billing-service    /orchestrate map <its map> + wave 1
 # G2, once billing-service 01 is closed
-portal            /orchestrate map <its map> + wave 1
+payments-service   /orchestrate map <its map> + wave 1
+# G3, once payments-service wave 1 is closed
+portal             /orchestrate map <its map> + wave 1     # · borrows payments-service
 ```
 
 Then the lines that make those launches from one herdr pane, run from the folder that holds the

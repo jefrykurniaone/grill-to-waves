@@ -55,6 +55,11 @@ The point-in-time copy of a spec item kept in the repository, written by the run
 spec and regenerated from the item when that run closes; the item, not the mirror, is the spec.
 _Avoid_: docs copy, spec file
 
+**Tracker record**:
+The file in a repository that names its tracker, so that planning and orchestration do not detect it
+again; the mechanics stay in TRACKERS.
+_Avoid_: Tracker config, issue-tracker file
+
 **Promotion**:
 Moving what already landed on the base branch to a staging or production branch. It is one act per
 release, distinct from the run that brings work to the base branch in one review request.
@@ -70,6 +75,11 @@ _Avoid_: Release branch, integration branch
 One run slug delivered in several repositories, each with its own working copy, tracker, map and
 orchestrator session. The lead map holds the run order across the repositories.
 _Avoid_: Multi-repo run, cross-repo map
+
+**Borrowed working copy**:
+Another repository's working copy in a paired run that a launch walks against; the launch occupies it
+for its duration, so no session of that repository runs meanwhile.
+_Avoid_: Shared working copy, peer runtime
 
 **Conductor**:
 The one session that starts each repository's orchestrator of a paired run in the run order and
