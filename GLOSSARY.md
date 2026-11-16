@@ -40,9 +40,24 @@ The narrow-tier agent that does one of the orchestrator's chores needing no judg
 result for the orchestrator to judge. It posts nothing and commits nothing.
 _Avoid_: Helper, assistant, mini-executor
 
+**Base branch**:
+The long-lived branch a run is cut from and returns to — main, master, a staging or a development
+branch, as the repository names it.
+_Avoid_: trunk, main (as a generic)
+
+**Integration branch**:
+The branch a run cuts from its base branch, merges every ticket into, keeps current with the base
+branch, and returns to it in one review request.
+_Avoid_: run branch, docs branch
+
+**Spec mirror**:
+The point-in-time copy of a spec item kept in the repository, written by the run that delivers the
+spec and regenerated from the item when that run closes; the item, not the mirror, is the spec.
+_Avoid_: docs copy, spec file
+
 **Promotion**:
-Moving what already landed on the integration branch to a staging or production branch. It is one
-act per release, distinct from the per-wave merge an orchestration run performs.
+Moving what already landed on the base branch to a staging or production branch. It is one act per
+release, distinct from the run that brings work to the base branch in one review request.
 _Avoid_: Deploy, release, merge to main
 
 **Pivot branch**:

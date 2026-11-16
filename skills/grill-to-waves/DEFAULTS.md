@@ -30,7 +30,7 @@ something narrower, that wins — this file is the floor, not a ceiling.
 
 | Level | Use when | Typical pairing |
 |---|---|---|
-| `medium` | The target is fully specified upstream and the exploration is narrow: the files are named or trivially found, the edit is mechanical, and no decision is left to make — a rename, a dead column removed at enumerated sites, a copy change, a docs mirror, a restyle onto a settled component. | Usually Sonnet `medium`; Opus `medium` for a large decision-free sweep, or for a high-consequence operation whose design is written out in the ticket |
+| `medium` | The target is fully specified upstream and the exploration is narrow: the files are named or trivially found, the edit is mechanical, and no decision is left to make — a rename, a dead column removed at enumerated sites, a copy change, a restyle onto a settled component. | Usually Sonnet `medium`; Opus `medium` for a large decision-free sweep, or for a high-consequence operation whose design is written out in the ticket |
 | `high` | **The default, and the ceiling at ticketing time.** Judgment inside a bounded scope: a new surface on an existing seam, a route or form change, a multi-file feature whose *placement* needs reading breadth, any ticket that must discover its own call sites, a ticket whose invariant or correctness argument is the executor's to derive. | Sonnet `high` when decisions were made upstream; Opus `high` for decisions inside a bounded blast radius; Fable `high` for a high-consequence ticket with a decision open |
 | `xhigh` | **Earned by a hand-back, never planned.** An attempt at `high` came back wrong for a reasoning failure — an invariant derived wrongly, a case missed — rather than for a wrong premise or a missing fact. The orchestrator re-dispatches the ticket at `xhigh` on the same tier and corrects the label. | Any tier, after its own attempt at `high` |
 
@@ -94,8 +94,8 @@ meets:
 - **Run-wide only, with the design settled in the ticket**: `scout-opus-high`. Checking an
   implementation against a written design is a diff review.
 - **Fable unavailable**: `scout-opus-high`.
-- **The ticket is irreversible and Fable did not verify it**: stop before the push and get the
-  user's go-ahead, naming the ticket and what a reset of the branch will not undo.
+- **The ticket is irreversible and Fable did not verify it**: wait for the user's go-ahead before its
+  wave is recorded green, naming the ticket and what a reset of the branch will not undo.
 
 The brief writes nothing. It carries the ticket, the diff and the checks: the invariant each clause
 names, and each decision the executor made that the ticket did not settle. Scope against `writes:`,
@@ -183,7 +183,7 @@ label names is not the one that runs.
 | Message a running executor | `SendMessage` | `send_message` |
 | In-flight ceiling | the map's (default five; more only on the user's word) | the map's, and never above `agents.max_concurrent_threads_per_session` in `~/.codex/config.toml` |
 | Skill invocation | a slash command: the skill name after `/` | a skill mention: the skill name after `$` |
-| Agent directory in the repo | `.claude/` — `worktrees/<row>/<ticket>` and `scratch/` under it | `.codex/` — the same two paths under it, inside the workspace so a `workspace-write` sandbox can write there |
+| Agent directory in the repo | `.claude/` — `worktrees/<run-slug>/<ticket>` and `scratch/` under it | `.codex/` — the same two paths under it, inside the workspace so a `workspace-write` sandbox can write there |
 | Required Matt Pocock skills | `grilling`, `domain-modeling` and `setup-matt-pocock-skills`, fetched by this repo's installer from the latest release of the `mattpocock/skills` GitHub repository into the project or user `.claude/skills/` directory — never the plugin, whose `mattpocock-skills:<name>` names the skill text does not use | `$grilling`, `$domain-modeling`, and `$setup-matt-pocock-skills`, fetched from the same release into the project or user `.agents/skills/` directory |
 | Read-only scouts | `permissionMode: plan` in the frontmatter (Write and Edit denied by the host; a shell command outside the built-in read-only set is reviewed or prompted, never silently run) plus the tool list | by `sandbox_mode = "read-only"` |
 
@@ -198,9 +198,8 @@ nor a re-grade.
 The skill text in this repo is written in Claude Code's vocabulary; the installer rewrites the
 invocation prefix and the agent directory when it installs for Codex, and nothing else. Codex
 sub-agents share the parent's working directory, so an executor brief on Codex names the worktree's
-absolute path and tells the executor to work only there. A Codex executor in a `workspace-write`
-sandbox may have no network: when it cannot push or open the review request, the orchestrator does
-both from the executor's branch, and the ticket's record says so.
+absolute path and tells the executor to work only there. On either host an executor commits on its
+ticket branch, pushes nothing and opens no review request, so its delivery needs no network.
 
 ## Worktree teardown — the junction trap
 
@@ -222,7 +221,7 @@ worktree **deepest first**, confirm none remain, and only then remove the worktr
 PowerShell (Windows):
 
 ```powershell
-$wt = "<repo>\.claude\worktrees\<row>\<ticket>"
+$wt = "<repo>\.claude\worktrees\<run-slug>\<ticket>"
 $links = Get-ChildItem -Path $wt -Recurse -Force -Attributes ReparsePoint |
     Sort-Object { $_.FullName.Length } -Descending
 foreach ($l in $links) { (Get-Item -LiteralPath $l.FullName -Force).Delete() }
@@ -235,7 +234,7 @@ git branch -D <branch>
 POSIX (macOS, Linux):
 
 ```bash
-wt="<repo>/.claude/worktrees/<row>/<ticket>"
+wt="<repo>/.claude/worktrees/<run-slug>/<ticket>"
 find "$wt" -depth -type l -delete
 [ -z "$(find "$wt" -type l -print -quit)" ] && git worktree remove "$wt" --force
 git branch -D <branch>

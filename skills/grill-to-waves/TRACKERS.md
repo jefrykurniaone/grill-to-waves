@@ -3,8 +3,13 @@
 How each tracker implements the five operations the pipeline and the orchestrator need: **publish**
 an item, **link as child**, **record a blocking edge**, **label**, and **read the frontier**. A repo's
 own `docs/agents/issue-tracker.md` is read first and governs which tracker is used and its item,
-label, link and close mechanics. Ownership in a team run is the tracker's assignee
-([SESSIONS.md](./SESSIONS.md) §4); there is no agent-owned claim record.
+label, link and close mechanics.
+
+Each tracker's **Deliver** line covers only the run's close. Up to then delivery is the same on every
+tracker: the orchestrator merges each ticket's branch into the run's integration branch locally, with
+a merge commit whose subject starts `Merge #<n> ` (`#NN` on a local tracker) — the reconcile
+evidence `/orchestrate`'s Stage 1 grep matches, anchored to that form and read only among the run's
+own merges — and pushes nothing before the close.
 
 ## GitHub (`gh`)
 
@@ -40,8 +45,11 @@ label, link and close mechanics. Ownership in a team run is the tracker's assign
   inline multi-line body is mangled by PowerShell. Where a comment id is wanted, post through REST
   and quote the endpoint — bare `{owner}` is a script block to PowerShell:
   `gh api -X POST 'repos/{owner}/{repo}/issues/<n>/comments' -F "body=@$file" --jq .id`.
-- **Deliver**: pull request, `gh pr create --body-file <file>`. The orchestrator merges locally, never
-  with `gh pr merge`.
+- **Deliver**: one pull request per run, from the integration branch to the base, opened by the
+  orchestrator at the close once the branch is pushed:
+  `gh pr create [--draft] --base <base> --head <integration branch> --title "..." --body-file <file>`,
+  `--draft` when `Run closes at:` is *draft review request opened*. Tickets reach the integration
+  branch by local merges and have no pull request of their own; executors open none.
 
 ## GitLab (`glab`)
 
@@ -54,7 +62,10 @@ label, link and close mechanics. Ownership in a team run is the tracker's assign
   frontier read parses it.
 - **Comment**: `glab issue note <iid>`, or `POST projects/:id/issues/<iid>/notes` where a numeric `id`
   is wanted.
-- **Deliver**: merge request, `glab mr create --description`. Merged locally, as on GitHub.
+- **Deliver**: one merge request per run, from the integration branch to the base, opened at the
+  close as on GitHub:
+  `glab mr create [--draft] --source-branch <integration branch> --target-branch <base> --title "..." --description "..." --yes`
+  (heredoc for the multi-line execution record).
 
 ## Local markdown (`.scratch/`)
 
@@ -67,8 +78,8 @@ One run per directory, `.scratch/<run-slug>/`.
   in `map-log.md`.
 - **Label**: header lines stand in — `Status:` (one of `ready-for-agent`, `ready-for-human`,
   `needs-info`, `wontfix`, `resolved`; `resolved` is the closed state everywhere this protocol says
-  "closed"), `Run:`, `Spec:`, `Executor:`, `Effort:`, `Assignee:`. The `## Surface` block lives in the
-  file verbatim.
+  "closed"), `Run:`, `Spec:`, `Executor:`, `Effort:`. The `## Surface` block lives in the file
+  verbatim.
 - **Link as child**: a `Part of: <parent filename>` header line.
 - **Blocking edge**: a `Blocked by: NN, NN` header line. A ticket is unblocked when every file it
   lists carries `Status: resolved`.
@@ -80,29 +91,32 @@ One run per directory, `.scratch/<run-slug>/`.
   dispatching: move every dated section into `map-log.md` in its original order (creating the file),
   rewrite the execution-progress section to the bounded state `/orchestrate`'s *Record, close, tear
   down* prescribes, and say so in the wave report. Done when `map.md` has no `## <ISO date>` heading.
-- **Deliver**: no review request. The orchestrator merges the branch with a merge commit whose
-  subject carries the ticket number as `#NN` — the only reconcile evidence this tracker leaves, and
-  the form `/orchestrate`'s reconcile grep matches. References in
-  the map and mirrors are file paths, not numbers.
+- **Deliver**: no review request — the no-forge close. The run ends at *branch ready*, the
+  integration branch pushed where a remote exists and the merge handed to the owner, or at *merged*,
+  the orchestrator merging it into the base with `--no-ff` after the final gate and pushing the base
+  where a remote exists. References in the map and mirrors are file paths, not numbers.
 
 ## Other trackers (Jira, Linear, …)
 
 `docs/agents/issue-tracker.md` describes the workflow in prose; follow it for publish, label, link,
 edge and close. Two things to establish before the first run and record in the map's "How this is
 executed" section: **how a comment is posted** (a REST call, or the CLI), and **what stands in for
-labels and the assignee** (a field, a component, a tag). Everything else in
+labels** (a field, a component, a tag). Everything else in
 [SESSIONS.md](./SESSIONS.md) is tracker-neutral.
+
+- **Deliver**: the forge's *Deliver* above for the repository's remote — GitHub's or GitLab's;
+  without a forge remote, the no-forge close of *Local markdown*.
 
 ## Across repositories
 
-A paired run ([SESSIONS.md](./SESSIONS.md) §8) writes trackers other than the working directory's
+A paired run ([SESSIONS.md](./SESSIONS.md) §6) writes trackers other than the working directory's
 and records blocking edges between them. Its repositories are sibling folders, each named by its
 folder.
 
 - **Name the other repository on every call**: `gh … -R <owner>/<repo>`,
   `glab … -R <group>/<project>`, and an `api` endpoint spelled out in full
   (`repos/<owner>/<repo>/…`, `projects/<url-encoded path>/…`), because `{owner}`, `{repo}`, `:id` and `:fullpath` resolve to the working directory's repository. A
-  local tracker is a path, `../<folder>/.scratch/<run-slug>/`, written only as SESSIONS.md §8
+  local tracker is a path, `../<folder>/.scratch/<run-slug>/`, written only as SESSIONS.md §6
   allows.
 - **The blocking edge lives on the blocked ticket**, in the form its own tracker's frontier read
   counts:

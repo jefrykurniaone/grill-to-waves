@@ -5,9 +5,11 @@ definitions it dispatches, a conductor for runs that span several repositories, 
 skills: one for the end of the day, one for the ticket.
 
 - **`/grill-to-waves`** plans: it grills the idea, writes one spec per shippable slice, tickets each
-  spec, proves the specs write-disjoint, publishes an execution map — then stops.
+  spec, checks the tickets for collisions and orders them into waves, publishes an execution map —
+  then stops.
 - **`/orchestrate`** executes that map: it dispatches ticket executors as subagents, verifies their
-  work itself, merges a whole wave under one gate, and closes the specs and the map.
+  work itself, merges a whole wave under one gate onto the run's integration branch, takes that
+  branch to the base branch in one review request at the close, and closes the specs and the map.
 - **`/ship-it-to stg|prd`** promotes what landed: it reads the repo's own promotion contract and the
   forge's branch protections, cuts a pivot, gates it, names whose commits are travelling, opens the
   request — and stops where the rules say someone else must merge.
@@ -25,20 +27,20 @@ skills: one for the end of the day, one for the ticket.
 
 Planning and execution are deliberately separate sessions. The pipeline ends at a published map so
 that execution starts on a fresh context window with the plan as its only input. Promotion is
-separate again: it happens once per release rather than once per wave, and its failure mode is a
-production deploy rather than a handed-back ticket.
+separate again: it starts from the base branch a run delivers to, happens once per release rather
+than once per run, and its failure mode is a production deploy rather than a handed-back ticket.
 
 ## What it gives you
 
 | Piece | What it is |
 |---|---|
-| `GLOSSARY.md` | Canonical distinction between executor tier and reasoning effort. |
+| `GLOSSARY.md` | Canonical distinctions: executor tier and reasoning effort, base branch and integration branch. |
 | `CHANGELOG.md` | What changed in the pipeline's rules and agent set, by date, and what to do after updating. |
 | `skills/grill-to-waves/SKILL.md` | The seven-stage pipeline (Stage 0 tracker → Stage 6 stop). |
-| `skills/grill-to-waves/SESSIONS.md` | Write surfaces, the collision rule, ownership, resume, and a paired run across repositories: its format and how it is planned. The protocol the skills share. |
+| `skills/grill-to-waves/SESSIONS.md` | The solo and paired shapes, write surfaces, the collision rule that orders the waves, worktrees, the breach stop, and a paired run across repositories: its format and how it is planned. The protocol the skills share. |
 | `skills/grill-to-waves/TRACKERS.md` | The five tracker operations for GitHub (`gh`), GitLab (`glab`) and local markdown, and the blocking edges between repositories. |
 | `skills/grill-to-waves/DEFAULTS.md` | The session's model floor, the effort ladder, high-consequence tickets and the Fable tier, scouts and the clerk, and the junction-safe worktree teardown. |
-| `skills/orchestrate/SKILL.md` | Wave dispatch, verification, merge gate, closing upward, team shape. |
+| `skills/orchestrate/SKILL.md` | The integration branch, wave dispatch, verification, merge gate, the close and closing upward. |
 | `skills/conduct/SKILL.md` | The conductor of a paired run, inside herdr: reading the run order, the states of each launch, launching each repository's session, relaying decisions, and where it stops. Sized for one laptop: one tab split three ways, two sessions in flight, five executors in each, and a watcher only under `+ watch`. |
 | `skills/conduct/scripts/watch.*` | Read-only watcher, PowerShell and bash, started only under `+ watch`: one process waits until one of the run's herdr agents settles after a known state change, and waits through an orchestrator's pause by itself. |
 | `skills/ship-it-to/SKILL.md` | Promotion to staging or production: contract resolution, branch protections, the pivot, the gate on the pivot, authorship of what travels, the request body, and where the run stops. |
@@ -54,7 +56,8 @@ production deploy rather than a handed-back ticket.
 | `skills/*/agents/openai.yaml` | Codex skill metadata: user-invocation only, the equivalent of `disable-model-invocation`. Claude Code ignores it. |
 
 The tracker is the state store — specs, tickets and the map are issues, and the repo keeps a durable
-docs mirror of each spec. Nothing depends on a local file that a context clear would lose.
+docs mirror of each spec, written by the run that delivers it. Nothing depends on a local file that
+a context clear would lose.
 
 ## Install
 
@@ -199,7 +202,7 @@ The pipeline requires three skills from [mattpocock/skills](https://github.com/m
 |---|---|
 | `grilling` | Stage 1 — the grill itself. |
 | `domain-modeling` | Stage 1, whenever vocabulary is in play. |
-| `setup-matt-pocock-skills` | Stage 0 — records the tracker choice in `docs/agents/issue-tracker.md`, run once per repo. |
+| `setup-matt-pocock-skills` | Stage 0, optionally — run before a run, it writes `docs/agents/issue-tracker.md`, which Stage 0 then reads. Without it, Stage 0 detects the tracker and the run's orchestrator writes that file. |
 
 The installer fetches the collection for you, straight from that GitHub repository at its **latest
 release**: the tag GitHub names as latest, or the highest `vX.Y.Z` tag when the API does not answer.
@@ -217,8 +220,12 @@ Re-run the installer to move to a newer release.
   second time under a `mattpocock-skills:` prefix, which the pipeline does not call. The installer
   warns when it finds it; remove it with `claude plugin uninstall mattpocock-skills@mattpocock`.
 
-Run `/setup-matt-pocock-skills` (`$setup-matt-pocock-skills` on Codex) once in each repository
-before its first pipeline run.
+Running `/setup-matt-pocock-skills` (`$setup-matt-pocock-skills` on Codex) in a repository before
+its first pipeline run is optional; the `docs/agents/issue-tracker.md` it writes must reach the base
+branch before the run starts, the way any change does in that repository. Otherwise skip the
+command. Planning writes no file: Stage 0 records the tracker it
+detected in the map, and the run's orchestrator writes `docs/agents/issue-tracker.md` and commits it
+with the first merge batch's spec mirrors.
 
 ### Codex CLI specifics
 
@@ -268,9 +275,9 @@ rewrites preserve the workflow, including execution-progress updates in the map 
 
 Read-only scouts are read-only by `sandbox_mode = "read-only"` (on Claude Code, by
 `permissionMode: plan`). Codex subagents share the parent's
-working directory, so the orchestrator names each executor's worktree path in its brief; an executor
-whose sandbox has no network reports its branch and the orchestrator pushes and opens the review
-request itself. The full table, including dispatch tool names, is the `Hosts` section of
+working directory, so the orchestrator names each executor's worktree path in its brief. Executors
+on either host commit on their ticket branch and report it with the commit; they push nothing and
+open no review request. The full table, including dispatch tool names, is the `Hosts` section of
 `skills/grill-to-waves/DEFAULTS.md`.
 
 ## Use
@@ -280,7 +287,8 @@ request itself. The full table, including dispatch tool names, is the `Hosts` se
 $grill-to-waves <the idea, in whatever shape it is in>      # Codex CLI
 ```
 
-It stops at Stage 6 and prints the launch lines, solo first (on Codex the prefix is `$`):
+It stops at Stage 6 and prints the launch lines; for a run in one repository they are these (on
+Codex the prefix is `$`):
 
 ```
 /orchestrate map <map> + check      # read-only preflight, writes nothing
@@ -289,14 +297,6 @@ It stops at Stage 6 and prints the launch lines, solo first (on Codex the prefix
 ```
 
 Run those in a **new** session. `+ check` is the cheap way to see what a run would do.
-
-A team splits a map by spec instead — one developer per clone, never two sessions in one working
-copy:
-
-```
-/orchestrate map <map> + spec <spec-a> + team
-/orchestrate map <map> + tail        # the serial owner, once every row is closed
-```
 
 A paired run — one run across several repositories, one map in each, the lead map carrying the run
 order — is planned by one `/grill-to-waves` session in the lead repository, and driven from one herdr
@@ -317,7 +317,7 @@ unless you pass `+ watch`, which starts one watcher for the whole run. It leaves
 prompt and question to you: besides `/clear` and the launch line, it sends a session only what you
 tell it to.
 
-Once a wave is merged into the integration branch, promoting it is its own session:
+Once a run's work has reached the base branch, promoting it is its own session:
 
 ```
 /ship-it-to stg      # to the staging branch
@@ -354,8 +354,8 @@ box, then flip to **Visual** to check it.
   check, and an irreversible one waits for your go-ahead. Haiku runs only the locate scout and the
   clerk. `DEFAULTS.md` has the rules.
 - **[mattpocock/skills](https://github.com/mattpocock/skills)**, required — `grilling` and
-  `domain-modeling` for Stage 1, and `setup-matt-pocock-skills` for the Stage 0 tracker record on
-  both hosts. The installer fetches them; see *The Matt Pocock skill collection* above.
+  `domain-modeling` for Stage 1, and `setup-matt-pocock-skills`, optional to run, for recording the
+  tracker before a run, on both hosts. The installer fetches them; see *The Matt Pocock skill collection* above.
 - **Playwright MCP**, optional, for runtime verification of `runtime: dev-server` tickets. Without it
   the walk falls back to scripted Playwright or plain HTTP, and says which it used.
   `--with-playwright-mcp` registers it; see *MCP servers*.
@@ -369,14 +369,15 @@ box, then flip to **Visual** to check it.
 
 Per-repository conventions — the completion gate, the seams, the hard rules an executor brief has to
 carry — are read from the repository's own `CLAUDE.md` or `AGENTS.md`, and override `DEFAULTS.md`
-where they differ. Recording the tracker choice in `docs/agents/issue-tracker.md` keeps Stage 0 from
-re-detecting it every run.
+where they differ. `docs/agents/issue-tracker.md` keeps Stage 0 from re-detecting the tracker every
+run; planning writes no file, and where it is missing the run's orchestrator writes it and commits it
+with the first merge batch's spec mirrors.
 
 ## Design notes
 
-- **The spec is the unit of splitting.** Tickets carry a write surface; specs are proved disjoint at
-  planning time, or fused when they collide. Disjoint writes prove non-collision, never independence —
-  serial merges plus a whole-gate re-run after each merge is the only net.
+- **Write surfaces order the waves.** Every ticket declares what it may write, and two tickets whose
+  writes overlap are never in flight together. A write outside the declared surface is a stop, never
+  a widening.
 - **The orchestrator verifies; the executor does not self-certify.** An executor's account of its own
   work is a claim. The orchestrator reads the diff, runs the gate, and measures rather than eyeballs.
 - **Executor tier and effort are separate axes.** Consequence and reach choose Sonnet, Opus or Fable;
@@ -387,8 +388,12 @@ re-detecting it every run.
 - **The most capable model is spent per ticket, never per session.** The session's floor is Opus at
   `high`, so the pipeline runs on an account without Fable, and an account with it pays for Fable
   where a wrong decision cannot be caught afterwards.
+- **One integration branch per run, pushed once.** Tickets merge into it locally, it is kept current
+  with the base branch, and the close pushes it and opens one review request to the base. Executors
+  push nothing and open no review request; until the close, the run's code exists only in the
+  working copy.
 - **Two agent sessions never share one working copy.** They contend on the tree, the dev server and
-  the dev database at once. Splitting a run means one developer per clone.
+  the dev database at once.
 - **Nothing is true until it is on the tracker** — and the map's *body* is where a resuming session
   looks first. Sessions share no context window, so a fact that was never posted did not happen, and
   a fact posted only as a comment on a long thread is a fact the next session acts without.

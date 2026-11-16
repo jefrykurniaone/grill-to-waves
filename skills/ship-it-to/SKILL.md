@@ -1,6 +1,6 @@
 ---
 name: ship-it-to
-description: Promote the integration branch to staging or production — resolve the repo's own promotion contract, cut a pivot, gate it, say whose work is travelling, open the request, and stop where the forge says you must. Takes stg or prd.
+description: Promote the base branch to staging or production — resolve the repo's own promotion contract, cut a pivot, gate it, say whose work is travelling, open the request, and stop where the forge says you must. Takes stg or prd.
 disable-model-invocation: true
 ---
 
@@ -11,9 +11,9 @@ disable-model-invocation: true
 /ship-it-to prd      promote to the production branch
 ```
 
-Where `/orchestrate` ends — a wave merged into the integration branch and pushed — this begins. It
-is a separate skill because promotion is a different job: it happens once per release rather than
-once per wave, its gate runs on a combination the integration branch never tested, and its failure
+Once a run's work has reached the base branch, this begins. It is a separate
+skill because promotion is a different job: it happens once per release rather than once per run,
+its gate runs on a combination the base branch never tested, and its failure
 mode is a production deploy rather than a handed-back ticket.
 
 **Nothing here is assumed from memory.** Every value below is read out of the repository or the
@@ -39,7 +39,7 @@ forge, because the last repo's answer is not this repo's answer:
    that branch does not exist, **stop and say so**. A pipeline can carry an environment whose branch
    was never created; the environment existing is not the branch existing.
 4. **If the repo describes no promotion shape, ask** — pivot branch, a request straight from the
-   integration branch, or a fast-forward. Do not pick one. The shape decides whether the target
+   base branch, or a fast-forward. Do not pick one. The shape decides whether the target
    gains a merge commit, which decides whether the promoted commit keeps its sha, which decides
    whether an immutable image registry sees the same tag twice.
 
@@ -151,7 +151,7 @@ mistake to everyone who saw it.
 
 ## Red flags
 
-- *"The integration branch was green yesterday"* → the gate runs on the pivot.
+- *"The base branch was green yesterday"* → the gate runs on the pivot.
 - *"Just push it"* → the branch is protected, and you knew that at Stage 1.
 - *"I will drop the other authors' commits"* → dependency check first, on a scratch branch.
 - *"Merged, so it is live"* → only if the pipeline says so. Check the job.

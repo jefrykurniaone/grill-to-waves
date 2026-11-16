@@ -1,26 +1,22 @@
-# Sessions — the spec is the unit of splitting
+# Sessions — surfaces, waves and paired runs
 
-One delivery run covers one or more specs. Each spec can be executed on its own, and the specs are
-made **write-disjoint** at ticketing so that two people can execute two of them without corrupting
-each other's work: `/grill-to-waves` constructs the proof (the surface block on every ticket, the
-collision check, the map's Sessions table) and `/orchestrate` re-checks it before it dispatches. This
-file is the protocol both skills share; they point here rather than restating it.
+One delivery run covers one or more specs. Every ticket declares at ticketing what it may write, and
+those surfaces order the run: `/grill-to-waves` writes the surface block on every ticket and runs the
+collision check that computes the waves, and `/orchestrate` keeps overlapping tickets out of flight
+together. This file is the protocol both skills share; they point here rather than restating it.
 
-There are **two shapes**, and neither takes a lock:
+A run is executed in one of **two shapes**:
 
-- **solo** — one person, one session, wave by wave. The default and the right answer for most runs.
-  One session owns every merge, so there is nothing to coordinate. `/orchestrate`'s solo sections are
-  self-contained; the only thing solo owes this file is the surface and collision vocabulary its map
-  was built from.
-- **team** — several developers on their own machines, one spec row each. A second developer shares
-  no working copy, no dev server and no dev database with you. What you share is `origin/main` and
-  the tracker: `origin/main` is serialised by the forge's branch protection, and ownership is the
-  tracker's assignee.
+- **solo** — the single-repository shape: one `/orchestrate` session, wave by wave. One session owns
+  every merge, so there is nothing to coordinate.
+- **paired** — the multi-repository shape: one run slug across several repositories, one
+  `/orchestrate` session in each repository's own working copy, driven by `/conduct` in the lead
+  map's run order (§6).
 
 **Two agent sessions never share one working copy.** A second session in the same working copy
-contends on the tree, the dev server and the dev database at once, and the only supported answer is
-a second clone. Splitting a
-run means splitting it across working copies — one per developer — or not splitting it at all.
+contends on the tree, the dev server and the dev database at once, so finding one is a stop (§5).
+Work that needs a second session gets a second working copy — in a paired run, each repository's
+own.
 
 ## Invariants
 
@@ -36,7 +32,8 @@ run means splitting it across working copies — one per developer — or not sp
 ## 1. Vocabulary
 
 - **Run** — one pipeline invocation: its specs, tickets and map, grouped by the `run:<slug>` label.
-- **Spec** — an item whose title begins `spec: `, carrying `spec:<slug>`. The **unit of splitting**.
+- **Spec** — an item whose title begins `spec: `, carrying `spec:<slug>`: one coherent, independently
+  shippable slice of the run.
 - **Ticket** — an item carrying both an `executor:` and an `effort:` label. Specs and the map are
   never tickets, whatever else they carry. Every count and frontier in this protocol means tickets by
   this definition. An item under the run label with `ready-for-agent` but without the pair is a
@@ -44,16 +41,12 @@ run means splitting it across working copies — one per developer — or not sp
   under "probably a spec".
 - **Map** — the run's execution plan item, titled `map: …`. Its body is a register: written once by
   the pipeline, edited afterwards only on a quiescent tree. Comments are append-only and safe.
-- **Sessions table** — the map section assigning every ticket to one **row**: a spec row (one spec, or
-  a fused group of specs one session executes) or the **tail** row. "The published split" means this
-  table.
-- **Session** — one agent context window (Claude Code, Codex, or another host) executing part of a map. Three kinds: **solo** (the
-  whole map, wave by wave), **spec** (one spec row, team shape), and **tail** (the tail row, then the
-  map close).
+- **Session** — one agent context window (Claude Code, Codex, or another host) executing a map, or
+  part of one, wave by wave: the run's map when it is solo, its own repository's map when it is
+  paired.
 - **Write surface** — the paths and non-file resources a ticket may write (§2).
-- **Run-exclusive** — a ticket whose surface is shared by everything: schema, migrations, lockfile,
-  `package.json`, an environment target. It runs only in a solo or tail session, and in a team run it
-  belongs to the **serial owner**.
+- **Wave** — the tickets a session dispatches together: no two of them collide (§3), and every
+  ticket that blocks one of them sits in an earlier wave.
 
 ## 2. The ticket surface block
 
@@ -66,13 +59,13 @@ writes: src/lib/dashboard-data.ts, src/app/(admin)/admin/page.tsx
 reads: src/lib/payments.ts, prisma/schema.prisma
 runtime: dev-db
 deps: shared
-exclusive: no
 ```
 
 - `writes:` is a **contract**. An executor that must write outside it stops and reports; it never
   widens the edit. The ticket's acceptance criteria say so. It covers tracked repository content
-  only — the ticket's branch, its review request, its comments and anything gitignored are outside
-  it. Generated output or a lockfile the ticket did not declare **is** a breach.
+  only — the ticket's branch, its comments and anything gitignored are outside it; a ticket has no
+  review request of its own. Generated output or a lockfile the ticket did not declare **is** a
+  breach.
 - `reads:` is informational and never used for collision.
 - `runtime:` is `dev-db`, `dev-server` or `none` — what the **orchestrator's verification** of the
   ticket needs. Executors never touch the dev server or the dev database (no migrations, no seeds);
@@ -81,19 +74,17 @@ exclusive: no
   plain HTTP where it is not — which of the two was used is stated in the report, never left implied.
 - `deps:` is `shared` (junctioned dependency tree) or `own` (a full copy; required for any ticket
   that changes the schema or a dependency).
-- `exclusive:` is `no` or `run`. Set to `run` for any ticket writing a database schema, a migration
-  directory, `package.json`, a lockfile, an environment target, or a tracker item of another run.
 - Non-file resources compare like paths, with a scheme prefix: `db:schema`, `db:dev-data`,
   `tracker:#231`, `label:<name>`, `env:vercel`.
 
-Surfaces are declared before code is read, so they are the weakest link in the proof — which is why
-a breach is a stop, never a widening. **A path that does not yet exist is declared exactly**, never
-as a directory glob, and each new test file is listed by name: a directory glob fuses the ticket to
-every other ticket touching that directory. A ticket with no block is treated as `exclusive: run` by
-a spec session (skipped and reported by name) and as `exclusive: no` by a solo session; the tail
-session runs it.
+**Surfaces are guesses**, derived from prose before code is read, so they are the weakest link in
+the wave order — which is why a breach is a stop, never a widening. **A path that does not yet exist
+is declared exactly**, never as a directory glob, and each new test file is listed by name: a
+directory glob collides with every other ticket touching that directory. Every ticket carries the
+block: a ticket without one cannot be placed in a wave, so planning publishes none, and a ticket
+added after planning gets its block before it joins a wave.
 
-## 3. Collision — can these specs run apart?
+## 3. Collision — which tickets may be in flight together
 
 Two tickets **collide** when their write surfaces overlap: equal paths, or one is a glob whose root
 prefixes the other, compared case-insensitively on repo-relative POSIX paths (`git ls-files` is the
@@ -101,121 +92,42 @@ authority on casing; two paths differing only in case are one file on Windows). 
 `src/lib/**`; `src/lib/**` and `src/app/**` do not. Two tickets under one directory stay disjoint
 only when both declare exact paths and no third ticket declares a glob over that directory.
 
-Two **specs collide** when a ticket of one collides with a ticket of the other. The pipeline resolves
-every collision at ticketing, in this order of preference:
+Two tickets that overlap are never in flight together: planning puts them in different waves, and
+`/orchestrate`'s frontier rule holds the second until the first has merged.
 
-1. **Move the ticket** to the spec whose surface it really belongs to.
-2. **Mark it run-exclusive** if it is the schema/lockfile/environment class anyway — it leaves the
-   spec rows and joins the tail.
-3. **Fuse the two specs** into one row (`spec A + spec B`). A fused row is still two spec items on
-   the tracker; one session executes both.
+## 4. Worktrees
 
-The result is the Sessions table: one row per session, listing its specs, its tickets, and the exact
-`/orchestrate` line that launches it, plus the tail row (present even when empty — the tail session
-also closes the map), and a **verdict line**: `splittable N ways` or
-`not splittable: <fusing surface>`. Documentation, standards and repo-wide sweeps almost always land
-on `not splittable`.
+Every ticket runs in its own worktree at `.claude/worktrees/<run-slug>/<ticket>`, under about 120
+characters end to end; set `core.longpaths true` on the clone before the first run that uses them.
+Each ticket gets its own branch, named in the repository's prefix vocabulary and cut from the run's
+recorded commit on its integration branch (`/orchestrate`, *The integration branch*). Ticket
+branches never nest under the integration branch's name, because git refuses `feat/x` and
+`feat/x/…` side by side: with `feat/<run-slug>` as the integration branch, a ticket branch is
+`feat/<n>-<short-slug>`, never `feat/<run-slug>/<n>`. A worktree whose
+dependency tree is a link is torn down only by the junction-safe procedure in
+[DEFAULTS.md](./DEFAULTS.md).
 
-Blocking edges are **not** collisions: a cross-spec `blocked_by` means one session waits, not that
-two sessions contend. List them in the row so the user knows a session may idle.
+## 5. Breach and stop
 
-Collision inside one row is that session's own problem: two of its tickets that overlap are never in
-flight together (`/orchestrate`'s frontier rule). `/orchestrate` re-derives the cross-row check from
-live ticket bodies at admission; a disagreement with the published table is a stop, never a silent
-re-split.
-
-## 4. Ownership in a team run
-
-- **The assignee is the ownership signal**, the mechanism people already use. A developer assigns
-  themselves the spec item and its tickets before dispatching, and **skips any ticket assigned to
-  someone else**, naming it in the report. There is no agent-owned claim and no `claimed` label.
-- **An assignee is scope, not a lock.** When the tickets in scope are assigned to someone other than
-  the user you are working for, say so and confirm before dispatching, rather than stopping.
-- **The serial owner** is named once for the whole run, in the map's Sessions section. Every
-  `exclusive: run` ticket belongs to that one person, whichever row it came from, because two
-  developers running a migration in the same week produce divergent histories that do not reconcile
-  cleanly. Those tickets sit in the tail row.
-- **The forge is the serialiser.** Branch protection with required status checks and *require branches
-  to be up to date before merging* is what makes a team's merges safe. Check it once and say plainly
-  if it is missing or if the required checks are weaker than the map's completion gate.
-- **A rejected push is normal, not a failure.** Someone landed first: pull, re-merge onto the new
-  `origin/main`, re-run the **whole** gate — their change plus yours is a combination neither of you
-  has gated — and push again. Never force-push, and never skip the second gate.
-- **A defect in another row's surface is filed, never fixed.** You cannot see what they are mid-way
-  through changing.
-
-Worktrees live at `.claude/worktrees/<row>/<ticket>`, under about 120 characters end to end; set
-`core.longpaths true` on the clone before the first run that uses them. Branch names carry no row
-marker.
-
-## 5. Resume — rebuild state from the tracker and git
-
-Four entry points: first start, context clear, crash, interrupted turn. Nothing local is trusted, no
-prior report is trusted, no executor's account of worktree state is trusted.
-
-1. **Map** — run slug, Sessions table and verdict, waves, contention table, gate, where the run
-   closes and who owns the steps after it, out of scope. Its log (the comment thread, or `map-log.md`
-   beside a local map) is history, read only when a question needs it.
-2. **Other open maps** naming this run — cross-run gates are written as prose on the *other* run's
-   map. A gate is verified by reading the named tickets' states.
-3. **Tickets** — one listing of every item under the run label with state, labels, body and open
-   blockers (TRACKERS.md's frontier read returns the body too); classify by §1; the surface blocks
-   feed the collision re-check.
-4. **Git ground truth** — `fetch --prune`, `status --porcelain`, last commits on `main`, every review
-   request with state, head branch and merge commit, `git worktree list`. Where there are no review
-   requests, the merge commit is the evidence: `git log --merges -E --grep '#<n>([^0-9]|$)' main`,
-   anchored, because `#25` also matches `#253`.
-5. **Reconcile** per open in-scope ticket, before dispatching anything: merged review request and open
-   ticket → post the record and close it, do not re-run; an open review request → read the diff, adopt
-   or close it, saying which; a branch with no review request and no worktree → inspect, salvage or
-   delete, announced; nothing → a normal frontier candidate.
-6. **Worktrees** — list them; one whose ticket is closed is torn down by the junction-safe procedure
-   in [DEFAULTS.md](./DEFAULTS.md), then `git worktree prune`, then repair the generated client if it
-   is missing.
-7. Compute the frontier and dispatch.
-
-Deliberately not reconstructed: the previous session's reasoning, executor transcripts, intermediate
-verification.
-
-## 6. Breach and stop
-
-An executor that must write outside `writes:` stops and reports. The session then: if the path is
-inside its own row's surface union, re-sequences and continues; otherwise it swaps the ticket's
+An executor that must write outside `writes:` stops and reports. The session then swaps the ticket's
 `ready-for-agent` for `ready-for-human`, posts a comment naming the ticket and the path, and stops —
-a surface breach across rows is a re-planning decision, not a widening.
+a surface breach is a re-planning decision, never a widening.
 
 Stop and hand the decision to the user, with the reason posted on the ticket or the map, for: a third
-hand-back, a non-quiescent tree that cannot be cleaned, a collision the re-check found that the
-published table does not have, or a second agent session found in this working copy.
+hand-back, a non-quiescent tree that cannot be cleaned, or a second agent session found in this
+working copy.
 
-## 7. What this does not protect against
+## 6. Paired runs — one run across repositories
 
-Say these to the user when a run is split.
+Work that lands in several repositories is a **paired run**: the same run slug in every repository,
+and in each its own tracker, map, `/orchestrate` session, integration branch and review request to
+its own base branch — one session per working copy, as everywhere. Each integration branch is named
+in its own repository's prefix vocabulary, as Stage 4 settles it per repository. One
+of the maps, the **lead map**, also carries what crosses them:
 
-- **Disjoint writes prove non-collision, never independence.** Two specs can share a type, a
-  translation key, a seam contract. Serial merges plus a whole-gate re-run after each merge is the
-  only net, and it catches only what the gate catches.
-- **Surfaces are prose-derived guesses** made before code is read.
-- **Splitting buys executor parallelism only.** It pays when executor time per ticket clearly exceeds
-  gate time. Measure the gate once and say so, and budget the map's in-flight ceiling — five by
-  default, more only on the user's word — against that measurement.
-- **Each session pays the full protocol read** — three sessions are three context budgets.
-- **A team's dev databases are separate, and its migrations are not**: the serial owner owns every
-  migration, and a row that assumes a column another row has not migrated yet fails at the gate.
-- **A single sweep ticket collapses the split**, and that is the common case for docs and standards
-  runs.
-- **Polling costs API calls.** Retry a failed read; never treat an API or fetch error as "nothing to
-  do" or "main is unchanged".
-
-## 8. Paired runs — one run across repositories
-
-Work that lands in several repositories is a **paired run**: one run slug and one branch name in
-every repository, and in each its own tracker, map and `/orchestrate` session — one session per
-working copy, as everywhere. One of the maps, the **lead map**, also carries what crosses them:
-
-- **A `Paired runs` line** under its header lines: `Paired runs (same run slug and branch name, each
-  its own tracker and map):`, then every other repository's map — a path relative to the lead
-  repository (`../billing-service/.scratch/<slug>/map.md`), or, where the tracker is remote, a
+- **A `Paired runs` line** under its header lines: `Paired runs (same run slug, each its own
+  tracker, map, integration branch and review request):`, then every other repository's
+  map — a path relative to the lead repository (`../billing-service/.scratch/<slug>/map.md`), or, where the tracker is remote, a
   tracker reference prefixed by the repository's folder (`billing-service#41`). Every other map's
   header names the lead map the same way.
 - **A section titled *Run order across repositories*** — the schedule:
@@ -231,7 +143,9 @@ working copy, as everywhere. One of the maps, the **lead map**, also carries wha
   A row lists every repository wave its step starts, `;`-separated, each with that repository's own
   wave number. *Released by* names what must be closed first: tickets as `<repository> <ticket>`, a
   whole wave as `<repository> wave <k>`, or the owner's go-ahead — a decision. `—` is released from
-  the start. Repositories are named by their folder names, the lead's included; *this repository* in the table
+  the start. A blocker is released once it is merged onto its own repository's integration branch,
+  locally, and closed — long before that repository's close: the repositories are sibling working
+  copies on one machine, so a dependent walk can use the blocker's working copy. Repositories are named by their folder names, the lead's included; *this repository* in the table
   means the lead map's. A row may name part of a wave: its launch still runs the whole wave, whose
   orchestrator dispatches only the tickets with no open blocker, and a later row takes the rest.
   Released waves of different repositories run at the same time, since they share no working copy;
@@ -262,22 +176,19 @@ below. The stages change in these ways and no others:
   map and the session that closes it are that repository's. The lead's spec carries the user-facing
   story; every other spec, what its repository does for it. A contract between repositories (an API,
   an event, a stored shape) is owned by the spec of the repository that provides it, and the others
-  name that spec rather than restate it. Every spec lists the run's other specs on a `Paired specs`
-  line at its top, in the notation of the *Paired runs* line. `run:<slug>` is the same in every
-  tracker, and every `spec:<slug>` is unique across the run. Planning writes no mirror, and Stage
-  2's done-when drops the docs pull request. Each repository's orchestrator commits its specs'
-  mirrors onto the branch its run merges into — where the repository's own rules cut one
-  integration branch per run and take it to the base branch in one review request, that branch —
-  with its first wave, and its close's mirror pass regenerates them there.
+  name that spec rather than restate it. Every spec opens with its as-of line, then lists the run's
+  other specs on a `Paired specs` line, in the notation of the *Paired runs* line. `run:<slug>` is
+  the same in every tracker, and every `spec:<slug>` is unique across the run. Each repository's mirrors follow the
+  general rule of Stage 2, written onto its own integration branch.
 - **Stage 3, edges across repositories.** The edge lives on the blocked ticket only, in the form
   [TRACKERS.md](./TRACKERS.md) *Across repositories* gives for that pair of trackers, so the blocked
   repository's frontier read counts it live. Blockers-first publishing spans the repositories.
-- **Stage 4, per repository, then the run order.** Collision, waves, the Sessions table and its
-  verdict are each repository's alone: different working copies share no file. The execution shape
-  and the close lines are asked in one exchange and answered per repository, since each has its own
-  review request and reviewer. Then derive the run order. A launch is one repository wave, and it
-  goes one step after the latest of its own repository's previous wave and every launch holding a
-  cross-repository blocker of one of its tickets; a launch with neither goes in G1. *Released by*
+- **Stage 4, per repository, then the run order.** Collision and waves are each repository's alone:
+  different working copies share no file. The base, the integration branch and the close lines are
+  settled in one exchange and answered per repository, since each has its own base branch,
+  integration branch, review request and reviewer. Then derive the run order. A
+  launch is one repository wave, and it goes one step after the latest of its own repository's
+  previous wave and every launch holding a cross-repository blocker of one of its tickets; a launch with neither goes in G1. *Released by*
   names those blockers. Where only some tickets of a wave wait, the others may start a step
   earlier, as a row naming part of the wave.
 - **Stage 5, a map per repository**, in its own tracker, each with every section Stage 5 lists for
