@@ -78,10 +78,11 @@ Done when all of them hold.
 4. **Each repository's session**, the agent in its pane under the name Stage 3 gives it:
    - none, or a shell at its prompt: no session yet;
    - `working` or `blocked`: in flight;
-   - `idle` or `done`: read it (*Reading a session*, Stage 4). The pause line means in flight,
-     `orchestrate: stopped` held, and `orchestrate: done` free; either of those two means parked
-     instead where the launch it ran qualifies (Stage 2), and a parked launch's session is free. A
-     session that never ran `/orchestrate` is free; any other ending is held.
+   - `idle` or `done`: read it (*Reading a session*, Stage 4). The pause line means in flight, and
+     `orchestrate: done` free where its launch has landed. `orchestrate: stopped`, or `orchestrate:
+     done` with a ticket the launch names still open, means held, or parked instead where the launch
+     it ran qualifies (Stage 2), and a parked launch's session is free. A session that never ran
+     `/orchestrate` is free; any other ending is held.
 
    Tell the user about every one that is `blocked` or held. This stage arms no watcher. An agent
    under any other name is the
@@ -148,9 +149,9 @@ builds further, as a solo session stops at the end of a breach's wave (SESSIONS.
 `borrowing` line its map still carries holds that lender all the same (*A borrow that outlived its
 session*, below). Its session is free: nothing is pending in it, so its slot may be reused (Stage 3)
 and it is not one of the sessions in flight. `+ check`, every wake's report (Stage 4) and the stop
-report (Stage 5) name each parked launch with its `ready-for-human` tickets, the branch each one's
-comment names as kept, every other open ticket with the blocker it waits on, and the three ways
-out, all the owner's:
+report (Stage 5) name each parked launch with its stop report where it ended on one, its
+`ready-for-human` tickets, the branch each one's comment names as kept, every other open ticket
+with the blocker it waits on, and the three ways out, all the owner's:
 
 1. **Re-plan**: the owner re-labels the ticket `ready-for-agent`. The launch is no longer parked,
    is ready by the usual rule and is relaunched; its orchestrator's reconcile deals with the kept
@@ -173,9 +174,10 @@ lender and the condition that failed. The lender's own launch goes by its own st
 died mid-batch reads as no session (Stage 1), so its launch is ready and is relaunched before its
 borrower, and its orchestrator's Stage 1 brings the lender back to its recorded commit; one whose
 turn ended awaiting a go-ahead is held on the user. Where no launch of the lender is ready, in
-flight or held, nothing scheduled will make it pass, and the report says the borrower waits on the
-owner, who clears the condition. Under `+ watch` that is a nothing-ready stop like any other
-(Stage 5).
+flight or held, and no `borrowing` line holds it, nothing scheduled will make it pass, and the
+report says the borrower waits on the owner, who clears the condition. A lender a line holds is
+reported as *A borrow that outlived its session* says, naming the launch that clears it. Under
+`+ watch` that is a nothing-ready stop like any other (Stage 5).
 
 **A borrow that outlived its session.** While a map's execution progress carries `borrowing
 <folder> since <time>`, read from the map again at every recompute, `<folder>` is still lent
@@ -184,10 +186,11 @@ its own repository's — the lender's own, and any third repository's that borro
 the map's own repository is what clears the line, in its orchestrator's Stage 1, so it is ready by
 the usual rule with the borrow check's first condition waived on `<folder>`. A map whose read
 keeps failing holds every lender its repository's launches borrow as if it carried the line,
-waives nothing, and the report says the read failed. `+ check` and every
-report name each line, the lender it holds and the launch that clears it. Where no launch of that
-repository is ready, in flight or held, they say the lender waits on the owner, who does that
-cleanup, or has a session of that repository do it, and sees the line removed.
+waives nothing, and the report says the read failed, is retried at every recompute, and that the
+owner restores access to that tracker. `+ check` and every report name each line read, the lender it
+holds and the launch that clears it. Where the map reads and no launch of that repository is ready,
+in flight or held, they say the lender waits on the owner, who does that cleanup, or has a session
+of that repository do it, and sees the line removed.
 
 Recompute every state on every wake and at every `/conduct`: a ticket can close inside a wave that
 later stops, or by hand. In flight at once: two sessions, or the `+ sessions <n>` the user gave —
@@ -294,8 +297,8 @@ outcome line can still show an old pause line.
   - `orchestrate: done`: the launch lands when its tickets are closed. A ticket still open makes it
     parked where it qualifies (Stage 2), and held otherwise.
   - `orchestrate: stopped — …`: when every ticket of the launch is closed it landed anyway, and the
-    stop concerns a later step. Otherwise it is parked where it qualifies (Stage 2), or held: relay
-    its report to the user, who may answer in that tab or through you.
+    stop concerns a later step. Otherwise relay its report to the user, whether the launch is parked
+    where it qualifies (Stage 2) or held; the user may answer in that tab or through you.
   - No outcome line: the turn ended without saying how, through an API error, a usage limit, an
     interrupt or a context limit. Tell the user, with the screen's last lines. It is held.
 - **`unknown`**, or exit 1 (the session is gone): read the pane and tell the user. Send a launch line
