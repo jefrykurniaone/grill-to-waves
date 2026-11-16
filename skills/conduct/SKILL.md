@@ -62,9 +62,10 @@ Done when all of them hold.
    ticket's state as printed, touch nothing in the tree — and read them yourself where it is not.
    For every lender a launch borrows, read what the borrow check needs (SESSIONS.md §6): from its
    map, the cut, the recorded commit, the base and whether the map is open or closed; from its
-   working copy, the check's three reads, `git -C ../<folder> status --porcelain`,
-   `git -C ../<folder> worktree list` and its `HEAD`, with `origin/<base>` where its map records no
-   cut. Fetch nothing there.
+   working copy, the check's three reads, run from your own folder as `git -C <folder>` — §6
+   writes `../<folder>`, the view from a sibling repository:
+   `git --no-optional-locks -C <folder> status --porcelain`, `git -C <folder> worktree list` and
+   its `HEAD`, with `origin/<base>` where its map records no cut. Fetch nothing there.
 3. **Panes**: `herdr pane list` in every workspace. A repository's pane is the one whose cwd is that
    repository's root; where there are several, ask which. A repository without a pane gets a slot in
    your own tab when its launch is ready (Stage 3, *The slots*), and this stage creates none. Under
@@ -137,7 +138,9 @@ owner, who clears the condition. Under `+ watch` that is a nothing-ready stop li
 whatever that map's session is doing (SESSIONS.md §6): the line holds it against every launch but
 its own repository's — the lender's own, and any third repository's that borrows it. A launch of
 the map's own repository is what clears the line, in its orchestrator's Stage 1, so it is ready by
-the usual rule with the borrow check's first condition waived on `<folder>`. `+ check` and every
+the usual rule with the borrow check's first condition waived on `<folder>`. A map whose read
+keeps failing holds every lender its repository's launches borrow as if it carried the line,
+waives nothing, and the report says the read failed. `+ check` and every
 report name each line, the lender it holds and the launch that clears it. Where no launch of that
 repository is ready, in flight or held, they say the lender waits on the owner, who does that
 cleanup, or has a session of that repository do it, and sees the line removed.

@@ -210,7 +210,8 @@ of the maps, the **lead map**, also carries what crosses them:
   it computes a borrowing launch's readiness, and the borrower runs it before its walk, the same
   way. A lender passes when all three hold:
 
-  1. `git -C ../<folder> status --porcelain` is empty.
+  1. `git --no-optional-locks -C ../<folder> status --porcelain` is empty. The option keeps the
+     read off the lender's index lock, which a merge under way there needs.
   2. `git -C ../<folder> worktree list` shows no registered worktree besides the lender's main
      working copy. It is the lender's single-session guard's own read (`/orchestrate` Stage 1): a
      registered worktree is a live session or its leftover, and either is the lender's own business

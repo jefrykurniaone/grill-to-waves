@@ -154,15 +154,19 @@ else of it: a walk that needs its running app uses its working copy only by borr
 
 **A borrowed walk that died.** Where the execution progress carries `borrowing <folder> since
 <time>`, a walk against that repository's working copy died mid-way (*The runtime walk*, *A
-borrowed working copy*), and its walker's report died with it. In this order: check whether that
+borrowed working copy*), and its walker's report died with it. Clean up once the single-session
+guard has been answered, because the walk may be a live session's, and before this stage ends on
+any other wait or stop, an unsatisfied gate included. In this order: check whether that
 repository's app still runs, by its runbook (its port or health URL); stop it the way the runbook
-says, or report that it cannot; re-read its tree as *The lender's tree after the walk* says (*The
+says; re-read its tree as *The lender's tree after the walk* says (*The
 runtime walk*); report the walk's accounts and sentinel data as possibly left in its dev database;
 then remove the line. The line is what keeps that repository lent
 ([../grill-to-waves/SESSIONS.md](../grill-to-waves/SESSIONS.md) §6, *A borrow that outlived its
 session*), so it goes only once the app is stopped, or was found not running, and the tree is
-re-read: an app that cannot be stopped, like a path that cannot be attributed, is a stop with a
-report that leaves the line standing. `+ check` reports the line and does none of this.
+re-read. An app that cannot be stopped, like a path that cannot be attributed, is a stop that
+leaves the line standing: its report names the app's port or health URL, or the path, the owner
+clears it and tells this session to go on, and this session, or the next one's Stage 1, resumes
+from the line. `+ check` reports the line and does none of this.
 
 **The tree preflight**, run before each wave's dispatch and again before each merge batch — not
 before every step:
