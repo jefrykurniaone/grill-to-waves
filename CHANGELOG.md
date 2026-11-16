@@ -3,6 +3,46 @@
 What changed in the pipeline's rules and agent set, newest first. The repository carries no version
 tags, so entries are dated. Tiers are named by alias only, as everywhere else in this repository.
 
+## 2026-11-16 — One integration branch per run
+
+Every run now delivers through a single integration branch and a single review request, instead of
+one pull request per ticket. Tickets merge into the integration branch locally, the whole gate runs
+on it, and the first push is the close.
+
+### After updating
+
+Run the installer again on both hosts (`./install.ps1 -Target both` or `./install.sh --target both`).
+Finish a run already in flight before installing: the updated `/orchestrate` stops on a map with no
+`Integration branch:` line, and a map written before this change has none.
+
+### Changed
+
+- **One integration branch per run.** It is cut from `origin/<base>` at the first wave's preflight
+  and recorded as `<integration branch> cut at <sha>`. Worktrees branch from the last green point
+  recorded per merge batch, never from the base, and ticket branches never nest under it.
+- **Nothing is pushed until the close.** Tickets merge locally with a `Merge #<n> ` commit, which is
+  also what Stage 1 reconciles against, bounded to the run's own merges.
+- **The sync from the base.** The branch merges the base in at every dispatch preflight and before
+  the review request, with attributable conflicts resolved and product decisions a stop.
+- **One review request per run, optionally a draft.** It opens at the close from the integration
+  branch to the base, in the order the orchestrate skill gives: delivery notes, mirror pass, final
+  sync, whole gate, push, request. `Run closes at:` settles draft or ready, and a no-forge close
+  ends at *branch ready* or *merged*. A resumed close never opens a second request.
+- **Executors commit and report.** They never push, never open a review request and never touch the
+  integration or base branch; the Codex no-network caveat is gone. An irreversible ticket Fable did
+  not verify waits for the user's go-ahead before its wave is recorded green.
+- **Mirrors are written by the run.** Planning commits nothing. The spec template opens with an
+  `As of <date>: written against <base> @ <sha>.` line, each spec's mirror lands on the integration
+  branch after the batch holding its first ticket, and the close regenerates each one whole. No
+  `docs/` branch and no docs pull request. *Base branch*, *Integration branch* and *Spec mirror*
+  join the glossary.
+
+### Removed
+
+- The team shape and `+ team`, `+ spec` and `+ tail`. Solo and paired are the two shapes.
+- The Sessions table, `exclusive:` and assignee handling. SESSIONS renumbers around collision,
+  worktrees, breach and paired runs.
+
 ## 2026-11-13 — A narrower second verification
 
 The second verification of a high-consequence ticket was a full review on the most expensive tier.
