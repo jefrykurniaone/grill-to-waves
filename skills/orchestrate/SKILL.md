@@ -158,7 +158,11 @@ borrowed working copy*), and its walker's report died with it. In this order: ch
 repository's app still runs, by its runbook (its port or health URL); stop it the way the runbook
 says, or report that it cannot; re-read its tree as *The lender's tree after the walk* says (*The
 runtime walk*); report the walk's accounts and sentinel data as possibly left in its dev database;
-then remove the line. `+ check` reports the line and does none of this.
+then remove the line. The line is what keeps that repository lent
+([../grill-to-waves/SESSIONS.md](../grill-to-waves/SESSIONS.md) §6, *A borrow that outlived its
+session*), so it goes only once the app is stopped, or was found not running, and the tree is
+re-read: an app that cannot be stopped, like a path that cannot be attributed, is a stop with a
+report that leaves the line standing. `+ check` reports the line and does none of this.
 
 **The tree preflight**, run before each wave's dispatch and again before each merge batch — not
 before every step:
@@ -439,9 +443,10 @@ of them:
 1. **Before the walk**, run the borrow check on it
    ([../grill-to-waves/SESSIONS.md](../grill-to-waves/SESSIONS.md) §6). A lender that fails is a
    stop with a report naming the lender and the condition that failed. `/conduct`, or the user
-   starting this launch by hand, saw it pass when this launch went, and occupancy has kept every
-   scheduled session out of it since, so the cause is outside the schedule: the owner clears it and
-   tells this session to go on.
+   starting this launch by hand, saw it pass when this launch went — but for a dead walk's
+   leftovers, which Stage 1 has cleaned up since — and occupancy has kept every scheduled session
+   out of it since, so the cause is outside the schedule: the owner clears it and tells this
+   session to go on.
 2. **Start its app** the way that repository's own steering file (`CLAUDE.md`, `AGENTS.md`) or
    runbook says, run the walk, and stop the app once the walk returns, whatever it found. Before
    the app starts, add `borrowing <folder> since <time>` to this map's execution progress, so a

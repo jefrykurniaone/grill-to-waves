@@ -230,6 +230,17 @@ of the maps, the **lead map**, also carries what crosses them:
   an owner's own session in a lender that makes no worktree is seen only by `/conduct`'s pane read,
   and not at all outside herdr.
 
+  **A borrow that outlived its session.** A borrower's map carries `borrowing <folder> since <time>`
+  from before it starts a lender's app until that walk's leftovers are dealt with (`/orchestrate`
+  *The runtime walk*). While the line stands the lender is still lent, whatever became of the
+  borrower's session: its app may be running there and its dev database may hold the walk's data.
+  No session of the lender starts, and no other launch borrows it, until the line is gone, which
+  is the work of the next session of the borrower's repository (`/orchestrate` Stage 1, *A
+  borrowed walk that died*). For that session's launch alone, whoever starts it waives the check's
+  first condition on that lender, because the app's own rewrites are what its cleanup restores. The
+  other two still hold, since a registered worktree or a moved `HEAD` is no walk's leftover, and
+  its next walk runs the whole check.
+
   Released launches of different repositories run at the same time when they occupy no repository
   in common; one repository's waves run one after another, in its one session.
 

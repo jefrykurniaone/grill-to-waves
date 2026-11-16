@@ -55,6 +55,7 @@ Done when all of them hold.
    carries one. A lead map without the run order is a stop: say what is missing.
 2. **Every repository's map**, through that repository's own tracker, from inside that repository
    ([../grill-to-waves/TRACKERS.md](../grill-to-waves/TRACKERS.md)): its execution-progress section,
+   any `borrowing <folder> since <time>` line included (Stage 2),
    its in-flight ceiling, and the state of every ticket the run order names. The ticket states are a
    table with no decision in it: where `clerk-haiku-medium` is installed, give it one brief per
    repository — run the tracker's list command from inside that repository, return each named
@@ -90,6 +91,7 @@ every lender has the reads its borrow check needs.
 
 **`+ check`** prints exactly that — every launch with its state (Stage 2) and its borrows, each
 borrowing launch's borrow check per lender with the condition that failed where one did, each
+`borrowing` line as Stage 2 says, each
 repository's pane and session, the repositories without a pane, and what is ready — and stops. It
 creates, starts and sends nothing.
 
@@ -112,8 +114,8 @@ launched by the user with its own `/orchestrate` line, outside this run's schedu
 - **held** while its session's turn has ended on `orchestrate: stopped`, on no outcome line, or on
   `orchestrate: done` with a ticket still open, until that session works again;
 - **ready** when it is released, not landed, in flight or held, no other launch in flight or
-  held occupies a repository it occupies, and, where it borrows, every lender passes the borrow
-  check (SESSIONS.md §6).
+  held occupies a repository it occupies, no other repository's `borrowing` line holds one
+  (below), and, where it borrows, every lender passes the borrow check (SESSIONS.md §6).
 
 A launch **occupies** its own repository and every repository it borrows: one session per working
 copy. The rule is symmetric — a launch that borrows a repository waits on that repository's launch
@@ -129,6 +131,16 @@ turn ended awaiting a go-ahead is held on the user. Where no launch of the lende
 flight or held, nothing scheduled will make it pass, and the report says the borrower waits on the
 owner, who clears the condition. Under `+ watch` that is a nothing-ready stop like any other
 (Stage 5).
+
+**A borrow that outlived its session.** While a map's execution progress carries `borrowing
+<folder> since <time>`, read from the map again at every recompute, `<folder>` is still lent
+whatever that map's session is doing (SESSIONS.md §6): the line holds it against every launch but
+its own repository's — the lender's own, and any third repository's that borrows it. A launch of
+the map's own repository is what clears the line, in its orchestrator's Stage 1, so it is ready by
+the usual rule with the borrow check's first condition waived on `<folder>`. `+ check` and every
+report name each line, the lender it holds and the launch that clears it. Where no launch of that
+repository is ready, in flight or held, they say the lender waits on the owner, who does that
+cleanup, or has a session of that repository do it, and sees the line removed.
 
 Recompute every state on every wake and at every `/conduct`: a ticket can close inside a wave that
 later stops, or by hand. In flight at once: two sessions, or the `+ sessions <n>` the user gave —
