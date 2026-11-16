@@ -95,7 +95,9 @@ meets:
   implementation against a written design is a diff review.
 - **Fable unavailable**: `scout-opus-high`.
 - **The ticket is irreversible and Fable did not verify it**: wait for the user's go-ahead before its
-  wave is recorded green, naming the ticket and what a reset of the branch will not undo.
+  wave is recorded green, naming the ticket and what a reset of the branch will not undo. The
+  question also asks how the dev database is brought back should the user refuse (`/orchestrate`
+  *Merge the batch*).
 
 The brief writes nothing. It carries the ticket, the diff and the checks: the invariant each clause
 names, and each decision the executor made that the ticket did not settle. Scope against `writes:`,

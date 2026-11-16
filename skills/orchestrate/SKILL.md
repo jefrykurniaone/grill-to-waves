@@ -104,6 +104,13 @@ That batch's tickets are exempt from the surviving-worktree rules below and from
 question: their worktrees stay until the batch is recorded green or refused, and a refused
 ticket's then goes as a `ready-for-human` ticket's does (*Record, close, tear down*).
 
+**A `dev database:` line** in the execution progress says the dev database holds the effects of an
+irreversible ticket dropped after the batch's walk ran (*Merge the batch*, *The dev database after a
+dropped irreversible ticket*). Read it before any reset or walk of that batch, the refused batch's
+re-run above included. With an answer, follow it as *Reset and re-run* says; with none, ask the
+user which of *Merge the batch* step 5's three answers applies, and stop on it, under `+ all` too.
+It may stand beside an `awaiting go-ahead:` line; the green point replaces both.
+
 **Reconcile before dispatching anything.** The evidence, on every tracker, is the `#<n>` merge
 subject on the integration branch, read only among this run's own merges — first parent, from the
 recorded cut to the recorded commit:
@@ -199,6 +206,7 @@ before every step:
 the integration branch with its base, its last green point and how far `origin/<base>` is ahead of it,
 an `awaiting go-ahead:` line as the state the run is in, never as a failing preflight step 4, with
 no wave dispatchable until it is answered,
+a `dev database:` line as part of that state, with its answer or that it has none,
 what the guard found, what the preflight found, which of the run's own paths
 ([../grill-to-waves/SESSIONS.md](../grill-to-waves/SESSIONS.md) §4) are not yet ignored, cross-run gates with the tickets they wait on, and the
 line to run next. It also prints what will actually run: the model and effort of this session as the
@@ -388,22 +396,34 @@ failures verbatim; attributing a break and judging the tree stay here:
 4. **Then the runtime walk**, on the integration branch's `HEAD`, for every ticket whose `runtime:`
    is not `none` and for every check the map pins to this wave — dispatched and judged as *The
    runtime walk* says. A failed row of a ticket takes the red gate's path below, without that
-   ticket. A failed row of a pinned check names no ticket, so it is attributed as a red whole gate
-   is: read what the check measures against the batch's diffs. Where it points at one ticket merge,
-   it takes the red gate's path without that ticket. Where it points at no ticket merge — the sync
-   from the base, or a state the recorded commit already held — it is a stop with a report: the
-   defect is filed as its own item, and no green point is recorded.
+   ticket; where that ticket is irreversible, the dev database is settled with the user before the
+   reset (*The dev database after a dropped irreversible ticket*, below). A failed row of a pinned
+   check names no ticket, so it is attributed as a red whole gate is: read what the check measures
+   against the batch's diffs. Where it points at one ticket merge, it takes the red gate's path
+   without that ticket. Where it points at no ticket merge — the sync from the base, or a state the
+   recorded commit already held — it is a stop with a report: the defect is filed as its own item,
+   and no green point is recorded.
 5. **Record the green point, and push nothing.** Only when the gate and the walk are both green —
    and, where the batch holds an irreversible ticket Fable did not verify, once the user has given
    the go-ahead — rewrite the map's execution progress to carry `<integration branch> @ <sha>`
    before anything else. While that go-ahead is pending, the execution progress carries
    `awaiting go-ahead: #<n>[, #<m>…] @ <batch head sha>`, naming every irreversible ticket in the
    batch, written the moment the gate and the walk are green, so the wait survives the session's
-   end (Stage 1); the green point replaces it. **A refused go-ahead** is recorded before anything
-   else: swap the refused tickets' `ready-for-agent` for `ready-for-human` and post on each the
-   comment saying why, so a session that dies from here on resumes it (Stage 1). Then reset and
-   re-run without them, below. The refused tickets' worktrees go as *Record, close, tear down* says
-   for that label.
+   end (Stage 1); the green point replaces it. The go-ahead question names each such ticket and what
+   a reset of the branch will not undo
+   ([../grill-to-waves/DEFAULTS.md](../grill-to-waves/DEFAULTS.md) *Verifying a high-consequence
+   ticket*), and asks in the same exchange which of these applies to the dev database should the
+   user refuse (*The dev database after a dropped irreversible ticket*, below):
+   1. the user restores the dev database and says so;
+   2. you reset or re-seed it by the repository's runbook — offered only where the runbook names how;
+   3. the re-run's walk runs against it as it is, and the walk's table says it ran against a dev
+      database holding that ticket's effects.
+
+   **A refused go-ahead** is recorded before anything else: write the `dev database:` line with the
+   answer, then swap the refused tickets' `ready-for-agent` for `ready-for-human` and post on each
+   the comment saying why, carrying that answer, so a session that dies from here on resumes it
+   (Stage 1). Then reset and re-run without them, below. The refused tickets' worktrees go as
+   *Record, close, tear down* says for that label.
 
 **A red gate** — a red fast gate at step 2, a red whole gate after the last merge, which points at
 that merge first, or a failed walk row at step 4 — is attributed by reading its failures against
@@ -422,12 +442,34 @@ base, or a state the recorded commit already held — which is a stop with a rep
 ticket owns the fix. No count caps it: the attribution is the bound, and every drop spends one of
 that ticket's hand-backs.
 
+**The dev database after a dropped irreversible ticket.** A reset undoes the code, never what an
+irreversible ticket — the map names each high-consequence ticket with its clauses — did to the dev
+database once a walk of the batch ran against it. So a reset that drops an irreversible ticket after
+the batch's walk has run settles with the user, before the re-run's walk, how the dev database is
+brought back: a refused go-ahead (step 5), or a failed walk row that points at an irreversible
+ticket (step 4), and, in a re-run after such a walk, any red gate that drops one. A red fast gate
+or a red whole gate before the batch's walk is outside the rule: no walk has run, so the dev
+database holds nothing of the batch. A refusal carries the answer in the go-ahead exchange. Any
+other such drop writes the line with no answer before the reset and asks which of step 5's three
+answers applies; that is a decision that is the user's, so the session stops on it, under `+ all`
+too, and resets once it is answered. The answer is written through twice: as a comment on each
+ticket the line names — for a refusal, the refusal comment step 5 posts — and in the map's
+execution progress as `dev database: holds the effects of #<n>[, #<m>] — <answer>`, from before
+the reset until the re-run records green; the green point replaces the line. A further such drop
+before then adds its ticket to the line and asks again. A line with no answer yet is asked again,
+and nothing walks against that dev database until it is answered (Stage 1).
+
 **Reset and re-run**, for a refused go-ahead and a red gate alike: `git reset --hard <recorded
 commit>`; sync from the base wherever `origin/<base>` holds commits the recorded commit lacks, as
 the tree preflight's step 6 does (*The integration branch*); then run steps 2 to 5 again — the
 merges, the mirrors and the tracker record, the whole gate, the walk — without the dropped tickets,
 every ticket dropped from this batch so far, for a conflict, a breach or a third failure among them,
-ending on the green point or the next awaiting line, which replaces any line standing.
+ending on the green point or the next awaiting line, which replaces any `awaiting go-ahead:` line
+standing; a `dev database:` line stays until the green point. Where a `dev database:` line stands,
+carry out its answer before step 4's walk: answer 2 is your own step before that walk, by the
+runbook; answer 1 waits for the user's word that the dev database is restored, which a resuming
+session asks for again; answer 3 goes into the walk's brief, so its table says it ran against a
+dev database holding those tickets' effects.
 
 ## The runtime walk — a sub-agent walks, you judge
 
@@ -644,7 +686,8 @@ Closing upward is part of finishing.
 order without a further go-ahead, and stop early only on a red gate whose stripping ends on a failure
 that points at no ticket merge (*Merge the batch*, *When the stripping ends*), a failed pinned check
 that points at none (*Merge the batch*, step 4), or a decision that is the user's — an `awaiting
-go-ahead:` line among them, which stops before the next dispatch. A `writes:` breach and a ticket's
+go-ahead:` line among them, which stops before the next dispatch, and a `dev database:` line with no
+answer, which stops before the re-run's walk. A `writes:` breach and a ticket's
 third failure stop at the end of their wave, once the rest of the batch is recorded green and the
 wave torn down. The closing chain above always runs without a further go-ahead.
 
