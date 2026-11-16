@@ -221,8 +221,8 @@ Stage 4: `Run closes at:`, `Steps after close owned by:`, and beside them
 1. **Execution progress** — first, above everything else, because it is the first thing a resuming
    session reads. At publication it is one line: the run has not started, wave 1 is next, and this
    section is rewritten whole in the map's body by `/orchestrate` after every wave, carrying the
-   integration branch's cut and, from the first green wave, its last green point,
-   `<integration branch> @ <sha>`. It is live state,
+   integration branch's cut, `<integration branch> cut at <sha>`, and, once one is recorded, its
+   last green point, `<integration branch> @ <sha>`. It is live state,
    never a log: wave reports and dated notes go to the comment thread, or beside a local map to
    `map-log.md` ([TRACKERS.md](./TRACKERS.md)). Leaving the slot empty invites the progress to live
    in that log instead, where the next session acts without it.

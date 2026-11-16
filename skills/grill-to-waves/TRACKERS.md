@@ -7,8 +7,9 @@ label, link and close mechanics.
 
 Each tracker's **Deliver** line covers only the run's close. Up to then delivery is the same on every
 tracker: the orchestrator merges each ticket's branch into the run's integration branch locally, with
-a merge commit whose subject carries the ticket number as `#<n>` (`#NN` on a local tracker) — the
-reconcile evidence `/orchestrate`'s Stage 1 grep matches — and pushes nothing before the close.
+a merge commit whose subject starts `Merge #<n> ` (`#NN` on a local tracker) — the reconcile
+evidence `/orchestrate`'s Stage 1 grep matches, anchored to that form and read only among the run's
+own merges — and pushes nothing before the close.
 
 ## GitHub (`gh`)
 

@@ -87,13 +87,18 @@ exists, or a mirror commit, reset to the recorded commit and run the wave or the
 again from there; anything else is a stop.
 
 **Reconcile before dispatching anything.** The evidence, on every tracker, is the `#<n>` merge
-subject on the integration branch, read up to the recorded commit because a merge past it was
-never gated — `git log --merges -E --grep '#<n>([^0-9]|$)' <recorded commit>`, anchored, because
-`#25` also matches `#253`. Such a merge on a still-open ticket means a previous session died between
-recording the wave and closing its tickets: post the record and close it, never re-run it. A ticket
-branch with no worktree: delete it when the integration branch already holds it, otherwise inspect,
-salvage or delete, and say which. A worktree whose ticket is closed: tear it down. Tickets have no
-review requests of their own, so there are none to reconcile.
+subject on the integration branch, read only among this run's own merges — first parent, from the
+recorded cut to the recorded commit:
+`git log --merges --first-parent -E --grep '^Merge #<n>([^0-9]|$)' <cut>..<recorded commit>`.
+The range keeps out the base's history and an earlier run's merges, which on a local tracker reuse
+the same `#01`; the range ends at the recorded commit because a merge past it was never gated;
+and the pattern is anchored to the subject form, because `#25` also matches `#253` and a title can
+carry another `#<m>`. With no cut recorded there is nothing to reconcile. Such a merge on a
+still-open ticket means a previous session died between recording the wave and closing its tickets:
+post the record and close it, never re-run it. A ticket branch with no worktree: delete it when the
+recorded commit already holds it, otherwise inspect, salvage or delete, and say which. A worktree
+whose ticket is closed: tear it down. Tickets have no review requests of their own, so there are
+none to reconcile.
 
 **The single-session guard.** It asks one question — is another *agent session* live in **this working
 copy**? `git worktree list` showing a **registered** worktree outside this session's own directory says
@@ -158,9 +163,9 @@ request.
   close, the run's code exists only in this working copy.
 - **The last green point.** Once a merge batch's gate and walk are green, the map's execution
   progress records `<integration branch> @ <sha>`, posted the moment it is true (*Merge the batch*,
-  step 5). **The recorded commit** is that last green point, or the cut until the first wave is
-  recorded green. The next wave's worktrees branch from it, a red gate resets to it, and the
-  preflight expects `HEAD` there.
+  step 5). **The recorded commit** is that last green point, or, until a green point is recorded,
+  the cut. The next worktrees branch from it, a red gate resets to it, and the preflight expects
+  `HEAD` there.
 - **Sync from the base.** Whenever `origin/<base>` holds commits the integration branch lacks —
   checked at every wave's preflight before dispatch, and once more at the close before the review
   request — merge it in with a merge commit, `git merge --no-ff origin/<base>`, never a rebase and
@@ -230,7 +235,8 @@ Then, in one pass:
 
 1. **Worktrees** at `.claude/worktrees/<run-slug>/<ticket>`, one branch per ticket in the repo's
    prefix vocabulary, never nested under the integration branch's name, off the recorded commit —
-   the last green point, or in the first wave the cut. Never off `origin/<base>` or the base branch,
+   the last green point, or the cut where none is recorded yet. Never off `origin/<base>` or the
+   base branch,
    and never off a sync merge the preflight just made, which no gate has run on yet. `deps: shared` →
    copy
    the local environment file and link the dependency tree (a junction on Windows, a symlink
@@ -342,8 +348,10 @@ give it; read the draft, then post it yourself.
 
 Per wave, **two writes on the map, and the body is the one that matters**:
 
-- **Rewrite the map's execution-progress section in its body.** The last green point,
-  `<integration branch> @ <sha>`, already written by *Merge the batch*; the waves table with what
+- **Rewrite the map's execution-progress section in its body.** The cut line,
+  `<integration branch> cut at <sha>`, kept as it was written, because the reconcile range starts
+  there; the last green point, `<integration branch> @ <sha>`, already written by *Merge the
+  batch*; the waves table with what
   landed and its merge commit, how many tickets remain, the next dispatchable tickets from a live blocking-edge read, the
   open items still blocking the close, and the tree state. A fact the next session needs before it
   dispatches is one line here; how the wave went belongs to the log. Stage 1 reads the body first and
@@ -393,32 +401,40 @@ green on `HEAD` — a recorded gate run stands when `HEAD` is the commit it ran 
 `git status --porcelain` is empty, and is run again only otherwise; the mirror pass from
 `/grill-to-waves` Stage 2 run over every spec this run produced — the delivery notes written on the
 spec item, each mirror regenerated from it (the copy is a clerk chore; the delivery notes are yours);
-the walk's screenshots posted on the run's review request as one captioned note; and the integration
-branch synced with the base, pushed, and its review request at the close point.
+the walk's screenshots posted on the run's review request as one captioned note (without a forge,
+with the execution record in the map's last log entry); and the integration branch synced with the
+base and pushed — both judged as of the moment its review request opened, since the base moves on
+once it merges — and its review request at the close point.
 
-**The close runs in this order**, once every ticket on this side of the close point is closed:
+**The close runs in this order**, once every ticket on this side of the close point is closed.
+Steps 1 to 6 run once. A resumed close that finds a review request from the integration branch
+already there, open or merged, goes straight to step 7; a no-forge *merged* close that finds the base
+already holding the integration branch's tip goes straight to step 8.
 
 1. **Delivery notes** on each spec item this run produced.
 2. **The mirror pass, as one commit** on the integration branch.
-3. **The final sync** from the base (*The integration branch*).
+3. **The final sync**: `git fetch --prune`, since the tree preflight does not run at the close, then
+   sync from the base (*The integration branch*).
 4. **The whole gate** on `HEAD`, reused where the record above stands; its commit is recorded as the
    last green point.
 5. **Push the integration branch** where a remote exists, `git push -u origin <integration branch>`:
    the run's first push.
 6. **One review request to the base**, opened as a draft when `Run closes at:` is *draft review
-   request opened* and ready for review otherwise — or, after a resume, the one already open from the
-   integration branch. Its body is the execution record: every ticket with its merge commit, the
-   gate result with the commit it ran on, a summary of each Fable-tier correctness argument, and the
-   steps handed over past the close point with their owner. Post the walk's screenshots on it.
+   request opened* and ready for review otherwise. Its body is the execution record: every ticket
+   with its merge commit, the gate result with the commit it ran on, a summary of each Fable-tier
+   correctness argument, and the steps handed over past the close point with their owner. Post the walk's screenshots on it.
    [../grill-to-waves/TRACKERS.md](../grill-to-waves/TRACKERS.md) *Deliver* has the commands.
 7. **Wait to the close point**: the request open, for *draft review request opened* or *review
-   request opened*; the base holding the integration branch, for *merged*; the promotion reported,
-   for *deployed* (below).
+   request opened*; the request's merged state on the forge, for *merged* — never ancestry, since a
+   squash or rebase merge leaves the base without the integration branch's commits; the promotion
+   reported, for *deployed* (below).
    Without a forge there is no request: *branch ready* is reached at step 5, with the merge handed
-   to the owner; for *merged*, bring the local base to `origin/<base>`, merge the integration branch
-   into it with `--no-ff` after the final gate, and push the base where a remote exists.
-8. **Close the map**, its last log entry linking the review request, and where a spec has a parent
-   item above it, post a delivery summary there and close it too.
+   to the owner; for *merged*, fast-forward the local base to `origin/<base>` (never a reset), merge
+   the integration branch into it with `--no-ff` after the final gate, and push the base where a
+   remote exists.
+8. **Close the map**, its last log entry linking the review request — or, without a forge, carrying
+   the execution record and the walk's screenshots itself — and where a spec has a parent item above
+   it, post a delivery summary there and close it too.
 
 Closing upward is part of finishing.
 

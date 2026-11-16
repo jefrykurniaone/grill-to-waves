@@ -11,7 +11,7 @@ disable-model-invocation: true
 /ship-it-to prd      promote to the production branch
 ```
 
-Where `/orchestrate` ends — a run's work taken to the base branch — this begins. It is a separate
+Once a run's work has reached the base branch, this begins. It is a separate
 skill because promotion is a different job: it happens once per release rather than once per run,
 its gate runs on a combination the base branch never tested, and its failure
 mode is a production deploy rather than a handed-back ticket.
