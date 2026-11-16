@@ -152,14 +152,19 @@ had already met the untracked paths.
 An executor that must write outside `writes:` stops and reports. A surface breach, whether the
 executor reports it or the diff the session reads shows it, is a re-planning decision, never a
 widening: the session swaps the ticket's `ready-for-agent` for `ready-for-human`, posts a comment
-naming the ticket and the path, and drops it from the batch. The batch's other green tickets merge,
-gate, walk and record green as usual, the wave is torn down — the dropped ticket's worktree with it,
-its branch kept and named (`/orchestrate`, *Record, close, tear down*) — and the session stops at
-the end of that wave, under `+ all` too.
+naming the ticket and the path, and drops it from the batch. A ticket's third failure is handed to a
+human the same way: every hand-back counts toward its two, a merge conflict's included, and on the
+third failure the session swaps its `ready-for-agent` for `ready-for-human`, posts on it the
+findings that failed it, and drops it from the batch (`/orchestrate`, *Record, close, tear down*).
+Either way, the batch's other green tickets merge, gate, walk and record green as usual, the wave is
+torn down — the dropped ticket's worktree with it, its uncommitted work committed as one
+work-in-progress commit and its branch kept and named (`/orchestrate`, *Record, close, tear down*) —
+and the session stops at the end of that wave, under `+ all` too. The label is what keeps a later
+session from merging it: a resuming session's reconcile reads a surviving `ready-for-agent` worktree
+as an executor's lost report.
 
-Stop and hand the decision to the user, with the reason posted on the ticket or the map, for: a third
-hand-back, a non-quiescent tree that cannot be cleaned, or a second agent session found in this
-working copy.
+Stop and hand the decision to the user, with the reason posted on the ticket or the map, for: a
+non-quiescent tree that cannot be cleaned, or a second agent session found in this working copy.
 
 ## 6. Paired runs — one run across repositories
 
