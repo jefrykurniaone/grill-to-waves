@@ -5,7 +5,7 @@ an item, **link as child**, **record a blocking edge**, **label**, and **read th
 own tracker record, `docs/agents/issue-tracker.md` (*The tracker record*, below), is read first and
 governs which tracker is used and how items, labels and links are recorded on it; the commands stay
 in this file, and only a tracker this file has no section of commands for has them described in its
-record (*Other trackers*).
+record (*Other trackers*), which the owner writes before planning.
 
 Each tracker's **Deliver** line covers only the run's close. Up to then delivery is the same on every
 tracker: the orchestrator merges each ticket's branch into the run's integration branch locally, with
@@ -100,7 +100,10 @@ One run per directory, `.scratch/<run-slug>/`.
 
 ## Other trackers (Jira, Linear, …)
 
-`docs/agents/issue-tracker.md` describes the workflow in prose; follow it for publish, label, link,
+Planning's Stage 0 never detects such a tracker. It is used only where `docs/agents/issue-tracker.md`
+already names it, written before planning by the owner or by `/setup-matt-pocock-skills`, in the
+layout of *The tracker record*'s last paragraph; `/orchestrate` writes no record for it. The record
+describes the workflow in prose; follow it for publish, label, link,
 edge and close. Two things to establish before the first run and record in the map's "How this is
 executed" section: **how a comment is posted** (a REST call, or the CLI), and **what stands in for
 labels** (a field, a component, a tag). Everything else in
@@ -149,7 +152,8 @@ folder.
 not detect it again, and says how items, labels and links are recorded on it. The mechanics, the
 commands that carry the operations out, stay in this file for every tracker it has a section of
 commands for. Where the repository has none, `/orchestrate` writes it from the map's record of the
-tracker planning's Stage 0 detected (its *Merge the batch*, step 3), in this layout:
+tracker planning's Stage 0 detected — GitHub, GitLab or local (its *Merge the batch*, step 3) — in
+this layout:
 
 1. **A title**: `# Issue tracker`.
 2. **One paragraph** naming the tracker, its CLI where it has one, and the repository or project it
@@ -170,7 +174,8 @@ tracker planning's Stage 0 detected (its *Merge the batch*, step 3), in this lay
    outside the repository. A row whose operation has no bold entry in its section (GitLab and local
    markdown have no **Frontier read**) points at the section alone. The commands are not restated.
 
-For any other tracker, whose section here is *Other trackers* and carries no commands, the record
+For any other tracker, whose section here is *Other trackers* and carries no commands, the record,
+which the owner writes by hand before planning and `/orchestrate` never writes (*Other trackers*),
 describes each operation in prose instead of pointing at one — publish, link, blocking edge, label,
 frontier read and close — and says **how a comment is posted** and **what stands in for labels**,
 the two facts that section requires; its *Operations* row for delivering the run points at that

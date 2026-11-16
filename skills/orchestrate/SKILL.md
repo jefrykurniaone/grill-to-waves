@@ -71,7 +71,8 @@ before the close, so the remote carries none of it.
    counts.
 3. **Git ground truth** — `git fetch --prune`, `git status --porcelain`, the local integration
    branch (whether it exists, whether it contains the recorded commit, `git log --merges` on it),
-   the commits `origin/<base>` holds that it lacks, every ticket branch, `git worktree list`.
+   its upstream, if any (`git rev-parse --abbrev-ref <integration branch>@{upstream}`), the commits
+   `origin/<base>` holds that it lacks, every ticket branch, `git worktree list`.
 4. **The repo's agent rules** — `CLAUDE.md`, `AGENTS.md`, and anything they include: the gate
    commands, the seams, the hard rules an executor brief has to carry.
 
@@ -195,7 +196,11 @@ before every step:
    the go-ahead question only: no wave is dispatched from it (Stage 1). Before the
    first wave the map records no cut yet: the branch is absent, and is cut now, or has no commits of
    its own and is an ancestor of `origin/<base>`, not only equal to it, and is recorded as the cut
-   now (*The integration branch*); step 6 then syncs it with any base commits it lacks.
+   now (*The integration branch*); step 6 then syncs it with any base commits it lacks. Before the
+   close the branch has no upstream: one other than `origin/<integration branch>` (a branch cut by
+   the old rule has the base) is unset, `git branch --unset-upstream <integration branch>`, and the
+   wave report names it. After the close's `git push -u` the upstream is
+   `origin/<integration branch>`, and a resumed close leaves it alone.
 5. Where the repo generates a database client or other build-time artifact into the dependency tree,
    it is present. Missing → repair it before anything else, because it misattributes every failure
    downstream of it.
@@ -204,6 +209,8 @@ before every step:
 
 **`+ check`** runs Stage 1 read-only and prints: the waves with each ticket's state and open blockers,
 the integration branch with its base, its last green point and how far `origin/<base>` is ahead of it,
+its upstream where it has one other than `origin/<integration branch>` (the preflight's step 4
+unsets it; `+ check` writes nothing),
 an `awaiting go-ahead:` line as the state the run is in, never as a failing preflight step 4, with
 no wave dispatchable until it is answered,
 a `dev database:` line as part of that state, with its answer or that it has none,
@@ -222,8 +229,11 @@ merges into it, it is kept current with the base, and the close takes it to the 
 request.
 
 - **The cut.** At the first wave's preflight, when the branch does not exist locally, cut it from the
-  base as just fetched: `git switch -c <integration branch> origin/<base>`, and record the cut in the
-  map's execution progress at once, `<integration branch> cut at <sha>`. A resuming session uses
+  base as just fetched: `git switch --no-track -c <integration branch> origin/<base>` (git's
+  default gives a branch cut from a remote-tracking branch that branch as its upstream, and the
+  integration branch has none before the close, so a bare `git pull` or `git push` cannot reach the
+  base), and record the cut in
+  the map's execution progress at once, `<integration branch> cut at <sha>`. A resuming session uses
   the existing local branch, trusted as Stage 1 says. Planning cuts nothing. The name is the map's,
   in the repository's branch-prefix vocabulary, `feat/<run-slug>` by default, and ticket branches
   never nest under it, because git refuses `feat/x` and `feat/x/…` side by side.
@@ -385,7 +395,8 @@ failures verbatim; attributing a break and judging the tree stay here:
    mirrors the integration branch holds — not a wave number, so it survives a reset and a resume. A
    clerk may do the copy; you commit it. The **tracker record** is a commit of its own and follows
    the same state rule: where the map's *How this is executed* records a tracker Stage 0 detected
-   and `docs/agents/issue-tracker.md` is absent from the integration branch, write that file from the
+   (GitHub, GitLab or local) and `docs/agents/issue-tracker.md` is absent from the integration
+   branch, write that file from the
    map's record, in the layout [../grill-to-waves/TRACKERS.md](../grill-to-waves/TRACKERS.md)
    *The tracker record* names, and commit it beside this batch's
    mirror commits, which puts it in the first merge batch: planning wrote none. Where a ticket's
