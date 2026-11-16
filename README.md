@@ -221,8 +221,9 @@ Re-run the installer to move to a newer release.
   warns when it finds it; remove it with `claude plugin uninstall mattpocock-skills@mattpocock`.
 
 Running `/setup-matt-pocock-skills` (`$setup-matt-pocock-skills` on Codex) in a repository before
-its first pipeline run is optional; commit the `docs/agents/issue-tracker.md` it writes before the
-run starts, or leave the file to the run. Planning writes no file: Stage 0 records the tracker it
+its first pipeline run is optional; the `docs/agents/issue-tracker.md` it writes must reach the base
+branch before the run starts, the way any change does in that repository. Otherwise skip the
+command. Planning writes no file: Stage 0 records the tracker it
 detected in the map, and the run's orchestrator writes `docs/agents/issue-tracker.md` and commits it
 with the first merge batch's spec mirrors.
 
