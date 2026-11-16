@@ -67,8 +67,12 @@ deps: shared
   review request of its own. Generated output or a lockfile the ticket did not declare **is** a
   breach.
 - `reads:` is informational and never used for collision.
-- `runtime:` is `dev-db`, `dev-server` or `none` — what the **orchestrator's verification** of the
-  ticket needs. Executors never touch the dev server or the dev database (no migrations, no seeds);
+- `runtime:` is `dev-db`, `dev-server` or `none`, plus any number of `peer:<folder>` entries — what
+  the **orchestrator's verification** of the ticket needs. Each `peer:` entry names, by its folder, a
+  repository of the paired run whose running app that verification needs, and makes the ticket's
+  launch borrow that repository's working copy (§6): `runtime: dev-server, peer:payments-service`.
+  A `peer:` entry takes no part in collision, since different working copies share no file.
+  Executors never touch the dev server or the dev database (no migrations, no seeds);
   only the orchestrator does. A `dev-server` verification is driven by **Playwright MCP**
   (`mcp__playwright__*`) where that server is connected, and by the scripted Playwright fallback or
   plain HTTP where it is not — which of the two was used is stated in the report, never left implied.
@@ -137,19 +141,31 @@ of the maps, the **lead map**, also carries what crosses them:
   |---|---|---|
   | G1 | billing-service · 1 · 01; ledger-service · 1 · 01 | — |
   | G2 | payments-service · 1 · 01–03 | billing-service 01; ledger-service 01 |
-  | G3 | portal · 1 · 02, 04 | payments-service wave 1 |
+  | G3 | portal · 1 · 02, 04 · borrows payments-service | payments-service wave 1 |
   ```
 
   A row lists every repository wave its step starts, `;`-separated, each with that repository's own
   wave number. *Released by* names what must be closed first: tickets as `<repository> <ticket>`, a
   whole wave as `<repository> wave <k>`, or the owner's go-ahead — a decision. `—` is released from
   the start. A blocker is released once it is merged onto its own repository's integration branch,
-  locally, and closed — long before that repository's close: the repositories are sibling working
-  copies on one machine, so a dependent walk can use the blocker's working copy. Repositories are named by their folder names, the lead's included; *this repository* in the table
+  locally, and closed — long before that repository's close. Repositories are named by their folder names, the lead's included; *this repository* in the table
   means the lead map's. A row may name part of a wave: its launch still runs the whole wave, whose
   orchestrator dispatches only the tickets with no open blocker, and a later row takes the rest.
-  Released waves of different repositories run at the same time, since they share no working copy;
-  one repository's waves run one after another, in its one session.
+
+  A launch **borrows** a repository's working copy when any ticket of the repository wave it runs
+  names that repository as `peer:<folder>` in its `runtime:` (§2) — any ticket of the whole wave, not
+  only those its row names, because the launch runs the whole wave. The borrows are written after its
+  tickets as `· borrows <folder>[, <folder>]`: `portal · 1 · 02, 04 · borrows payments-service`,
+  several as `· borrows billing-service, payments-service`. It is a suffix, not a column, because one
+  row holds several launches and only some of them borrow. **The borrowing
+  rule:** the launch occupies each working copy it borrows for its whole duration, as it occupies
+  its own, so no session of that repository runs meanwhile and the borrower's session is the only
+  one there; its walk uses that working copy only at that repository's recorded commit and writes
+  nothing to it. `/orchestrate` *The runtime walk* has the walk's procedure, and `/conduct` Stage 2
+  when a launch is ready. A dependent uses another repository's working copy only by borrowing it.
+
+  Released launches of different repositories run at the same time when they occupy no repository
+  in common; one repository's waves run one after another, in its one session.
 
 The run order is the schedule, never the proof. Each repository's map still records its own
 cross-repository blocking edges on its tickets, so its orchestrator verifies them itself
@@ -190,7 +206,10 @@ below. The stages change in these ways and no others:
   launch is one repository wave, and it goes one step after the latest of its own repository's
   previous wave and every launch holding a cross-repository blocker of one of its tickets; a launch with neither goes in G1. *Released by*
   names those blockers. Where only some tickets of a wave wait, the others may start a step
-  earlier, as a row naming part of the wave.
+  earlier, as a row naming part of the wave. Every `peer:` entry of every ticket in the repository
+  wave a launch runs, not only of the tickets its row names, is carried onto that launch as its
+  `· borrows` suffix, each folder once: two rows naming parts of one wave each carry the whole
+  wave's borrows.
 - **Stage 5, a map per repository**, in its own tracker, each with every section Stage 5 lists for
   that repository alone. Its *Parent* names the paired specs, and every cross-repository edge its
   tickets carry is listed there as a cross-run gate. The lead map adds the *Paired runs* line and the
