@@ -55,6 +55,11 @@ The point-in-time copy of a spec item kept in the repository, written by the run
 spec and regenerated from the item when that run closes; the item, not the mirror, is the spec.
 _Avoid_: docs copy, spec file
 
+**Tracker record**:
+The file in a repository that names its tracker, so that planning and orchestration do not detect it
+again; the mechanics stay in TRACKERS.
+_Avoid_: Tracker config, issue-tracker file
+
 **Promotion**:
 Moving what already landed on the base branch to a staging or production branch. It is one act per
 release, distinct from the run that brings work to the base branch in one review request.

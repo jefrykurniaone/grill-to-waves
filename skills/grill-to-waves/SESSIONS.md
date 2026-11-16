@@ -135,9 +135,13 @@ had already met the untracked paths.
 
 ## 5. Breach and stop
 
-An executor that must write outside `writes:` stops and reports. The session then swaps the ticket's
-`ready-for-agent` for `ready-for-human`, posts a comment naming the ticket and the path, and stops —
-a surface breach is a re-planning decision, never a widening.
+An executor that must write outside `writes:` stops and reports. A surface breach, whether the
+executor reports it or the diff the session reads shows it, is a re-planning decision, never a
+widening: the session swaps the ticket's `ready-for-agent` for `ready-for-human`, posts a comment
+naming the ticket and the path, and drops it from the batch. The batch's other green tickets merge,
+gate, walk and record green as usual, the wave is torn down — the dropped ticket's worktree with it,
+its branch kept and named (`/orchestrate`, *Record, close, tear down*) — and the session stops at
+the end of that wave, under `+ all` too.
 
 Stop and hand the decision to the user, with the reason posted on the ticket or the map, for: a third
 hand-back, a non-quiescent tree that cannot be cleaned, or a second agent session found in this
