@@ -119,13 +119,14 @@ working copy.
 
 ## 6. Paired runs — one run across repositories
 
-Work that lands in several repositories is a **paired run**: one run slug and one integration branch
-name in every repository, and in each its own tracker, map, `/orchestrate` session, integration
-branch and review request to its own base branch — one session per working copy, as everywhere. One
+Work that lands in several repositories is a **paired run**: the same run slug in every repository,
+and in each its own tracker, map, `/orchestrate` session, integration branch and review request to
+its own base branch — one session per working copy, as everywhere. Each integration branch is named
+in its own repository's prefix vocabulary, as Stage 4 settles it per repository. One
 of the maps, the **lead map**, also carries what crosses them:
 
-- **A `Paired runs` line** under its header lines: `Paired runs (same run slug and branch name, each
-  its own tracker, map, integration branch and review request):`, then every other repository's
+- **A `Paired runs` line** under its header lines: `Paired runs (same run slug, each its own
+  tracker, map, integration branch and review request):`, then every other repository's
   map — a path relative to the lead repository (`../billing-service/.scratch/<slug>/map.md`), or, where the tracker is remote, a
   tracker reference prefixed by the repository's folder (`billing-service#41`). Every other map's
   header names the lead map the same way.
@@ -175,9 +176,9 @@ below. The stages change in these ways and no others:
   map and the session that closes it are that repository's. The lead's spec carries the user-facing
   story; every other spec, what its repository does for it. A contract between repositories (an API,
   an event, a stored shape) is owned by the spec of the repository that provides it, and the others
-  name that spec rather than restate it. Every spec lists the run's other specs on a `Paired specs`
-  line at its top, in the notation of the *Paired runs* line. `run:<slug>` is the same in every
-  tracker, and every `spec:<slug>` is unique across the run. Each repository's mirrors follow the
+  name that spec rather than restate it. Every spec opens with its as-of line, then lists the run's
+  other specs on a `Paired specs` line, in the notation of the *Paired runs* line. `run:<slug>` is
+  the same in every tracker, and every `spec:<slug>` is unique across the run. Each repository's mirrors follow the
   general rule of Stage 2, written onto its own integration branch.
 - **Stage 3, edges across repositories.** The edge lives on the blocked ticket only, in the form
   [TRACKERS.md](./TRACKERS.md) *Across repositories* gives for that pair of trackers, so the blocked

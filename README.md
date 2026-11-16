@@ -283,7 +283,8 @@ open no review request. The full table, including dispatch tool names, is the `H
 $grill-to-waves <the idea, in whatever shape it is in>      # Codex CLI
 ```
 
-It stops at Stage 6 and prints the launch lines, solo first (on Codex the prefix is `$`):
+It stops at Stage 6 and prints the launch lines; for a run in one repository they are these (on
+Codex the prefix is `$`):
 
 ```
 /orchestrate map <map> + check      # read-only preflight, writes nothing

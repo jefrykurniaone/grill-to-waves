@@ -104,6 +104,9 @@ executed" section: **how a comment is posted** (a REST call, or the CLI), and **
 labels** (a field, a component, a tag). Everything else in
 [SESSIONS.md](./SESSIONS.md) is tracker-neutral.
 
+- **Deliver**: the forge's *Deliver* above for the repository's remote — GitHub's or GitLab's;
+  without a forge remote, the no-forge close of *Local markdown*.
+
 ## Across repositories
 
 A paired run ([SESSIONS.md](./SESSIONS.md) §6) writes trackers other than the working directory's
