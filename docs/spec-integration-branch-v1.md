@@ -1,8 +1,8 @@
 # spec: integration-branch v1 - every run delivers through one integration branch and one review request
 
-Spec: [#11](https://github.com/jefrykurniaone/grill-to-waves/issues/11) · Map: [#16](https://github.com/jefrykurniaone/grill-to-waves/issues/16) · Tickets: [#12](https://github.com/jefrykurniaone/grill-to-waves/issues/12), [#13](https://github.com/jefrykurniaone/grill-to-waves/issues/13), [#14](https://github.com/jefrykurniaone/grill-to-waves/issues/14), [#15](https://github.com/jefrykurniaone/grill-to-waves/issues/15)
+Spec: [#11](https://github.com/jefrykurniaone/grill-to-waves/issues/11) · Map: [#16](https://github.com/jefrykurniaone/grill-to-waves/issues/16) · Tickets: [#12](https://github.com/jefrykurniaone/grill-to-waves/issues/12), [#13](https://github.com/jefrykurniaone/grill-to-waves/issues/13), [#14](https://github.com/jefrykurniaone/grill-to-waves/issues/14), [#15](https://github.com/jefrykurniaone/grill-to-waves/issues/15), [#17](https://github.com/jefrykurniaone/grill-to-waves/issues/17), [#20](https://github.com/jefrykurniaone/grill-to-waves/issues/20), [#21](https://github.com/jefrykurniaone/grill-to-waves/issues/21)
 
-Copied 2026-11-16 onto `feat/integration-branch`. Below this header, the body of #11 verbatim; the issue, not this file, is the spec.
+Copied 2026-11-16 onto `feat/integration-branch`, and regenerated from #11 at the run's close on 2026-11-16. Below this header, the body of #11 verbatim; the issue, not this file, is the spec.
 
 ---
 
@@ -10,14 +10,14 @@ As of 2026-11-16: written against `main` @ `a497acc`.
 
 ## Problem statement
 
-The owner plans delivery runs with `/grill-to-waves` and executes them with `/orchestrate`. Four things get in the way:
+The owner plans delivery runs with `/grill-to-waves` and executes them with `/orchestrate`. Four things got in the way, each true of `main` @ `a497acc` and each reversed by this spec's run, as marked:
 
-- **Planning opens its own docs pull request.** The spec mirrors are written on a `docs/` branch with a pull request of their own. In a recent run in another repository the owner had to merge that pull request by hand in the middle of the run, and the run's own pull request then carried the same commit again.
-- **The default delivery pushes to the base branch.** `/orchestrate` merges every wave into the local `main` and pushes it, against the owner's standard: nothing is pushed to `main` directly; changes reach it by a pull request that passes CI. Repositories that follow the standard override the skill by hand, through project memory and per-map text.
-- **Executors open one review request per ticket**, while those repositories deliver one review request per run.
-- **The team shape is dead weight.** Several developers executing one map, one spec row each, has never been used, the owner has found no form of it that avoids conflicts, and it fills a large share of the text every planning and orchestrating session reads.
+- **Planning opens its own docs pull request.** The spec mirrors are written on a `docs/` branch with a pull request of their own. In a recent run in another repository the owner had to merge that pull request by hand in the middle of the run, and the run's own pull request then carried the same commit again. *Delivered: reversed by #14 — planning commits nothing, and the run writes the mirrors onto its integration branch.*
+- **The default delivery pushes to the base branch.** `/orchestrate` merges every wave into the local `main` and pushes it, against the owner's standard: nothing is pushed to `main` directly; changes reach it by a pull request that passes CI. Repositories that follow the standard override the skill by hand, through project memory and per-map text. *Delivered: reversed by #13 — nothing is pushed before the close, and the base is reached by one review request.*
+- **Executors open one review request per ticket**, while those repositories deliver one review request per run. *Delivered: reversed by #13 — executors push nothing and open no review request.*
+- **The team shape is dead weight.** Several developers executing one map, one spec row each, has never been used, the owner has found no form of it that avoids conflicts, and it fills a large share of the text every planning and orchestrating session reads. *Delivered: removed by #12.*
 
-The vocabulary also disagrees with itself: "integration branch" is the long-lived branch in `/ship-it-to` and the glossary, and the per-run branch in the paired-run section.
+The vocabulary also disagrees with itself: "integration branch" is the long-lived branch in `/ship-it-to` and the glossary, and the per-run branch in the paired-run section. *Delivered: resolved by #13 (*Base branch*, *Integration branch*) and #14 (*Spec mirror*) in the glossary, `/ship-it-to` and the README.*
 
 ## Solution
 
@@ -159,7 +159,43 @@ Prior art: pull request #9 was tested the same way, in throwaway repositories wi
 ## Further notes
 
 - Grilled on 2026-11-16, from the owner's request to stop separate docs pull requests. The paired-run section already had the orchestrator commit the mirrors; this spec makes that the rule for every run and widens it to the whole delivery path.
-- **Bootstrap.** This run is executed by the installed `/orchestrate`, which still has the old delivery model. The run's map spells out the new protocol, and the orchestrator follows the map wherever the two differ.
-- This repository has had no `docs/` folder. This spec's mirror will be its first file there, beside the tracker record `docs/agents/issue-tracker.md`.
-- The changelog is dated rather than versioned; this run adds one entry.
+- **Bootstrap.** This run is executed by the installed `/orchestrate`, which still has the old delivery model. The run's map spells out the new protocol, and the orchestrator follows the map wherever the two differ. *Delivered: it did; the installed copy keeps the old model until the owner reinstalls after the merge, a step after the close.*
+- This repository has had no `docs/` folder. This spec's mirror will be its first file there, beside the tracker record `docs/agents/issue-tracker.md`. *Delivered: the mirror landed in `beed3ce` and the tracker record with #15.*
+- The changelog is dated rather than versioned; this run adds one entry. *Delivered: `## 2026-11-16 — One integration branch per run`, with #15.*
+
+## Delivery notes
+
+Delivered on 2026-11-16 by run `integration-branch` (map #16) on `feat/integration-branch`, cut at `a497acc` from `origin/main`, and taken to `main` in one draft pull request opened at the run's close.
+
+| Ticket | Merge on `feat/integration-branch` | Executor | Second verification |
+| --- | --- | --- | --- |
+| #12 Remove the team shape | `2d4b879` | Opus, `high` | — |
+| #13 Every run delivers through one integration branch | `9886ec5` | Opus, `high`, two hand-backs | Fable, read-only: three passes, clean on the third |
+| #14 Spec mirrors travel with the run | `428a311` | Sonnet, `high` | — |
+| #15 Changelog entry and the tracker record | `b05ea13` | Sonnet, `medium` | — |
+| #17 Close the consistency sweep's findings (added at the close) | `5dff99f` | Opus, `high` | — (the sweep's reviewer read its delta) |
+| #20 Fix the resume and README gaps the sweep found in #17 (added at the close) | `2e10d83` | Opus, `high` | — (the sweep's reviewer read its delta) |
+| #21 README: the tracker record must not be left uncommitted for the run (added at the close) | `fb8e6c0` | Opus, `high` | — |
+
+This spec's mirror was committed in wave 1's batch as `beed3ce`.
+
+Decisions made in delivery that this spec did not settle, all in `/orchestrate`:
+
+- The cut is recorded on the map as `<integration branch> cut at <sha>`; *the recorded commit* is the last green point, or the cut until one is recorded, and the green point is recorded per merge batch.
+- Reconcile reads only the run's own merges: `git log --merges --first-parent -E --grep '^Merge #<n>([^0-9]|$)' <cut>..<recorded commit>`, because a local tracker's numbering restarts per run.
+- On resume, commits past the recorded commit that are a sync, a ticket merge whose branch still exists, a mirror commit or the tracker record are reset and re-run; anything else is a stop.
+- A merge batch's preflight accepts `HEAD` at the sync merge its dispatch preflight made; worktrees never branch off that ungated merge.
+- The close's steps 1 to 6 are not repeated once a review request from the integration branch exists; *merged* on a forge is read from the request's merged state; a no-forge *merged* close is judged against `origin/<base>`.
+- One mirror commit per spec in a merge batch.
+- From the consistency sweep (#17): the single-session guard treats `.claude/worktrees/<run-slug>/` as the run's own; an open ticket's surviving worktree is verified or re-dispatched on resume; an irreversible go-ahead pending at a session's end is recorded as `awaiting go-ahead: #<n> @ <sha>`; the breach rule is stated in `/orchestrate` *Verify*; Stage 0 writes no file, and the orchestrator commits `docs/agents/issue-tracker.md` with the first batch's mirrors.
+- From the sweep's reads of #17 and #20 (#20, #21): a batch awaiting a go-ahead keeps its worktrees and is resumed only at its recorded batch head; a refused go-ahead resets and moves the refused tickets to `ready-for-human`; Stage 1 asks the user to confirm no duplicate session of the run is live before reconciling the run's surviving worktrees; a tracker record written before a run reaches the base branch first, or the run writes it.
+
+Left open, outside this run's close: #22, small gaps in the go-ahead, tracker-record and breach wording; #18, whether a paired run's dependent walk may use the blocker's working copy while that repository's session runs (the owner's decision); #19, the preflight's assumption that `.claude/worktrees/` and `.scratch/` are git-ignored (older than this spec).
+
+Seams:
+
+1. The install test: green at every wave and on every ticket branch (11 passed, 1 skipped for want of `pwsh`).
+2. The consistency sweep: the leftovers grep and the `§` check were clean; one read-only reviewer read the skills end to end and found 4 blocking and 14 minor problems; the in-scope ones were fixed by #17, #20 and #21, each delta read again, and the rest filed (#18, #19, #22).
+3. CI on the draft pull request: its result is recorded on the map, #16.
+4. The sandbox run: the owner's, after the close.
 
