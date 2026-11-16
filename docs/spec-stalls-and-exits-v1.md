@@ -1,8 +1,8 @@
 # spec: stalls-and-exits v1 - stalled launches, the borrow check and the remaining ways out of a merge batch
 
-Spec: [#37](https://github.com/jefrykurniaone/grill-to-waves/issues/37) · Map: [#44](https://github.com/jefrykurniaone/grill-to-waves/issues/44) · Tickets: [#38](https://github.com/jefrykurniaone/grill-to-waves/issues/38), [#39](https://github.com/jefrykurniaone/grill-to-waves/issues/39), [#40](https://github.com/jefrykurniaone/grill-to-waves/issues/40), [#41](https://github.com/jefrykurniaone/grill-to-waves/issues/41), [#42](https://github.com/jefrykurniaone/grill-to-waves/issues/42), [#43](https://github.com/jefrykurniaone/grill-to-waves/issues/43)
+Spec: [#37](https://github.com/jefrykurniaone/grill-to-waves/issues/37) · Map: [#44](https://github.com/jefrykurniaone/grill-to-waves/issues/44) · Tickets: [#38](https://github.com/jefrykurniaone/grill-to-waves/issues/38), [#39](https://github.com/jefrykurniaone/grill-to-waves/issues/39), [#40](https://github.com/jefrykurniaone/grill-to-waves/issues/40), [#41](https://github.com/jefrykurniaone/grill-to-waves/issues/41), [#42](https://github.com/jefrykurniaone/grill-to-waves/issues/42), [#43](https://github.com/jefrykurniaone/grill-to-waves/issues/43), [#46](https://github.com/jefrykurniaone/grill-to-waves/issues/46), [#47](https://github.com/jefrykurniaone/grill-to-waves/issues/47), [#48](https://github.com/jefrykurniaone/grill-to-waves/issues/48)
 
-Copied 2026-11-16 onto `feat/stalls-and-exits`. Below this header, the body of #37 verbatim; the issue, not this file, is the spec.
+Copied 2026-11-16 onto `feat/stalls-and-exits`, and regenerated from #37 at the run's close on 2026-11-17. Below this header, the body of #37 verbatim; the issue, not this file, is the spec.
 
 ---
 
@@ -103,7 +103,7 @@ Modules touched: the `orchestrate` skill (Stage 1's git ground truth and resume,
 ### The borrow check (#31)
 
 - **One check, defined once in SESSIONS' paired-run section**, run by `/conduct` when it computes readiness and by the borrowing orchestrator before its walk. It is reads only (`git -C ../<folder>` and the lender's map through its own tracker). A lender passes when all of these hold:
-  1. Its `git status --porcelain` is empty.
+  1. Its `git status --porcelain` is empty. _(Delivered otherwise; see Delivery notes.)_
   2. `git worktree list` shows no registered worktree besides its main working copy — the single-session guard's own read: a registered worktree is a live session or its leftover, and either is the lender's own business first.
   3. Its `HEAD` is where its map says it may be:
      - **map open, cut recorded**: `HEAD` equals its recorded commit;
@@ -115,12 +115,12 @@ Modules touched: the `orchestrate` skill (Stage 1's git ground truth and resume,
 
 ### Leftovers of a borrowed walk (#31)
 
-- **Write-through of the borrow.** Before starting a lender's app, the borrower adds `borrowing <folder> since <time>` to its own map's execution progress, and removes it once the app is stopped, the sentinel data wiped and the lender's tree re-read. A resuming session that finds the line knows a borrowed walk died mid-way: it checks whether the lender's app still runs, by that repository's runbook (its port or health URL), stops it the way the runbook says or reports that it cannot, re-reads the lender's tree as below, reports the walk's accounts and sentinel data as possibly left in the lender's dev database — the walker's report died with it — and then removes the line.
+- **Write-through of the borrow.** Before starting a lender's app, the borrower adds `borrowing <folder> since <time>` to its own map's execution progress, and removes it once the app is stopped, the sentinel data wiped and the lender's tree re-read. A resuming session that finds the line knows a borrowed walk died mid-way: it checks whether the lender's app still runs, by that repository's runbook (its port or health URL), stops it the way the runbook says or reports that it cannot, re-reads the lender's tree as below, reports the walk's accounts and sentinel data as possibly left in the lender's dev database — the walker's report died with it — and then removes the line. _(Delivered otherwise; see Delivery notes.)_
 - **The lender's tree after the walk.** Once the app is stopped, the borrower reads the lender's `git status --porcelain` again; the borrow check found it empty. What it shows is restored only where it is provably the app's own rewrite — read first, the way executor leakage is read — and every restored path is named in the wave report. Anything it cannot attribute to the app is a stop with a report, never discarded unread. Restoring the lender's tree to the state the check found it in is the one write the borrower makes there.
 
 ### The dev database after a dropped irreversible ticket (#33)
 
-- **When it applies**: a reset that drops an irreversible ticket after the batch's walk has run — a refused go-ahead, or a failed walk row that points at an irreversible ticket. A red fast gate or a red whole gate drops before any walk, so the dev database holds nothing of the batch.
+- **When it applies**: a reset that drops an irreversible ticket after the batch's walk has run — a refused go-ahead, or a failed walk row that points at an irreversible ticket. A red fast gate or a red whole gate drops before any walk, so the dev database holds nothing of the batch. _(Delivered otherwise; see Delivery notes.)_
 - **The owner's answer, one of three**: (i) the owner restores the dev database and says so; (ii) the orchestrator resets or re-seeds it by the repository's runbook — offered only where the runbook names how; (iii) the re-run's walk runs against it as it is, and the walk's table says it ran against a dev database holding that ticket's effects.
 - **A refusal carries it**: the go-ahead question, which already names what a reset will not undo, asks in the same exchange which of the three applies should the owner refuse. **A failed walk row** of an irreversible ticket asks it before the re-run's walk; it is a decision that is the user's, so `+ all` stops on it.
 - **Write-through**: the answer is posted on the dropped ticket's comment, and the map's execution progress carries `dev database: holds the effects of #<n>[, #<m>] — <answer>` from before the reset until the re-run records green, so a resuming session reads it before its walk. A line with no answer yet is asked again.
@@ -186,3 +186,60 @@ Prior art: the previous runs' maps (#16, #29), their consistency sweeps (seam 2)
 The source is #31, #32, #33 and #34, filed by the closing consistency sweep of run `sweep-followups` (map #29, spec #24), and #36, found by the sandbox run after that close, together with the owner's grilling of 2026-11-16. Those five issues do not carry this run's label; the run's review request names them to close on merge.
 
 This spec reverses one non-goal of #24: a third hand-back now moves its ticket to `ready-for-human`.
+
+## Delivery notes
+
+This spec was delivered on 2026-11-17 by run `stalls-and-exits` (map #44), on `feat/stalls-and-exits`. That branch was cut at `7caebdf` from `origin/main` with `--no-track` and went to `main` in one draft pull request, opened at the run's close.
+
+| Ticket | Merge on `feat/stalls-and-exits` | Executor | Second verification |
+| --- | --- | --- | --- |
+| #38 The borrow check, and a borrowed walk that cleans up after itself | `fbc590f` | Opus, `high`, re-graded to Fable, `high`, for an open decision; one hand-back | Fable, read-only, adversarial clause: two must-fix findings, closed on a delta re-read |
+| #39 Parked launches and wave order in `/conduct` | `d8d0f56` | Opus, `high` | — |
+| #40 The remaining ways out of a merge batch, and a third hand-back hands the ticket to a human | `3a52100` | Opus, `high` | — |
+| #41 The dev database after a dropped irreversible ticket | `936e3b7` | Opus, `high` | — |
+| #42 The cut has no upstream, and an other tracker's record is the owner's | `6d6fadf` | Sonnet, `medium`, one hand-back | — |
+| #46 Count hand-backs on the map, give a declined close check a way out, and keep the guard's stop from cleaning up (added at the close) | `681e0e7` | Opus, `high` | — (the sweep's reader re-read its delta) |
+| #47 Make `/conduct`'s done, parked and borrow-check reports agree, and count parked in hand-started launches (added at the close) | `fc1f5fc` | Sonnet, `high` | — (the sweep's reader re-read its delta) |
+| #43 Changelog entry and README | `9f4919b` | Sonnet, `medium`, one hand-back | — |
+| #48 Let the owner's go-on reach a hand-started launch's occupying, and hold a resent rework behind a pending go-ahead or dev database answer (added at the close) | `e2a4ff9` | Sonnet, `high` | — (the orchestrator read its delta) |
+
+This spec's mirror was committed in wave 1's batch as `5055f62`.
+
+**Claims in this body that delivery reversed.** They are marked here and left in place above:
+
+- *Leftovers of a borrowed walk*, "stops it the way the runbook says or reports that it cannot … and then removes the line". As delivered, an app that cannot be stopped is a stop that **keeps** the line, and the owner clears it. The same goes for a path that cannot be attributed. Removing the line would hand the lender back to its own session while a stray dev server still runs there (#38, decided at the Fable tier).
+- *The borrow check*, condition 1, "Its `git status --porcelain` is empty". As delivered it is `git --no-optional-locks -C ../<folder> status --porcelain`. This keeps the conductor's recurring read off the lender's index lock while a merge is under way there. The conductor runs the reads from its own folder as `git -C <folder>` (#38).
+- *The dev database after a dropped irreversible ticket*, "When it applies". As delivered it also covers a red fast or whole gate in a re-run after such a walk, when that gate drops an irreversible ticket (#41).
+
+**Decisions made in delivery that this spec did not settle:**
+
+- **A borrow outlives its session.** A `borrowing <folder>` line on any map holds that lender against every launch except the line's own repository's, whatever that map's session is doing. That repository's next launch clears the line in its Stage 1, and only the borrow check's first condition is waived for it. The cleanup runs once the single-session guard has cleared, never on the guard's own stop. A map that cannot be read holds its lenders as if it carried the line (#38, #46, #47).
+- **A read that keeps failing fails its borrow-check condition** and never passes it (#38).
+- **Let out of parking.** A re-label, or a close that unblocks another ticket, frees a parked launch's turn. A launch with no session of its own, which is released and in wave order, is parked on its ticket condition alone (#39).
+- **One stripping rule.** A red whole gate is attributed by reading its failures against the batch's diffs. The re-run leaves out every ticket dropped so far (#40).
+- **Hand-backs are written through.** Each one goes on the map's execution progress as `hand-back: #<n> <k> of 2 @ <sha> — <finding>`, and the sha marks where the rework's commits start. A failed check pinned to the close can be waived by the owner and is recorded as `waived:`. The upstream is read with `git for-each-ref` (#46).
+- **`/conduct`'s reports agree.** `done` reads the same in every stage, and a parked launch's stop report is relayed. A hand-started launch counts a parked launch as occupying its own repository, and stops counting it once the owner goes on without it (#47, #48).
+- **A resent rework waits** while an `awaiting go-ahead:` line or an unanswered `dev database:` line stands. A `hand-back:` line goes once its ticket is recorded green or carries `ready-for-human` (#48).
+
+**Filed outside this run:** #45, the single-session guard does not see a live second session of the same run between waves or at the close.
+
+**Observations from the consistency sweep, left as they are:**
+
+- TRACKERS says both "by hand" and `/setup-matt-pocock-skills` for who writes an other tracker's record.
+- The red-gate paragraph's "unless this is its third failure:" can be misparsed.
+- Stage 6's hand-started wording on a held lender is clear only through the SESSIONS link.
+- A parked launch let out by the owner's close reads as held after a context clear.
+- A `waived:` line is not read on resume, so a close resumed before step 6 re-walks the waived check.
+- A conflict drop leaves no merge to say which batch it was dropped from, and a conflict rework that died mid-rebase is re-sent into a worktree that still has a rebase in progress.
+- A parked session's slot may be reused although its relayed stop report says the user may answer in that tab.
+- The map body is edited mid-batch for the `hand-back:` and `awaiting go-ahead:` lines, which sits uneasily with SESSIONS' "only on a quiescent tree". This predates the run.
+
+**Seams:**
+
+1. The install test: green at every wave, on every merge, and on every ticket branch: 11 passed, 1 skipped for want of `pwsh`.
+2. The consistency sweep:
+   - The leftovers grep and the `§`, step and section references were clean.
+   - One read-only analyst read the skills end to end. Its eight must-fix findings were fixed by #46 and #47.
+   - The same analyst read that delta again. All eight were closed, and it found two contradictions the fixes had introduced. #48 fixed those, and the orchestrator read #48's delta.
+3. CI on the draft pull request: its result is recorded on the map, #44.
+4. The sandbox run is the owner's, after the close.
