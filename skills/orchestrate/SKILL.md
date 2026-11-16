@@ -146,12 +146,14 @@ close, tear down*). Once the guard below has been answered, that ticket's surviv
 (`git log <ticket branch sha>..<ticket branch>`) are the rework's result: verify them as *Verify*
 says. Where there are none, send the rework again with the line's finding — a fresh dispatch into
 the worktree that exists, carrying the original brief plus that finding, since the executor that
-held it died with the session; a conflict hand-back goes once the batch it was dropped from has
-recorded green (*Merge the batch*, step 2). The ticket is never merged into the re-run of the batch
-it was dropped from: a batch this stage re-runs (above) takes it only where the commits past the
-recorded one hold its `#<n>` merge of the rework, never of that tip, and otherwise it merges in a
-later batch. A failure found on that verification is hand-back `<k>+1`, and the third swaps the
-label as the rework paragraph says. The count never restarts from zero.
+held it died with the session — once no `awaiting go-ahead:` line and no unanswered `dev database:`
+line stands, and until then the line and the worktree wait; a conflict hand-back goes once the
+batch it was dropped from has recorded green (*Merge the batch*, step 2). The ticket is never
+merged into the re-run of the batch it was dropped from: a batch this stage re-runs (above) takes
+it only where the commits past the recorded one hold its `#<n>` merge of the rework, never of that
+tip, and otherwise it merges in a later batch. A failure found on that verification is hand-back
+`<k>+1`, and the third swaps the label as the rework paragraph says. The count never restarts from
+zero.
 
 **The single-session guard.** It asks one question — is another *agent session* live in **this working
 copy**? Read `git worktree list`. A worktree registered under `.claude/worktrees/<run-slug>/` is this
@@ -621,10 +623,10 @@ is written through the moment it is spent — when its ticket is dropped from th
 failing at *Verify* — before any reset, any stop and the rework itself, as one line per ticket in
 the execution progress, `hand-back: #<n> <k> of 2 @ <ticket branch sha> — <the finding, in a few
 words>`, the sha being the branch's tip that failed. A second hand-back updates that line in place.
-The line goes once the ticket is recorded green, or, on its third failure, once its label is
-swapped; until then a resuming session reads the rework from it (Stage 1). A hand-back for a
-reasoning failure at `high` is the fresh dispatch at `xhigh` that *Model and effort* describes, and
-counts as one of the two. **A conflict hand-back**
+The line goes once the ticket is recorded green or carries `ready-for-human`, whatever put the label
+there, the third failure included; until then a resuming session reads the rework from it
+(Stage 1). A hand-back for a reasoning failure at `high` is the fresh dispatch at `xhigh` that
+*Model and effort* describes, and counts as one of the two. **A conflict hand-back**
 (*Merge the batch*, step 2) tells the executor to rebase its own ticket branch onto the new recorded
 commit, in its worktree, resolve, and run the gate; a resolution that needs a product decision is
 `git rebase --abort`, then its stop-and-report. That rebase is within the delivery contract
@@ -695,12 +697,12 @@ remote) goes straight to step 8.
 3. **The final sync**: `git fetch --prune`, since the tree preflight does not run at the close, then
    sync from the base (*The integration branch*).
 4. **The whole gate** on `HEAD`, reused where the record above stands; its commit is recorded as the
-   last green point. A red gate here points at no ticket merge — every merge on `HEAD` is recorded
-   green — so it is a stop with a report (*Merge the batch*, *When the stripping ends*). Then the
-   walk of every runtime check the map pins to the close, on `HEAD`, dispatched and judged as *The
-   runtime walk* says. A failed check pinned to the close is filed as its own item and is a stop
-   before the push (step 5): the owner either takes a ticket for it, added to the map as a wave,
-   or waives the check for this run. A waiver is recorded on the map's execution progress,
+   last green point. A red gate here points at no ticket merge — every ticket merge on `HEAD` is
+   recorded green — so it is a stop with a report (*Merge the batch*, *When the stripping ends*).
+   Then the walk of every runtime check the map pins to the close, on `HEAD`, dispatched and judged
+   as *The runtime walk* says. A failed check pinned to the close is filed as its own item and is a
+   stop before the push (step 5): the owner either takes a ticket for it, added to the map as a
+   wave, or waives the check for this run. A waiver is recorded on the map's execution progress,
    `waived: <check> — <the owner's reason>`, and in the review request's body (step 6), and the
    close goes on at step 5.
 5. **Push the integration branch** where a remote exists, `git push -u origin <integration branch>`:
