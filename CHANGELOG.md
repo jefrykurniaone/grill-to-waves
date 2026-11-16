@@ -17,7 +17,8 @@ Run the installer again on both hosts (`./install.ps1 -Target both` or `./instal
 An integration branch cut before this change has the base as its upstream until the next preflight
 removes it. A ticket stopped on a third hand-back before this change carries no label, so label it
 `ready-for-human` by hand before the next session, or its reconcile reads the worktree as a lost
-report. A paired run's held launches are re-read as parked where they qualify.
+report. A paired run's held launches are re-read as parked where they qualify. A hand-back made
+before this change has no `hand-back:` line, so its count restarts from zero.
 
 ### Changed
 
@@ -32,9 +33,12 @@ report. A paired run's held launches are re-read as parked where they qualify.
     borrower's session died. That launch alone has the check's first condition waived on that
     lender, and its cleanup removes the line.
   - SESSIONS §5 says a third failed hand-back sends the ticket to `ready-for-human`, handled as a
-    breach is, and no longer that it changes no label.
+    breach is, and no longer that it changes no label. It also says the count of hand-backs is
+    kept on the map's execution progress, so it survives the session, and a surviving
+    `ready-for-agent` worktree is read as rework in progress where the map counts hand-backs for it.
   - Stage 6's hand-started launch line waits for every lender to pass the borrow check, for a
-    lender held by a `borrowing` line, and for its own repository's earlier steps.
+    lender held by a `borrowing` line, and for its own repository's earlier steps. A parked launch
+    keeps its own repository only.
   - DEFAULTS, *Verifying a high-consequence ticket*: the go-ahead bullet points at the dev
     database question. The rule is unchanged.
   - TRACKERS: an other tracker is never detected by Stage 0. Its record is the owner's, written by
@@ -66,6 +70,19 @@ report. A paired run's held launches are re-read as parked where they qualify.
     and a refusal writes the line with its answer before it swaps the labels. A reset and re-run
     carries the answer out before the walk, a line with no answer is asked again, `+ all` stops on
     it, and the green point replaces it.
+  - Hand-backs are written through to the map's execution progress the moment they are spent, as
+    `hand-back: #<n> <k> of 2 @ <sha> — <finding>`, one line per ticket, updated in place and
+    removed once the ticket is recorded green or its label is swapped. Stage 1 reads a line as
+    rework in progress rather than a lost report, so the count survives a session and never
+    restarts from zero. `+ check` prints each line, and the wave report and the ticket's closing
+    note name the hand-backs it took.
+  - A failed check pinned to the close is a stop before the push, and the owner can waive it for
+    this run. The waiver is recorded on the execution progress as `waived: <check> — <reason>` and
+    named in the review request. A red gate at *Closing upward* step 4 is a stop with a report.
+  - *A borrowed walk that died* runs only once the single-session guard has cleared, and a stop of
+    the guard's own does no cleanup and leaves the `borrowing` line standing.
+  - The integration branch's upstream is read with `git for-each-ref`, whose empty answer is an
+    answer and not a failed read, in Stage 1, the preflight and `+ check` alike.
   - *The integration branch* is cut with `git switch --no-track -c <integration branch>
     origin/<base>`. Preflight step 4 unsets any upstream other than `origin/<integration branch>`
     and names it in the wave report, `+ check` reports an upstream and writes nothing, and a
@@ -81,6 +98,12 @@ report. A paired run's held launches are re-read as parked where they qualify.
     re-plan, close, or go on without it.
   - A launch let out of parking is ready again and relaunched, and after a context clear a launch
     that reads as held but names a ticket with a kept branch is asked about.
+  - `orchestrate: done` reads the same in Stages 1 to 4: free where its launch has landed, and held
+    or parked where a ticket it names is still open. A parked launch's stop report is relayed to
+    the user, who may answer in that tab or through `/conduct`.
+  - An unreadable map's report says the read failed, is retried at every recompute, and that the
+    owner restores access to that tracker. A lender held by a `borrowing` line is reported with the
+    launch that clears it, rather than as waiting on the owner.
   - Stages 1 to 5 read labels, open blockers and kept branches, and recognise parked in `+ check`,
     slot reuse, the watcher and outcome lines, and the stop.
 - **`GLOSSARY.md`.** *Lender* joins, and *Tracker record* now holds for every tracker, with the
