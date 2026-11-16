@@ -176,7 +176,7 @@ effort independently. `xhigh` is never planned: `/orchestrate` reaches it by a h
 ## Surface
 writes: …
 reads: …
-runtime: dev-db | dev-server | none[, peer:<folder>, …]
+runtime: dev-db | dev-server[, peer:<folder>, …] | none
 deps: shared | own
 ```
 
@@ -229,7 +229,8 @@ that person, so a run that ends at an open review request says so from the start
 
 Done when: every ticket appears in exactly one wave, and the base, the integration branch, the close
 point and its owner are recorded — in a paired run, for every repository, with the run order derived
-from the cross-repository edges.
+from the cross-repository edges and every launch carrying its `· borrows` suffix where a ticket of
+its wave has a `peer:` entry.
 
 ## Stage 5 — Map
 
@@ -302,15 +303,21 @@ and print the solo launch lines ready to copy:
 
 **A paired run** prints, in place of the solo lines, the run order as launch lines: every
 repository's `+ check` line, then one line per launch grouped by step, each led by the folder of the
-repository it runs in, because each repository has its own session started there:
+repository it runs in, because each repository has its own session started there, and ending on the
+launch's `· borrows` suffix, as a comment, where it has one. A launch started by hand goes only while
+no session runs in any repository it occupies, its own and every one it borrows
+([SESSIONS.md](./SESSIONS.md) §6):
 
 ```
-billing-service   /orchestrate map <its map> + check
-portal            /orchestrate map <its map> + check
+billing-service    /orchestrate map <its map> + check
+payments-service   /orchestrate map <its map> + check
+portal             /orchestrate map <its map> + check
 # G1
-billing-service   /orchestrate map <its map> + wave 1
+billing-service    /orchestrate map <its map> + wave 1
 # G2, once billing-service 01 is closed
-portal            /orchestrate map <its map> + wave 1
+payments-service   /orchestrate map <its map> + wave 1
+# G3, once payments-service wave 1 is closed
+portal             /orchestrate map <its map> + wave 1     # · borrows payments-service
 ```
 
 Then the lines that make those launches from one herdr pane, run from the folder that holds the
