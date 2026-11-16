@@ -57,7 +57,8 @@ _Avoid_: docs copy, spec file
 
 **Tracker record**:
 The file in a repository that names its tracker, so that planning and orchestration do not detect it
-again; the mechanics stay in TRACKERS.
+again; the mechanics stay in TRACKERS, except for a tracker TRACKERS has no commands for, whose record
+describes them in prose.
 _Avoid_: Tracker config, issue-tracker file
 
 **Promotion**:
@@ -80,6 +81,11 @@ _Avoid_: Multi-repo run, cross-repo map
 Another repository's working copy in a paired run that a launch walks against; the launch occupies it
 for its duration, so no session of that repository runs meanwhile.
 _Avoid_: Shared working copy, peer runtime
+
+**Lender**:
+The repository of a paired run whose working copy a launch borrows; while the borrow lasts no
+session of its own runs, and the borrower walks against it only where the borrow check passes.
+_Avoid_: Peer repository, host repository
 
 **Conductor**:
 The one session that starts each repository's orchestrator of a paired run in the run order and

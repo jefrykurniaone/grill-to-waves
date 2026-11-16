@@ -55,10 +55,20 @@ Done when all of them hold.
    carries one. A lead map without the run order is a stop: say what is missing.
 2. **Every repository's map**, through that repository's own tracker, from inside that repository
    ([../grill-to-waves/TRACKERS.md](../grill-to-waves/TRACKERS.md)): its execution-progress section,
-   its in-flight ceiling, and the state of every ticket the run order names. The ticket states are a
+   any `borrowing <folder> since <time>` line included (Stage 2),
+   its in-flight ceiling, and the state of every ticket the run order names: open or closed, its
+   labels and whether it waits on an open blocker, as the tracker's frontier read gives them, and
+   for each open ticket, the branch its comments name as kept where one does (`/orchestrate`
+   *Record, close, tear down*). The ticket states are a
    table with no decision in it: where `clerk-haiku-medium` is installed, give it one brief per
    repository — run the tracker's list command from inside that repository, return each named
    ticket's state as printed, touch nothing in the tree — and read them yourself where it is not.
+   For every lender a launch borrows, read what the borrow check needs (SESSIONS.md §6): from its
+   map, the cut, the recorded commit, the base and whether the map is open or closed; from its
+   working copy, the check's three reads, run from your own folder as `git -C <folder>` — §6
+   writes `../<folder>`, the view from a sibling repository:
+   `git --no-optional-locks -C <folder> status --porcelain`, `git -C <folder> worktree list` and
+   its `HEAD`, with `origin/<base>` where its map records no cut. Fetch nothing there.
 3. **Panes**: `herdr pane list` in every workspace. A repository's pane is the one whose cwd is that
    repository's root; where there are several, ask which. A repository without a pane gets a slot in
    your own tab when its launch is ready (Stage 3, *The slots*), and this stage creates none. Under
@@ -68,21 +78,27 @@ Done when all of them hold.
 4. **Each repository's session**, the agent in its pane under the name Stage 3 gives it:
    - none, or a shell at its prompt: no session yet;
    - `working` or `blocked`: in flight;
-   - `idle` or `done`: read it (*Reading a session*, Stage 4). The pause line means in flight,
-     `orchestrate: stopped` held, and `orchestrate: done` free. A session that never ran
+   - `idle` or `done`: read it (*Reading a session*, Stage 4). The pause line means in flight, and
+     `orchestrate: done` free where its launch has landed. `orchestrate: stopped`, or `orchestrate:
+     done` with a ticket the launch names still open, means held, or parked instead where the launch
+     it ran qualifies (Stage 2), and a parked launch's session is free. A session that never ran
      `/orchestrate` is free; any other ending is held.
 
    Tell the user about every one that is `blocked` or held. This stage arms no watcher. An agent
    under any other name is the
    user's own session in that working copy: name it and ask whether to drive it, which clears its
    conversation before each launch (Stage 3), or wait, because a second session there is the
-   collision SESSIONS.md stops on. Go-aheads and relays from before a
-   context clear are kept nowhere: ask for them again.
+   collision SESSIONS.md stops on. Go-aheads, the owner's go-on past a parked launch (Stage 2) and
+   relays from before a context clear are kept nowhere: ask for them again.
 
 Done when every repository in the run order has a pane, waits for a slot, or was declined a tab by
-the user; has a session state; and every ticket the order names has a state read from its tracker.
+the user; has a session state; every ticket the order names has a state read from its tracker; and
+every lender has the reads its borrow check needs.
 
 **`+ check`** prints exactly that — every launch with its state (Stage 2) and its borrows, each
+parked launch as *A parked launch* (Stage 2) says, each
+borrowing launch's borrow check per lender with the condition that failed where one did, each
+`borrowing` line as Stage 2 says, each
 repository's pane and session, the repositories without a pane, and what is ready — and stops. It
 creates, starts and sends nothing.
 
@@ -103,21 +119,85 @@ launched by the user with its own `/orchestrate` line, outside this run's schedu
 - **in flight** from its prompt until its session's turn ends on anything but the pause line
   `orchestrate: waiting on executors`;
 - **held** while its session's turn has ended on `orchestrate: stopped`, on no outcome line, or on
-  `orchestrate: done` with a ticket still open, until that session works again;
-- **ready** when it is released, not landed, in flight or held, and no other launch in flight or
-  held occupies a repository it occupies.
+  `orchestrate: done` with a ticket still open, and it is neither parked nor let out of parking
+  (*A parked launch*, below). It waits on the user, who answers or resumes that session in its
+  pane or through you (Stage 4, *Relay*); from then it is in flight again;
+- **parked** when it has not landed, its session's turn has ended on `orchestrate: done` or
+  `orchestrate: stopped — …`, and every ticket it names that is still open carries
+  `ready-for-human` or waits on an open blocker. A turn that ended on no outcome line stays held.
+  Where its repository shows no session, or one whose last launch line is another launch's, a
+  launch that is released, and whose own repository's earlier steps are landed or gone on without
+  (*ready*, below), is parked on that ticket condition alone: its launch line would dispatch none
+  of those tickets;
+- **ready** when it is released, not landed, in flight, held or parked, every launch of its own
+  repository in an earlier step has landed or is parked with the owner's go-on (*A parked
+  launch*), no other launch in flight, held or parked occupies a repository it occupies, no other
+  repository's `borrowing` line holds one (below), and, where it borrows, every lender passes the
+  borrow check (SESSIONS.md §6). That order inside one repository is read from the steps, so it
+  holds even where a later step's *Released by* names only other repositories' tickets, which is
+  all it names.
 
 A launch **occupies** its own repository and every repository it borrows: one session per working
 copy. The rule is symmetric — a launch that borrows a repository waits on that repository's launch
 in flight or held, and that repository's next launch waits on the borrower — and a held launch keeps
-occupying. A launch that borrows nothing occupies its own repository alone: one session per
-repository, its waves in order.
+occupying; a parked one keeps its own repository only (below). A launch that borrows nothing
+occupies its own repository alone: one session per repository, its waves in order.
+
+**A parked launch** occupies its own repository and none of those it borrows. Its walk is over, so
+its lenders are free; its own repository is kept so that the owner re-plans before that repository
+builds further, as a solo session stops at the end of a breach's wave (SESSIONS.md §5). A
+`borrowing` line its map still carries holds that lender all the same (*A borrow that outlived its
+session*, below). Its session is free: nothing is pending in it, so its slot may be reused (Stage 3)
+and it is not one of the sessions in flight. `+ check`, every wake's report (Stage 4) and the stop
+report (Stage 5) name each parked launch with its stop report where it ended on one, its
+`ready-for-human` tickets, the branch each one's comment names as kept, every other open ticket
+with the blocker it waits on, and the three ways out, all the owner's:
+
+1. **Re-plan**: the owner re-labels the ticket `ready-for-agent`. The launch is no longer parked,
+   is ready by the usual rule and is relaunched; its orchestrator's reconcile deals with the kept
+   branch (`/orchestrate` Stage 1).
+2. **Close**: the owner closes the ticket. The launch lands once every ticket it names is closed.
+3. **Go on without it**: the owner tells you to go on without the launch. It then counts as
+   landed for occupying and for wave order, for this conductor session only; after a context clear,
+   ask again, as for go-aheads (Stage 1). The ticket stays `ready-for-human` and still blocks
+   whatever its edges block.
+
+A way out that leaves the launch neither landed nor parked — a ticket re-labelled, or a closed one
+whose closing unblocks another — has **let it out of parking**: the turn that parked it holds it no
+more, so it is ready by the usual rule and is relaunched. After a context clear that turn reads like
+one that waits on an answer: where a launch reads as held on `orchestrate: done` or `orchestrate:
+stopped — …` and a ticket it names has a kept branch in its comments, ask the user whether it was
+parked, and read it as let out of parking only on a yes.
+
+**A lender that fails the borrow check** makes its borrower not ready, and the report names the
+lender and the condition that failed. The lender's own launch goes by its own state: a session that
+died mid-batch reads as no session (Stage 1), so its launch is ready and is relaunched before its
+borrower, and its orchestrator's Stage 1 brings the lender back to its recorded commit; one whose
+turn ended awaiting a go-ahead is held on the user. Where no launch of the lender is ready, in
+flight or held, and no `borrowing` line holds it, nothing scheduled will make it pass, and the
+report says the borrower waits on the owner, who clears the condition. A lender a line holds is
+reported as *A borrow that outlived its session* says, naming the launch that clears it. Under
+`+ watch` that is a nothing-ready stop like any other (Stage 5).
+
+**A borrow that outlived its session.** While a map's execution progress carries `borrowing
+<folder> since <time>`, read from the map again at every recompute, `<folder>` is still lent
+whatever that map's session is doing (SESSIONS.md §6): the line holds it against every launch but
+its own repository's — the lender's own, and any third repository's that borrows it. A launch of
+the map's own repository is what clears the line, in its orchestrator's Stage 1, so it is ready by
+the usual rule with the borrow check's first condition waived on `<folder>`. A map whose read
+keeps failing holds every lender its repository's launches borrow as if it carried the line,
+waives nothing, and the report says the read failed, is retried at every recompute, and that the
+owner restores access to that tracker. `+ check` and every report name each line read, the lender it
+holds and the launch that clears it. Where the map reads and no launch of that repository is ready,
+in flight or held, they say the lender waits on the owner, who does that cleanup, or has a session
+of that repository do it, and sees the line removed.
 
 Recompute every state on every wake and at every `/conduct`: a ticket can close inside a wave that
 later stops, or by hand. In flight at once: two sessions, or the `+ sessions <n>` the user gave —
-one to go slower, more than two only on that explicit number. A held session does not count until it
-works again. State the peak in the first report, sessions in flight times each launch's executor
-ceiling, because the machine and the rate limit both see that number.
+one to go slower, more than two only on that explicit number. Neither a held session, which waits
+on the user, nor a parked launch's, which is free, counts. State the peak in the first report,
+sessions in flight times each launch's executor ceiling, because the machine and the rate limit
+both see that number.
 
 ## Stage 3 — Launch
 
@@ -136,7 +216,8 @@ The label is how you recognise your slots after a context clear.
 so a free session has nothing left to keep. When a ready launch has no slot and both exist, take a
 slot whose session is free: `herdr pane close <pane>` — it asks nothing and ends that session at
 once — then split again for the new repository. Close a pane only when it carries the `conduct:`
-label and its session is free; a held or blocked session is waiting on the user. With both slots in
+label and its session is free, as a parked launch's is (Stage 2); a held or blocked session is
+waiting on the user. With both slots in
 flight or held, the launch waits.
 
 A repository that already has a pane keeps it and takes no slot. Sessions beyond the second, under
@@ -190,8 +271,9 @@ It polls once a minute and exits when one of those sessions settles after its nu
 one already has, so a settle between your read and the watcher is never lost. It prints
 `settled <name>` and that session's state. It waits through a pause by itself: a session whose last
 outcome line is `orchestrate: waiting on executors` has only handed its turn to its executors. After
-an hour with no settle it exits 3, and it exits 1 when a session is gone. A held session gets no
-watcher: it waits on the user, and it rejoins the schedule on the next wake or the next `/conduct`.
+an hour with no settle it exits 3, and it exits 1 when a session is gone. A held or parked launch's
+session gets no watcher: it waits on the user, and it rejoins the schedule on the next wake or the
+next `/conduct`.
 A host without background commands runs the same check itself at a long interval.
 
 Done when every ready launch is in flight or waits for a slot, and, under `+ watch`, one watcher
@@ -213,18 +295,19 @@ outcome line can still show an old pause line.
   - `orchestrate: waiting on executors`: paused while its executors run in the background. It is
     still in flight.
   - `orchestrate: done`: the launch lands when its tickets are closed. A ticket still open makes it
-    held.
+    parked where it qualifies (Stage 2), and held otherwise.
   - `orchestrate: stopped — …`: when every ticket of the launch is closed it landed anyway, and the
-    stop concerns a later step. Otherwise it is held: relay its report to the user, who may answer in
-    that tab or through you.
+    stop concerns a later step. Otherwise relay its report to the user, whether the launch is parked
+    where it qualifies (Stage 2) or held; the user may answer in that tab or through you.
   - No outcome line: the turn ended without saying how, through an API error, a usage limit, an
     interrupt or a context limit. Tell the user, with the screen's last lines. It is held.
 - **`unknown`**, or exit 1 (the session is gone): read the pane and tell the user. Send a launch line
   again only after the pane shows it never arrived.
 
 Then recompute every state (Stage 2), launch what is ready (Stage 3), and arm one new watcher over
-what is in flight, each session from the `state_change_seq` you last read for it. Nothing in flight
-means no watcher, and Stage 5.
+what is in flight, each session from the `state_change_seq` you last read for it. The wake's report
+names each parked launch as *A parked launch* (Stage 2) says. Nothing in flight means no watcher,
+and Stage 5.
 
 **Reading a session**: `herdr agent read <name> --source recent-unwrapped --lines 80`. Where that
 comes back blank, read the last assistant message of the session's transcript, and only that
@@ -240,10 +323,12 @@ Approvals, answers and go-aheads you were not given wait for the user.
 ## Stage 5 — Stop
 
 Without `+ watch`, stop once this turn's launches are out. Under `+ watch`, stop when every launch
-has landed, or when nothing is in flight and nothing is ready. Either way no watcher outlives the
+has landed, or when nothing is in flight and nothing is ready — a run whose only open launches are
+parked, held or waiting on a lender among them. Either way no watcher outlives the
 stop: a session that settles afterwards is picked up by the next `/conduct`.
 
 The report names each launch with its state, what every open launch waits on and on whom, each
+parked launch as *A parked launch* (Stage 2) says, each
 relayed question still unanswered, and the next `/conduct` line — without `+ watch`, the line to run
 once a session settles. It names the sessions still running, read from `herdr agent list` at the
 stop because the user may have closed one meanwhile, by pane label or tab, and marks as safe

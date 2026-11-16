@@ -71,7 +71,9 @@ before the close, so the remote carries none of it.
    counts.
 3. **Git ground truth** — `git fetch --prune`, `git status --porcelain`, the local integration
    branch (whether it exists, whether it contains the recorded commit, `git log --merges` on it),
-   the commits `origin/<base>` holds that it lacks, every ticket branch, `git worktree list`.
+   its upstream, if any (`git for-each-ref --format='%(upstream:short)' refs/heads/<integration
+   branch>`, which prints an empty line where there is none — an answer, not a failed read), the
+   commits `origin/<base>` holds that it lacks, every ticket branch, `git worktree list`.
 4. **The repo's agent rules** — `CLAUDE.md`, `AGENTS.md`, and anything they include: the gate
    commands, the seams, the hard rules an executor brief has to carry.
 
@@ -95,7 +97,8 @@ stop. The exception is a batch awaiting an irreversible go-ahead: the execution 
 tickets the line names that carry that label are the refused ones, and the line exempts nothing any
 more. Once the guard below has been answered, the refused tickets' worktrees go by their
 `ready-for-human` label, and the batch's other tickets' surviving worktrees are verified as *Verify*
-says and merged in the re-run, never torn down and dispatched again; then reset and re-run that
+says and merged in the re-run, never torn down and dispatched again — but for a ticket with a
+`hand-back:` line, which goes as that line says (below); then reset and re-run that
 batch without the refused tickets (*Merge the batch*, *Reset and re-run*), rather than stopping. Otherwise, where the integration branch's `HEAD` is that sha,
 ask the user for that go-ahead again, for the batch at that commit, instead of resetting past the
 batch and re-running it (*Merge the batch*, step 5); with `HEAD` anywhere else, the line is a stop
@@ -103,6 +106,13 @@ with a report. While the line stands, nothing is dispatched (*Dispatch the whole
 That batch's tickets are exempt from the surviving-worktree rules below and from the guard's
 question: their worktrees stay until the batch is recorded green or refused, and a refused
 ticket's then goes as a `ready-for-human` ticket's does (*Record, close, tear down*).
+
+**A `dev database:` line** in the execution progress says the dev database holds the effects of an
+irreversible ticket dropped after the batch's walk ran (*Merge the batch*, *The dev database after a
+dropped irreversible ticket*). Read it before any reset or walk of that batch, the refused batch's
+re-run above included. With an answer, follow it as *Reset and re-run* says; with none, ask the
+user which of *Merge the batch* step 5's three answers applies, and stop on it, under `+ all` too.
+It may stand beside an `awaiting go-ahead:` line; the green point replaces both.
 
 **Reconcile before dispatching anything.** The evidence, on every tracker, is the `#<n>` merge
 subject on the integration branch, read only among this run's own merges — first parent, from the
@@ -119,13 +129,31 @@ when the recorded commit already holds it, or inspect, salvage or delete it, and
 worktree whose ticket is closed: tear it down. A worktree whose ticket is `ready-for-human`, once the
 guard below has been answered: tear it down and keep its branch, as *Record, close, tear down* says
 for that label, and name the branch in the wave report; never verify, merge or dispatch it. An open
-`ready-for-agent` ticket whose worktree survives, outside a batch awaiting a go-ahead, and once the
-guard below has been answered: the executor's report died with the session. Where its branch has
-commits past the recorded commit (`git log <recorded commit>..<ticket branch>`), they are an
+`ready-for-agent` ticket whose worktree survives, outside a batch awaiting a go-ahead, with no
+`hand-back:` line (below), and once the guard below has been answered: the executor's report died
+with the session. Where its branch has commits past the recorded commit
+(`git log <recorded commit>..<ticket branch>`), they are an
 executor's result without its report: verify them as *Verify* says, reading the diff and running
 the gate, and merge them in the batch, or tear the worktree down and dispatch again. Where it has none, tear it down and dispatch again. Say
 which. Dispatch never re-creates a worktree that already exists. Tickets have no review requests of
 their own, so there are none to reconcile.
+
+**A `hand-back:` line** in the execution progress,
+`hand-back: #<n> <k> of 2 @ <ticket branch sha> — <the finding, in a few words>`, names a ticket
+handed back for rework, the hand-backs it has spent, and its branch's tip that failed (*Record,
+close, tear down*). Once the guard below has been answered, that ticket's surviving
+`ready-for-agent` worktree is rework in progress, not a lost report. Its commits past that tip
+(`git log <ticket branch sha>..<ticket branch>`) are the rework's result: verify them as *Verify*
+says. Where there are none, send the rework again with the line's finding — a fresh dispatch into
+the worktree that exists, carrying the original brief plus that finding, since the executor that
+held it died with the session — once no `awaiting go-ahead:` line and no unanswered `dev database:`
+line stands, and until then the line and the worktree wait; a conflict hand-back goes once the
+batch it was dropped from has recorded green (*Merge the batch*, step 2). The ticket is never
+merged into the re-run of the batch it was dropped from: a batch this stage re-runs (above) takes
+it only where the commits past the recorded one hold its `#<n>` merge of the rework, never of that
+tip, and otherwise it merges in a later batch. A failure found on that verification is hand-back
+`<k>+1`, and the third swaps the label as the rework paragraph says. The count never restarts from
+zero.
 
 **The single-session guard.** It asks one question — is another *agent session* live in **this working
 copy**? Read `git worktree list`. A worktree registered under `.claude/worktrees/<run-slug>/` is this
@@ -135,8 +163,8 @@ open tickets outside a batch awaiting a go-ahead — `ready-for-agent` and `read
 since an open ticket's worktree may be one a live second session is still working in, and the
 reconcile would tear it down, verify it or merge it under that session — ask the user, in one
 question, to confirm that no other session of this run is live in this working copy before
-reconciling them. Confirmed: the reconcile above handles them, each by its label. Not confirmed:
-stop. A **registered** worktree anywhere else, besides
+reconciling them. Confirmed: the reconcile above handles them, each by its label and any
+`hand-back:` line. Not confirmed: stop. A **registered** worktree anywhere else, besides
 this working copy itself, is another session and says yes: stop and report, because two sessions in one tree contend on the tree, the dev server and the dev
 database at once. An empty leftover directory under `.claude/worktrees/` is not a registered worktree,
 so read the list, never the filesystem. That is one cheap read, and if it is clear nothing else can
@@ -151,6 +179,23 @@ A blocker in another repository is released once it is merged onto that reposito
 branch and closed, long before that run's close. A gate reads that repository's tracker and nothing
 else of it: a walk that needs its running app uses its working copy only by borrowing it
 (*The runtime walk*). An unsatisfied gate is a wait, not a failure: say what it waits on and stop.
+
+**A borrowed walk that died.** Where the execution progress carries `borrowing <folder> since
+<time>`, a walk against that repository's working copy died mid-way (*The runtime walk*, *A
+borrowed working copy*), and its walker's report died with it. Clean up once the single-session
+guard has cleared — it found no other session, or the user confirmed there is none — because the
+walk may be a live session's, and before this stage ends on any other wait or stop, an unsatisfied
+gate included. A stop of the guard's own does no cleanup and leaves the line standing. In this
+order: check whether that repository's app still runs, by its runbook (its port or health URL);
+stop it the way the runbook says; re-read its tree as *The lender's tree after the walk* says (*The
+runtime walk*); report the walk's accounts and sentinel data as possibly left in its dev database;
+then remove the line. The line is what keeps that repository lent
+([../grill-to-waves/SESSIONS.md](../grill-to-waves/SESSIONS.md) §6, *A borrow that outlived its
+session*), so it goes only once the app is stopped, or was found not running, and the tree is
+re-read. An app that cannot be stopped, like a path that cannot be attributed, is a stop that
+leaves the line standing: its report names the app's port or health URL, or the path, the owner
+clears it and tells this session to go on, and this session, or the next one's Stage 1, resumes
+from the line. `+ check` reports the line and does none of this.
 
 **The tree preflight**, run before each wave's dispatch and again before each merge batch — not
 before every step:
@@ -172,7 +217,12 @@ before every step:
    the go-ahead question only: no wave is dispatched from it (Stage 1). Before the
    first wave the map records no cut yet: the branch is absent, and is cut now, or has no commits of
    its own and is an ancestor of `origin/<base>`, not only equal to it, and is recorded as the cut
-   now (*The integration branch*); step 6 then syncs it with any base commits it lacks.
+   now (*The integration branch*); step 6 then syncs it with any base commits it lacks. Before the
+   close the branch has no upstream, read as Stage 1's git ground truth reads it: one other than
+   `origin/<integration branch>` (a branch cut by the old rule has the base) is unset,
+   `git branch --unset-upstream <integration branch>`, and the wave report names it. After the
+   close's `git push -u` the upstream is `origin/<integration branch>`, and a resumed close leaves
+   it alone.
 5. Where the repo generates a database client or other build-time artifact into the dependency tree,
    it is present. Missing → repair it before anything else, because it misattributes every failure
    downstream of it.
@@ -181,8 +231,13 @@ before every step:
 
 **`+ check`** runs Stage 1 read-only and prints: the waves with each ticket's state and open blockers,
 the integration branch with its base, its last green point and how far `origin/<base>` is ahead of it,
+its upstream, read as the git ground truth reads it, where it has one other than
+`origin/<integration branch>` (the preflight's step 4 unsets it; `+ check` writes nothing),
 an `awaiting go-ahead:` line as the state the run is in, never as a failing preflight step 4, with
 no wave dispatchable until it is answered,
+a `dev database:` line as part of that state, with its answer or that it has none,
+each `hand-back:` line with its ticket, its count and its finding, and whether its branch has
+commits past the line's sha,
 what the guard found, what the preflight found, which of the run's own paths
 ([../grill-to-waves/SESSIONS.md](../grill-to-waves/SESSIONS.md) §4) are not yet ignored, cross-run gates with the tickets they wait on, and the
 line to run next. It also prints what will actually run: the model and effort of this session as the
@@ -198,8 +253,11 @@ merges into it, it is kept current with the base, and the close takes it to the 
 request.
 
 - **The cut.** At the first wave's preflight, when the branch does not exist locally, cut it from the
-  base as just fetched: `git switch -c <integration branch> origin/<base>`, and record the cut in the
-  map's execution progress at once, `<integration branch> cut at <sha>`. A resuming session uses
+  base as just fetched: `git switch --no-track -c <integration branch> origin/<base>` (git's
+  default gives a branch cut from a remote-tracking branch that branch as its upstream, and the
+  integration branch has none before the close, so a bare `git pull` or `git push` cannot reach the
+  base), and record the cut in
+  the map's execution progress at once, `<integration branch> cut at <sha>`. A resuming session uses
   the existing local branch, trusted as Stage 1 says. Planning cuts nothing. The name is the map's,
   in the repository's branch-prefix vocabulary, `feat/<run-slug>` by default, and ticket branches
   never nest under it, because git refuses `feat/x` and `feat/x/…` side by side.
@@ -220,9 +278,9 @@ request.
   writes prove non-collision, never independence, so a base change in a file no ticket touched can
   still break the run. Resolve a conflict whose two sides you can attribute, such as
   append-plus-append; a conflict that needs a product decision is aborted (`git merge --abort`)
-  and then a stop, so the next preflight does not meet a `MERGE_HEAD`. A gate that stays red once
-  every ticket merge is cleared of the break is the base's doing: a stop with a report, because no
-  ticket owns the fix.
+  and then a stop, so the next preflight does not meet a `MERGE_HEAD`. A gate that goes red after a
+  sync takes the red gate's path of *Merge the batch*, whose one rule says when its stripping ends;
+  a break that is the base's doing points at no ticket merge, and that rule ends there.
 - **Without a remote**, read `origin/<base>` as the local base branch: the fetch and the push have
   nothing to reach, and the close is the no-forge one.
 
@@ -297,7 +355,10 @@ Then, in one pass:
 2. **Briefs** — the ticket body verbatim; the repo's hard rules (seams, gate, i18n, security,
    accessibility); the gate commands; the delivery contract (Conventional Commits in the repo's style,
    on the ticket branch in its worktree; never push, never open a review request, never merge, never
-   touch the integration branch or the base branch; report the branch, the final commit and the gate
+   touch the integration branch or the base branch — a conflict hand-back's rebase of its own ticket
+   branch (*Record, close, tear down*) breaches none of this, since the ticket branch is local and
+   never pushed, and the protocol's "never a rebase" governs the integration branch, which the rebase
+   does not touch; report the branch, the final commit and the gate
    start time, and at the Fable tier the correctness argument); the
    prohibition on installing or generating in a junctioned worktree; that **`writes:` is a contract** —
    a tracked file it must change outside the block is a stop-and-report, never a widening; and that
@@ -314,7 +375,8 @@ An executor's account of its own work is a claim, not evidence. Before a branch 
   and drop it from the batch; never merge it, never widen the block. The batch's other green tickets
   merge, gate, walk and record green as usual, the wave is torn down, and the session stops at the
   end of that wave, under `+ all` too
-  ([../grill-to-waves/SESSIONS.md](../grill-to-waves/SESSIONS.md) §5).
+  ([../grill-to-waves/SESSIONS.md](../grill-to-waves/SESSIONS.md) §5). A ticket's third failure is
+  handled the same way once its label is swapped (*Record, close, tear down*).
 - **A wrong ticket premise is the common failure**, and an executor that refuses its own ticket is
   usually right. Verify the claim against the code; if the ticket is wrong, correct its body and any
   acceptance criterion quoting it, record why, and re-dispatch. That is not a hand-back.
@@ -339,7 +401,15 @@ failures verbatim; attributing a break and judging the tree stay here:
    ticket number in the merge subject as `#<n>` (`Merge #<n> <title> into <integration branch>`),
    the form the reconcile grep of Stage 1 matches, then the **fast** part of the gate only — the
    test suite — so a break is attributed to the merge that caused it. A red fast gate takes the red
-   gate's path below, without that merge. Resolve append-plus-append catalogue conflicts yourself.
+   gate's path below, without that merge. **A merge conflict** is resolved where you can attribute
+   both its sides and the resolution needs no product decision — append-plus-append among them, the
+   test the sync from the base applies (*The integration branch*) — and the resolution is named in
+   the wave report. Any other conflict: `git merge --abort`, which returns `HEAD` to the batch's
+   previous merge, drop the ticket from the batch, and go on with the batch's other branches, with
+   no reset. Once the batch records green, the ticket is handed back as a conflict hand-back
+   (*Record, close, tear down*). A conflict reaches this step at all because worktrees branch from
+   the recorded commit, never from the sync merge the dispatch preflight made, so a base change in a
+   ticket's file meets that ticket only here.
 3. After the last merge, the **spec mirrors** and the **tracker record**, then the **whole** gate
    once. Planning wrote no mirror, so every spec whose first ticket merges in this batch and whose mirror
    (`docs/spec-<spec-slug>-v<N>.md`) is absent from the integration branch gets it now, one commit
@@ -349,7 +419,8 @@ failures verbatim; attributing a break and judging the tree stay here:
    mirrors the integration branch holds — not a wave number, so it survives a reset and a resume. A
    clerk may do the copy; you commit it. The **tracker record** is a commit of its own and follows
    the same state rule: where the map's *How this is executed* records a tracker Stage 0 detected
-   and `docs/agents/issue-tracker.md` is absent from the integration branch, write that file from the
+   (GitHub, GitLab or local) and `docs/agents/issue-tracker.md` is absent from the integration
+   branch, write that file from the
    map's record, in the layout [../grill-to-waves/TRACKERS.md](../grill-to-waves/TRACKERS.md)
    *The tracker record* names, and commit it beside this batch's
    mirror commits, which puts it in the first merge batch: planning wrote none. Where a ticket's
@@ -360,31 +431,81 @@ failures verbatim; attributing a break and judging the tree stay here:
 4. **Then the runtime walk**, on the integration branch's `HEAD`, for every ticket whose `runtime:`
    is not `none` and for every check the map pins to this wave — dispatched and judged as *The
    runtime walk* says. A failed row of a ticket takes the red gate's path below, without that
-   ticket.
+   ticket; where that ticket is irreversible, the dev database is settled with the user before the
+   reset (*The dev database after a dropped irreversible ticket*, below). A failed row of a pinned
+   check names no ticket, so it is attributed as a red whole gate is: read what the check measures
+   against the batch's diffs. Where it points at one ticket merge, it takes the red gate's path
+   without that ticket. Where it points at no ticket merge — the sync from the base, or a state the
+   recorded commit already held — it is a stop with a report: the defect is filed as its own item,
+   and no green point is recorded.
 5. **Record the green point, and push nothing.** Only when the gate and the walk are both green —
    and, where the batch holds an irreversible ticket Fable did not verify, once the user has given
    the go-ahead — rewrite the map's execution progress to carry `<integration branch> @ <sha>`
    before anything else. While that go-ahead is pending, the execution progress carries
    `awaiting go-ahead: #<n>[, #<m>…] @ <batch head sha>`, naming every irreversible ticket in the
    batch, written the moment the gate and the walk are green, so the wait survives the session's
-   end (Stage 1); the green point replaces it. **A refused go-ahead** is recorded before anything
-   else: swap the refused tickets' `ready-for-agent` for `ready-for-human` and post on each the
-   comment saying why, so a session that dies from here on resumes it (Stage 1). Then reset and
-   re-run without them, below. The refused tickets' worktrees go as *Record, close, tear down* says
-   for that label.
+   end (Stage 1); the green point replaces it. The go-ahead question names each such ticket and what
+   a reset of the branch will not undo
+   ([../grill-to-waves/DEFAULTS.md](../grill-to-waves/DEFAULTS.md) *Verifying a high-consequence
+   ticket*), and asks in the same exchange which of these applies to the dev database should the
+   user refuse (*The dev database after a dropped irreversible ticket*, below):
+   1. the user restores the dev database and says so;
+   2. you reset or re-seed it by the repository's runbook — offered only where the runbook names how;
+   3. the re-run's walk runs against it as it is, and the walk's table says it ran against a dev
+      database holding that ticket's effects.
+
+   **A refused go-ahead** is recorded before anything else: write the `dev database:` line with the
+   answer, then swap the refused tickets' `ready-for-agent` for `ready-for-human` and post on each
+   the comment saying why, carrying that answer, so a session that dies from here on resumes it
+   (Stage 1). Then reset and re-run without them, below. The refused tickets' worktrees go as
+   *Record, close, tear down* says for that label.
 
 **A red gate** — a red fast gate at step 2, a red whole gate after the last merge, which points at
-that merge first, or a failed walk row at step 4 — is reset and re-run without the ticket it points
-at. That ticket is handed back: it keeps `ready-for-agent` and its worktree for the rework, which
-goes as the rework paragraph of *Record, close, tear down* says, and the `ready-for-human` teardown
-does not reach it. Nothing leaves this working copy before the close, so a bad ticket costs a reset
-and a re-run without it — there is no revert to publish and no ungated commit anywhere but here.
+that merge first, or a failed walk row at step 4 — is attributed by reading its failures against
+the batch's diffs, and is reset and re-run without the ticket it points at. That ticket is handed
+back, unless this is its third failure: it keeps `ready-for-agent` and its worktree for the rework,
+which goes as the rework paragraph of *Record, close, tear down* says, and the `ready-for-human`
+teardown does not reach it. Nothing leaves this working copy before the close, so a bad ticket costs
+a reset and a re-run without it — there is no revert to publish and no ungated commit anywhere but
+here.
 
-**Reset and re-run**, for a refused go-ahead and a red gate alike: `git reset --hard <recorded
-commit>`; sync from the base wherever `origin/<base>` holds commits the recorded commit lacks, as
-the tree preflight's step 6 does (*The integration branch*); then run steps 2 to 5 again without the
-dropped tickets — the merges, the mirrors and the tracker record, the whole gate, the walk — ending
-on the green point or the next awaiting line, which replaces any line standing.
+**When the stripping ends** is one rule, stated here, and *The integration branch* and the stop
+rule point at it. Each reset and re-run drops the ticket the failure is attributed to, and handing
+it back counts as one of its two. It repeats while each failure points at a ticket merge still in
+the batch. It ends on green, or on a failure that points at no ticket merge — the sync from the
+base, or a state the recorded commit already held — which is a stop with a report, because no
+ticket owns the fix. No count caps it: the attribution is the bound, and every drop spends one of
+that ticket's hand-backs.
+
+**The dev database after a dropped irreversible ticket.** A reset undoes the code, never what an
+irreversible ticket — the map names each high-consequence ticket with its clauses — did to the dev
+database once a walk of the batch ran against it. So a reset that drops an irreversible ticket after
+the batch's walk has run settles with the user, before the re-run's walk, how the dev database is
+brought back: a refused go-ahead (step 5), or a failed walk row that points at an irreversible
+ticket (step 4), and, in a re-run after such a walk, any red gate that drops one. A red fast gate
+or a red whole gate before the batch's walk is outside the rule: no walk has run, so the dev
+database holds nothing of the batch. A refusal carries the answer in the go-ahead exchange. Any
+other such drop writes the line with no answer before the reset and asks which of step 5's three
+answers applies; that is a decision that is the user's, so the session stops on it, under `+ all`
+too, and resets once it is answered. The answer is written through twice: as a comment on each
+ticket the line names — for a refusal, the refusal comment step 5 posts — and in the map's
+execution progress as `dev database: holds the effects of #<n>[, #<m>] — <answer>`, from before
+the reset until the re-run records green; the green point replaces the line. A further such drop
+before then adds its ticket to the line and asks again. A line with no answer yet is asked again,
+and nothing walks against that dev database until it is answered (Stage 1).
+
+**Reset and re-run**, for a refused go-ahead and a red gate alike:
+`git reset --hard <recorded commit>`; sync from the base wherever `origin/<base>` holds commits the
+recorded commit lacks, as the tree preflight's step 6 does (*The integration branch*); then run
+steps 2 to 5 again — the merges, the mirrors and the tracker record, the whole gate, the walk —
+without the dropped tickets, every ticket dropped from this batch so far, for a conflict, a breach
+or a third failure among them — a resuming session knows them by their `ready-for-human` label and
+their `hand-back:` lines (Stage 1) — ending on the green point or the next awaiting line, which
+replaces any `awaiting go-ahead:` line standing; a `dev database:` line stays until the green point.
+Where a `dev database:` line stands, carry out its answer before step 4's walk: answer 2 is your own
+step before that walk, by the runbook; answer 1 waits for the user's word that the dev database is
+restored, which a resuming session asks for again; answer 3 goes into the walk's brief, so its table
+says it ran against a dev database holding those tickets' effects.
 
 ## The runtime walk — a sub-agent walks, you judge
 
@@ -418,7 +539,8 @@ that writes nothing to the codebase and carries:
   reviewer — and any other sentinel data it wrote, wiped, with the wipe proven.
 
 Judge the table against the criteria yourself. A failed row is a hand-back to the ticket's executor,
-by the red gate's path of *Merge the batch*; a
+by the red gate's path of *Merge the batch*; a failed row that names no ticket, a pinned check's,
+is attributed as *Merge the batch* step 4 says, and is a stop where it points at no ticket merge; a
 row whose evidence is thin is a re-dispatch of the walker with the gap named. Open the browser from this
 context only to settle a single disputed measurement. Done when every criterion in the brief carries a
 measured value or a named failure.
@@ -428,29 +550,43 @@ entries walks against each such repository's running app, in that repository's w
 this launch borrows ([../grill-to-waves/SESSIONS.md](../grill-to-waves/SESSIONS.md) §6). For each
 of them:
 
-1. **Before the walk**, read that repository's recorded commit from its map, through its own tracker
-   as [../grill-to-waves/TRACKERS.md](../grill-to-waves/TRACKERS.md) *Across repositories* says. Its
-   working copy's `HEAD` (`git -C ../<folder> rev-parse HEAD`) must equal it, and its
-   `git status --porcelain` must be empty; otherwise the walk is a wait with its reason.
+1. **Before the walk**, run the borrow check on it
+   ([../grill-to-waves/SESSIONS.md](../grill-to-waves/SESSIONS.md) §6). A lender that fails is a
+   stop with a report naming the lender and the condition that failed. `/conduct`, or the user
+   starting this launch by hand, saw it pass when this launch went — but for a dead walk's
+   leftovers, which Stage 1 has cleaned up since — and occupancy has kept every scheduled session
+   out of it since, so the cause is outside the schedule: the owner clears it and tells this
+   session to go on.
 2. **Start its app** the way that repository's own steering file (`CLAUDE.md`, `AGENTS.md`) or
-   runbook says, run the walk, and stop the app once the walk returns, whatever it found.
+   runbook says, run the walk, and stop the app once the walk returns, whatever it found. Before
+   the app starts, add `borrowing <folder> since <time>` to this map's execution progress, so a
+   session that dies mid-walk leaves the next one what to clean up (Stage 1); remove the line once
+   the app is stopped, the walk's sentinel data wiped and the lender's tree re-read (below).
 
-Write nothing to that repository's tracked tree, and the walk brief says the same: no checkout, no
-`git worktree add` — that repository's single-session guard would read it as another session — no
-install, no code generation, no migration, no seed. Data the walk writes into that repository's dev
+**The lender's tree after the walk.** Once its app is stopped, read
+`git -C ../<folder> status --porcelain` again; the borrow check found it empty. A path it shows now
+is restored only where it is provably the app's own rewrite, read first, the way executor leakage is
+read (*The tree preflight*, step 2): a tracked path with `git -C ../<folder> restore -- <path>`, an
+untracked one removed. Name every restored path in the wave report. Anything that cannot be
+attributed to the app is a stop with a report, never discarded unread.
+
+Write nothing to that repository's tracked tree but that restoring, its one exception. The walk
+brief says the same, without the exception: no checkout, no `git worktree add` — that repository's
+single-session guard would read it as another session — no install, no code generation, no
+migration, no seed. Data the walk writes into that repository's dev
 database follows the rules above: every account stays and is reported with its password, and other
 sentinel data is wiped, with the wipe proven. A need for another repository's app that no `peer:`
-entry declares, or an app that does not start at its recorded commit, is a stop with a report. For
-an undeclared need, the report names what to add before the launch runs again: the
-`peer:<folder>` entry on the ticket's `runtime:`, and the `· borrows <folder>` suffix on its launch
+entry declares, or an app that does not start at the commit the borrow check passed, is a stop
+with a report. For an undeclared need, the report names what to add before the launch runs again:
+the `peer:<folder>` entry on the ticket's `runtime:`, and the `· borrows <folder>` suffix on its launch
 in the lead map's run order ([../grill-to-waves/SESSIONS.md](../grill-to-waves/SESSIONS.md) §6).
 
 ## Record, close, tear down
 
 Per ticket, **one comment**: what landed, the gate result with its start time and the commit it ran
 on, the runtime finding with its screenshot paths, so a closing session that did not run the
-earlier walks can post them, the merge commit on the integration branch, and, from a Fable-tier
-executor, its correctness argument. Then close it.
+earlier walks can post them, the merge commit on the integration branch, the hand-backs it took,
+each with its finding, and, from a Fable-tier executor, its correctness argument. Then close it.
 `clerk-haiku-medium` may draft a comment or the log entry into `.claude/scratch/` from the facts you
 give it; read the draft, then post it yourself.
 
@@ -458,14 +594,15 @@ Per wave, **two writes on the map, and the body is the one that matters**:
 
 - **Rewrite the map's execution-progress section in its body.** The cut line,
   `<integration branch> cut at <sha>`, kept as it was written, because the reconcile range starts
-  there; the last green point, `<integration branch> @ <sha>`, already written by *Merge the
-  batch*; the waves table with what
-  landed and its merge commit, how many tickets remain, the next dispatchable tickets from a live blocking-edge read, the
-  open items still blocking the close, and the tree state. A fact the next session needs before it
-  dispatches is one line here; how the wave went belongs to the log. Stage 1 reads the body first and
-  calls it binding, so a body still saying "wave 5 is next" after wave 5 landed aims the next session
-  at a closed ticket. A log entry does not correct that: it is one entry in a thread nobody reads
-  before acting. Where the map has no such section yet, add one at the top.
+  there; the last green point, `<integration branch> @ <sha>`, already written by *Merge the batch*;
+  the waves table with what landed and its merge commit, how many tickets remain, the next
+  dispatchable tickets from a live blocking-edge read, the open items still blocking the close,
+  every `hand-back:` line still standing (the rework paragraph below), and the tree state. A fact
+  the next session needs before it dispatches is one line here; how the wave went belongs to the
+  log. Stage 1 reads the body first and calls it binding, so a body still saying "wave 5 is next"
+  after wave 5 landed aims the next session at a closed ticket. A log entry does not correct that:
+  it is one entry in a thread nobody reads before acting. Where the map has no such section yet, add
+  one at the top.
 - **One log entry**: the tickets with their shas, the decisions taken, the defects filed, and what the
   next wave waits on — a comment on the map, or on the local tracker a dated section appended to
   `map-log.md` (TRACKERS.md). The log is the append-only record of *how* the run went; the body is
@@ -480,10 +617,29 @@ substitute for it, and where no such agent exists this step does not exist eithe
 
 Rework goes back to the introducing executor — by a follow-up message to the same executor where the
 host has one (`SendMessage` on Claude Code, `followup_task` on Codex), otherwise as a fresh dispatch
-carrying the original brief plus the finding — at most twice; the third failure is a stop and a
-report. A hand-back for a reasoning failure at `high` is the fresh dispatch at `xhigh` that *Model and
-effort* describes, and counts as one of the two. A defect found in code a ticket did not own is **filed as its own item**, never an
-opportunistic fix and never a hot fix on the integration branch or the base branch.
+carrying the original brief plus the finding — at most twice. Every hand-back counts toward the two,
+the conflict hand-back included. **The count lives on the map**, not in this session: a hand-back
+is written through the moment it is spent — when its ticket is dropped from the batch, or found
+failing at *Verify* — before any reset, any stop and the rework itself, as one line per ticket in
+the execution progress, `hand-back: #<n> <k> of 2 @ <ticket branch sha> — <the finding, in a few
+words>`, the sha being the branch's tip that failed. A second hand-back updates that line in place.
+The line goes once the ticket is recorded green or carries `ready-for-human`, whatever put the label
+there, the third failure included; until then a resuming session reads the rework from it
+(Stage 1). A hand-back for a reasoning failure at `high` is the fresh dispatch at `xhigh` that
+*Model and effort* describes, and counts as one of the two. **A conflict hand-back**
+(*Merge the batch*, step 2) tells the executor to rebase its own ticket branch onto the new recorded
+commit, in its worktree, resolve, and run the gate; a resolution that needs a product decision is
+`git rebase --abort`, then its stop-and-report. That rebase is within the delivery contract
+(*Dispatch the whole wave at once*): the ticket branch is local and never pushed, so rewriting it
+publishes nothing, and the protocol's "never a rebase" governs the integration branch, which the
+rebase does not touch. **The third failure hands the ticket to a human**: swap its `ready-for-agent`
+for `ready-for-human` and post on it the findings that failed it. From there it is handled exactly
+as a `writes:` breach is (*Verify*): it is dropped from the batch; the batch's other green tickets
+merge, gate, walk and record green; the wave is torn down, its worktree by the `ready-for-human`
+teardown below, uncommitted work committed as one work-in-progress commit and its branch kept and
+named; and the session stops at the end of that wave, under `+ all` too. A defect found in code a
+ticket did not own is **filed as its own item**, never an opportunistic fix and never a hot fix on
+the integration branch or the base branch.
 
 Tear down every worktree of the wave in one pass — yourself, or through `executor-sonnet-medium`
 carrying the procedure verbatim — by the junction-safe procedure in
@@ -493,9 +649,9 @@ build leaves, then `node_modules` — confirm none remain, then remove, `git wor
 the generated client is still present. Delete each ticket branch locally; none was ever pushed.
 
 **A ticket handed to a human** — one carrying `ready-for-human`, whatever put it there, a refused
-go-ahead or a breach — has its worktree torn down in that same pass by the same procedure, but its
-branch is kept: skip the procedure's `git branch -D`. Before the procedure runs, read the
-worktree's `git status --porcelain`, and commit any change it shows onto the ticket's branch
+go-ahead, a breach or a third failure — has its worktree torn down in that same pass by the same
+procedure, but its branch is kept: skip the procedure's `git branch -D`. Before the procedure runs,
+read the worktree's `git status --porcelain`, and commit any change it shows onto the ticket's branch
 yourself, as one work-in-progress commit, never the dependency tree, its link or the environment
 file the dispatch placed there, so `git worktree remove --force` discards nothing handed to the
 human. A work-in-progress commit that fails, a pre-commit hook rejecting it for one, is a stop with
@@ -503,8 +659,8 @@ a report before the teardown: the worktree is not removed while it holds uncommi
 branch is the work handed to the human, and no session merges or deletes it. Name it, and the
 work-in-progress commit where there is one, in the ticket's comment and in the wave report. A
 teardown delegated to `executor-sonnet-medium` carries in its brief the kept branches by name and
-the instruction to skip `git branch -D` for them. A third hand-back changes no label, and this rule
-does not reach it.
+the instruction to skip `git branch -D` for them. A ticket handed back for rework keeps
+`ready-for-agent`, so this rule does not reach it until its third failure swaps the label.
 
 ## Closing upward
 
@@ -514,20 +670,20 @@ testing decisions, with its tickets and their merge commits on the integration b
 A spec another open map is still executing stays open, and the record says so.
 
 **The map closes** when: zero open tickets under the run label on this side of the map's
-`Run closes at:` line — a ticket past that point, or one the map's `Steps after close owned by:` line
-hands to someone else, is outside the close condition, and the record names it as handed over to its
-owner, never as waited on; zero open non-ticket items under it other than the specs and the map (a
-mislabelled item is resolved or re-labelled first); every spec closed with its record; every
-orchestrator-only item pinned to the close done, runtime verification included; the completion gate
-green on `HEAD` — a recorded gate run stands when `HEAD` is the commit it ran on and
-`git status --porcelain` is empty, and is run again only otherwise; the mirror pass from
-`/grill-to-waves` Stage 2 run over every spec this run produced, on the integration branch and
-before the final sync and the gate — the delivery notes written on the spec item, each mirror
-regenerated from it (the copy is a clerk chore; the delivery notes are yours);
-the walk's screenshots posted on the run's review request as one captioned note (without a forge,
-with the execution record in the map's last log entry); and the integration branch synced with the
-base and pushed — both judged as of the moment its review request opened, or, without a forge, as
-of step 5, since the base moves on once it merges — and its review request at the close point.
+`Run closes at:` line — a ticket past that point, or one the map's `Steps after close owned by:`
+line hands to someone else, is outside the close condition, and the record names it as handed over
+to its owner, never as waited on; zero open non-ticket items under it other than the specs and the
+map (a mislabelled item is resolved or re-labelled first); every spec closed with its record; every
+orchestrator-only item pinned to the close done, runtime verification included, or waived by the
+owner (step 4); the completion gate green on `HEAD` — a recorded gate run stands when `HEAD` is the
+commit it ran on and `git status --porcelain` is empty, and is run again only otherwise; the mirror
+pass from `/grill-to-waves` Stage 2 run over every spec this run produced, on the integration branch
+and before the final sync and the gate — the delivery notes written on the spec item, each mirror
+regenerated from it (the copy is a clerk chore; the delivery notes are yours); the walk's
+screenshots posted on the run's review request as one captioned note (without a forge, with the
+execution record in the map's last log entry); and the integration branch synced with the base and
+pushed — both judged as of the moment its review request opened, or, without a forge, as of step 5,
+since the base moves on once it merges — and its review request at the close point.
 
 **The close runs in this order**, once every ticket on this side of the close point is closed.
 Steps 1 to 6 are not repeated once a review request from the integration branch exists: a resumed
@@ -541,16 +697,22 @@ remote) goes straight to step 8.
 3. **The final sync**: `git fetch --prune`, since the tree preflight does not run at the close, then
    sync from the base (*The integration branch*).
 4. **The whole gate** on `HEAD`, reused where the record above stands; its commit is recorded as the
-   last green point. Then the walk of every runtime check the map pins to the close, on `HEAD`,
-   dispatched and judged as *The runtime walk* says.
+   last green point. A red gate here points at no ticket merge — every ticket merge on `HEAD` is
+   recorded green — so it is a stop with a report (*Merge the batch*, *When the stripping ends*).
+   Then the walk of every runtime check the map pins to the close, on `HEAD`, dispatched and judged
+   as *The runtime walk* says. A failed check pinned to the close is filed as its own item and is a
+   stop before the push (step 5): the owner either takes a ticket for it, added to the map as a
+   wave, or waives the check for this run. A waiver is recorded on the map's execution progress,
+   `waived: <check> — <the owner's reason>`, and in the review request's body (step 6), and the
+   close goes on at step 5.
 5. **Push the integration branch** where a remote exists, `git push -u origin <integration branch>`:
    the run's first push.
 6. **One review request to the base**, opened as a draft when `Run closes at:` is *draft review
    request opened* and ready for review otherwise. Its body is the execution record: every ticket
    with its merge commit, the gate result with the commit it ran on, a summary of each Fable-tier
-   correctness argument, and the steps handed over past the close point with their owner. Post the
-   walk's screenshots on it — every wave's, from the ticket comments, and the close's own walk from
-   step 4.
+   correctness argument, every check waived at step 4 with the owner's reason, and the steps handed
+   over past the close point with their owner. Post the walk's screenshots on it — every wave's,
+   from the ticket comments, and the close's own walk from step 4.
    [../grill-to-waves/TRACKERS.md](../grill-to-waves/TRACKERS.md) *Deliver* has the commands.
 7. **Wait to the close point**: the request open, for *draft review request opened* or *review
    request opened*; the request's merged state on the forge, for *merged* — never ancestry, since a
@@ -569,11 +731,13 @@ Closing upward is part of finishing.
 ## Stop rule
 
 **Stop after the wave, and report.** `+ all` is the exception: continue through every remaining wave in
-order without a further go-ahead, and stop early only on a third hand-back, a gate that stays red
-after the reset, or a decision that is the user's — an `awaiting go-ahead:` line among them, which
-stops before the next dispatch. A `writes:` breach stops at the end of its wave, once the rest of
-the batch is recorded green and the wave torn down. The closing chain above always runs without a
-further go-ahead.
+order without a further go-ahead, and stop early only on a red gate whose stripping ends on a failure
+that points at no ticket merge (*Merge the batch*, *When the stripping ends*), a failed pinned check
+that points at none (*Merge the batch*, step 4), or a decision that is the user's — an `awaiting
+go-ahead:` line among them, which stops before the next dispatch, and a `dev database:` line with no
+answer, which stops before the re-run's walk. A `writes:` breach and a ticket's
+third failure stop at the end of their wave, once the rest of the batch is recorded green and the
+wave torn down. The closing chain above always runs without a further go-ahead.
 
 Leave nothing half-held: no worktree for a closed or `ready-for-human` ticket, and no branch that is
 green but unmerged, or kept for a `ready-for-human` ticket, without saying so by name. The report
@@ -585,7 +749,8 @@ what it waits on.
 
 **Every turn ends on an outcome line**, alone on the last line: `orchestrate: done` when the scope
 ran to its end; `orchestrate: stopped — <the reason, in a few words>` for anything else that hands
-the run back to the user, such as a question, a decision, a third hand-back or a gate that stays red;
+the run back to the user, such as a question, a decision, a red gate no ticket merge owns, or the end
+of a wave that handed a ticket to a human for a breach or a third failure;
 and `orchestrate: waiting on executors` when the turn ends while executors still run in the
 background. `/conduct` reads that line to tell a pause from the end.
 

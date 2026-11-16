@@ -305,9 +305,16 @@ and print the solo launch lines ready to copy:
 repository's `+ check` line, then one line per launch grouped by step, each led by the folder of the
 repository it runs in, because each repository has its own session started there, and ending on the
 launch's `· borrows` suffix, as a comment, where it has one. A launch started by hand goes only while
-no other launch is in flight or held in, or borrowing, any repository it occupies, its own and every
-one it borrows: a borrower waits on the lender's session, and the lender's next launch waits on the
-borrower ([SESSIONS.md](./SESSIONS.md) §6):
+no other launch is in flight, held or parked in, or borrowing, any repository it occupies, its own
+and every one it borrows: a borrower waits on the lender's session, and the lender's next launch
+waits on the borrower; a parked launch keeps its own repository only, and none once the owner chose
+to go on without it (`/conduct` Stage 2, *A parked launch*). A launch also waits until every launch
+of its own repository in an earlier step has landed, every ticket it names closed, even where its
+step's *Released by* names only other repositories' tickets, unless the owner chose to go on
+without one whose open tickets wait on them (`/conduct` Stage 2, *A parked launch*). A borrowing
+launch also waits until every lender passes the borrow check, and a lender
+stays lent after its borrower's session died mid-walk, until that borrower is started again and has
+cleaned up ([SESSIONS.md](./SESSIONS.md) §6, *A borrow that outlived its session*):
 
 ```
 billing-service    /orchestrate map <its map> + check
