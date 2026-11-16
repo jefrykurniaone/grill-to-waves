@@ -403,13 +403,14 @@ green on `HEAD` — a recorded gate run stands when `HEAD` is the commit it ran 
 spec item, each mirror regenerated from it (the copy is a clerk chore; the delivery notes are yours);
 the walk's screenshots posted on the run's review request as one captioned note (without a forge,
 with the execution record in the map's last log entry); and the integration branch synced with the
-base and pushed — both judged as of the moment its review request opened, since the base moves on
-once it merges — and its review request at the close point.
+base and pushed — both judged as of the moment its review request opened, or, without a forge, as
+of step 5, since the base moves on once it merges — and its review request at the close point.
 
 **The close runs in this order**, once every ticket on this side of the close point is closed.
-Steps 1 to 6 run once. A resumed close that finds a review request from the integration branch
-already there, open or merged, goes straight to step 7; a no-forge *merged* close that finds the base
-already holding the integration branch's tip goes straight to step 8.
+Steps 1 to 6 are not repeated once a review request from the integration branch exists: a resumed
+close that finds one, open or merged, goes straight to step 7. A no-forge *merged* close that finds
+`origin/<base>` already holding the integration branch's tip (the local base where there is no
+remote) goes straight to step 8.
 
 1. **Delivery notes** on each spec item this run produced.
 2. **The mirror pass, as one commit** on the integration branch.
