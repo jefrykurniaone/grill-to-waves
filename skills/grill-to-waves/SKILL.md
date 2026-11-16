@@ -7,8 +7,9 @@ disable-model-invocation: true
 # Grill to waves
 
 One pipeline, seven stages (0 to 6), each gated by the one before it. Specs, tickets and the map
-live on the repo's issue tracker; the repo gets a durable docs copy of each spec. The product record
-(goals, constraints, success criteria) lives inside each spec — there is no separate PRD.
+live on the repo's issue tracker; planning commits nothing to the repository, and the run that
+delivers a spec writes its durable docs mirror. The product record (goals, constraints, success
+criteria) lives inside each spec — there is no separate PRD.
 
 **A run is executed in one of two shapes.** **Solo**, for work in one repository: one `/orchestrate`
 session, wave by wave, which owns every merge, so there is nothing to coordinate. **Paired**, for work
@@ -70,13 +71,15 @@ files cannot ship separately, so they are one spec wearing two titles.
 Pick a run slug and create `run:<slug>` (description: "Belongs to delivery run <slug> - <title>").
 Before writing, sketch the seams the work will be tested at — existing seams first, the highest seam
 possible, ideally one, each with a one-line note on what it catches and what it misses — and confirm
-them with the user. Then write each spec on this template and publish it with `ready-for-agent`,
+them with the user. Then write each spec on this template, opening it with the as-of line, and publish it with `ready-for-agent`,
 `run:<slug>` and its own `spec:<slug>` label (description: "Belongs to spec <ref> - <title>"). No
 file paths and no code in a spec; those belong to tickets. The exception is a prototype snippet that
 encodes a decision more precisely than prose (a state machine, a schema, a type shape), trimmed to
 the decision.
 
 ```markdown
+As of <date>: written against <base> @ <sha>.
+
 ## Problem statement
 From the user's perspective.
 
@@ -104,21 +107,30 @@ Observable, checkable.
 ## Further notes
 ```
 
-Mirror each spec into the repo as `docs/spec-<spec-slug>-v<N>.md` — a header linking the spec and
-map items (updated as later stages create them), then the body verbatim — on a `docs/` branch merged
-by pull request. A mirror is a point-in-time copy that the spec's own run will falsify, so write its
-claims to survive delivery: "as of <date>, X" rather than "X is", and never renumber a `path:line`
-citation later — the quoted text is the evidence, the number is only its address at writing time.
-**The spec item is the one written copy.** Whoever closes the run writes the delivery notes there —
-past-tensing or marking each claim the run's tickets reversed, deleting nothing — and then regenerates
-each mirror whole from it: the mirror keeps its own header (the title line and the note above the
-body: the as-of date and commit, the links, the lineage of earlier versions) and takes the item's body
-below that header verbatim — on the local tracker, everything under the item's header lines and above
-its first dated section, which stays on the item. Done when the mirror below its header and the item's
-body diff empty.
+The as-of line is the anchor of every "as of" claim in the body: `<base>` is the branch the repository
+was read on and `<sha>` its commit then, so a reader of the mirror can check the claims although the
+mirror is written later.
 
-Done when: every grilled decision is owned by exactly one spec, every spec item exists, the docs
-pull request is open or merged.
+**The repository keeps a mirror of each spec** as `docs/spec-<spec-slug>-v<N>.md`, and planning
+writes none: the orchestrator of the run that delivers the spec adds it onto the integration branch
+in the batch where the spec's first ticket merges, and regenerates it at the close, so it travels in
+the run's one review request (`/orchestrate`, *Merge the batch* and *Closing upward*). There is no
+`docs/` branch and no docs pull request. Its header is the title line, links to the spec, the map
+and the tickets from its first write, the date it was copied and the integration branch it was
+copied onto; below the header, the item's body verbatim, the as-of line included. A mirror is a
+point-in-time copy that the spec's own run will falsify, so write its claims to survive delivery:
+"as of <date>, X" rather than "X is", and never renumber a `path:line` citation later — the quoted
+text is the evidence, the number is only its address at writing time. **The spec item is the one
+written copy.** Whoever closes the run writes the delivery notes there — past-tensing or marking each
+claim the run's tickets reversed, deleting nothing — and then regenerates each mirror whole from it:
+the mirror keeps its own header (the title line and the note above the body: the links, the date
+copied, the integration branch, the lineage of earlier versions) and takes the item's body below that
+header verbatim — on the local tracker, everything under the item's header lines and above its first
+dated section, which stays on the item. Done when the mirror below its header and the item's body
+diff empty.
+
+Done when: every grilled decision is owned by exactly one spec, every spec item exists and
+carries its as-of line.
 
 ## Stage 3 — Tickets
 
@@ -226,7 +238,8 @@ Stage 4: `Run closes at:`, `Steps after close owned by:`, and beside them
    never a log: wave reports and dated notes go to the comment thread, or beside a local map to
    `map-log.md` ([TRACKERS.md](./TRACKERS.md)). Leaving the slot empty invites the progress to live
    in that log instead, where the next session acts without it.
-2. **Parent** — the spec items, their docs mirrors, binding ADRs and seams, and any
+2. **Parent** — the spec items, the mirror paths the run will write
+   (`docs/spec-<spec-slug>-v<N>.md`), binding ADRs and seams, and any
    cross-run gate ("must not start until run X closes"), each gate naming the tickets whose closed
    state satisfies it and carrying a real blocking edge on the tickets it gates.
 3. **How this is executed** — the integration branch from the header, cut by `/orchestrate` at the
@@ -254,14 +267,14 @@ Stage 4: `Run closes at:`, `Steps after close owned by:`, and beside them
    it meets (irreversible, run-wide or adversarial) and the second verification it will get.
 7. **Completion gate** — the repo's one-shot gate commands and quality bars, from its `CLAUDE.md` or `AGENTS.md`.
 8. **Rework protocol** — hand-backs to the introducing executor, at most twice; gate re-runs whole;
-   post-merge defects become new issues; the mirror pass from Stage 2 runs before the map closes.
+   post-merge defects become new issues; the mirror pass of `/orchestrate`'s close order (rules in Stage 2) runs before the map closes.
 9. **Out of scope** — carried from the specs so no executor picks it up opportunistically.
 
 **A paired run** — work that lands in more than one repository — has one map per repository, each in
 that repository's own tracker, and the lead map also carries the *Paired runs* line and the *Run order
 across repositories* section, all as SESSIONS.md §6 says.
 
-Update each spec mirror's header with the map reference. Done when: the map item exists and every
+Done when: the map item exists and every
 ticket appears in exactly one wave.
 
 ## Stage 6 — Stop

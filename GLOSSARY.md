@@ -50,6 +50,11 @@ The branch a run cuts from its base branch, merges every ticket into, keeps curr
 branch, and returns to it in one review request.
 _Avoid_: run branch, docs branch
 
+**Spec mirror**:
+The point-in-time copy of a spec item kept in the repository, written by the run that delivers the
+spec and regenerated from the item when that run closes; the item, not the mirror, is the spec.
+_Avoid_: docs copy, spec file
+
 **Promotion**:
 Moving what already landed on the base branch to a staging or production branch. It is one act per
 release, distinct from the run that brings work to the base branch in one review request.

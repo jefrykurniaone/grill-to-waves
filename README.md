@@ -56,7 +56,8 @@ than once per run, and its failure mode is a production deploy rather than a han
 | `skills/*/agents/openai.yaml` | Codex skill metadata: user-invocation only, the equivalent of `disable-model-invocation`. Claude Code ignores it. |
 
 The tracker is the state store — specs, tickets and the map are issues, and the repo keeps a durable
-docs mirror of each spec. Nothing depends on a local file that a context clear would lose.
+docs mirror of each spec, written by the run that delivers it. Nothing depends on a local file that
+a context clear would lose.
 
 ## Install
 

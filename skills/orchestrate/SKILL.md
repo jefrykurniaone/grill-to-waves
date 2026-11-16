@@ -282,10 +282,15 @@ failures verbatim; attributing a break and judging the tree stay here:
    ticket number in the merge subject as `#<n>` (`Merge #<n> <title> into <integration branch>`),
    the form the reconcile grep of Stage 1 matches, then the **fast** part of the gate only — the test suite — so a break is attributed to the
    merge that caused it. Resolve append-plus-append catalogue conflicts yourself.
-3. After the last merge — and, in a paired run's first wave, after one commit adding this
-   repository's spec mirrors in Stage 2's format, since planning wrote none
-   ([../grill-to-waves/SESSIONS.md](../grill-to-waves/SESSIONS.md) §6) — the **whole** gate once:
-   lint, type check, tests, build. Restore any file the
+3. After the last merge, the **spec mirrors**, then the **whole** gate once. Planning wrote no
+   mirror, so every spec whose first ticket merges in this batch and whose mirror
+   (`docs/spec-<spec-slug>-v<N>.md`) is absent from the integration branch gets it now, one commit
+   per spec, after the batch's last merge and before the gate: the title line, links to the spec, the
+   map and the tickets, the date copied and the integration branch, `---`, then the item's body
+   verbatim, its as-of line included (`/grill-to-waves` Stage 2). The rule reads state — which
+   mirrors the integration branch holds — not a wave number, so it survives a reset and a resume. A
+   clerk may do the copy; you commit it. The whole gate is lint, type check, tests, build. Restore
+   any file the
    test run dirties before judging the tree, and record the result with the commit it ran on — the
    close reuses that record (*Closing upward*).
 4. **Then the runtime walk**, on the integration branch's `HEAD`, for every ticket whose `runtime:`
@@ -399,8 +404,9 @@ mislabelled item is resolved or re-labelled first); every spec closed with its r
 orchestrator-only item pinned to the close done, runtime verification included; the completion gate
 green on `HEAD` — a recorded gate run stands when `HEAD` is the commit it ran on and
 `git status --porcelain` is empty, and is run again only otherwise; the mirror pass from
-`/grill-to-waves` Stage 2 run over every spec this run produced — the delivery notes written on the
-spec item, each mirror regenerated from it (the copy is a clerk chore; the delivery notes are yours);
+`/grill-to-waves` Stage 2 run over every spec this run produced, on the integration branch and
+before the final sync and the gate — the delivery notes written on the spec item, each mirror
+regenerated from it (the copy is a clerk chore; the delivery notes are yours);
 the walk's screenshots posted on the run's review request as one captioned note (without a forge,
 with the execution record in the map's last log entry); and the integration branch synced with the
 base and pushed — both judged as of the moment its review request opened, or, without a forge, as
@@ -413,7 +419,8 @@ close that finds one, open or merged, goes straight to step 7. A no-forge *merge
 remote) goes straight to step 8.
 
 1. **Delivery notes** on each spec item this run produced.
-2. **The mirror pass, as one commit** on the integration branch.
+2. **The mirror pass, as one commit** on the integration branch: each mirror regenerated whole
+   from its item (`/grill-to-waves` Stage 2), so the final sync and the gate below run over it.
 3. **The final sync**: `git fetch --prune`, since the tree preflight does not run at the close, then
    sync from the base (*The integration branch*).
 4. **The whole gate** on `HEAD`, reused where the record above stands; its commit is recorded as the
