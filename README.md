@@ -5,7 +5,8 @@ definitions it dispatches, a conductor for runs that span several repositories, 
 skills: one for the end of the day, one for the ticket.
 
 - **`/grill-to-waves`** plans: it grills the idea, writes one spec per shippable slice, tickets each
-  spec, proves the specs write-disjoint, publishes an execution map — then stops.
+  spec, checks the tickets for collisions and orders them into waves, publishes an execution map —
+  then stops.
 - **`/orchestrate`** executes that map: it dispatches ticket executors as subagents, verifies their
   work itself, merges a whole wave under one gate, and closes the specs and the map.
 - **`/ship-it-to stg|prd`** promotes what landed: it reads the repo's own promotion contract and the
@@ -35,10 +36,10 @@ production deploy rather than a handed-back ticket.
 | `GLOSSARY.md` | Canonical distinction between executor tier and reasoning effort. |
 | `CHANGELOG.md` | What changed in the pipeline's rules and agent set, by date, and what to do after updating. |
 | `skills/grill-to-waves/SKILL.md` | The seven-stage pipeline (Stage 0 tracker → Stage 6 stop). |
-| `skills/grill-to-waves/SESSIONS.md` | Write surfaces, the collision rule, ownership, resume, and a paired run across repositories: its format and how it is planned. The protocol the skills share. |
+| `skills/grill-to-waves/SESSIONS.md` | The solo and paired shapes, write surfaces, the collision rule that orders the waves, worktrees, the breach stop, and a paired run across repositories: its format and how it is planned. The protocol the skills share. |
 | `skills/grill-to-waves/TRACKERS.md` | The five tracker operations for GitHub (`gh`), GitLab (`glab`) and local markdown, and the blocking edges between repositories. |
 | `skills/grill-to-waves/DEFAULTS.md` | The session's model floor, the effort ladder, high-consequence tickets and the Fable tier, scouts and the clerk, and the junction-safe worktree teardown. |
-| `skills/orchestrate/SKILL.md` | Wave dispatch, verification, merge gate, closing upward, team shape. |
+| `skills/orchestrate/SKILL.md` | Wave dispatch, verification, merge gate, closing upward. |
 | `skills/conduct/SKILL.md` | The conductor of a paired run, inside herdr: reading the run order, the states of each launch, launching each repository's session, relaying decisions, and where it stops. Sized for one laptop: one tab split three ways, two sessions in flight, five executors in each, and a watcher only under `+ watch`. |
 | `skills/conduct/scripts/watch.*` | Read-only watcher, PowerShell and bash, started only under `+ watch`: one process waits until one of the run's herdr agents settles after a known state change, and waits through an orchestrator's pause by itself. |
 | `skills/ship-it-to/SKILL.md` | Promotion to staging or production: contract resolution, branch protections, the pivot, the gate on the pivot, authorship of what travels, the request body, and where the run stops. |
@@ -290,14 +291,6 @@ It stops at Stage 6 and prints the launch lines, solo first (on Codex the prefix
 
 Run those in a **new** session. `+ check` is the cheap way to see what a run would do.
 
-A team splits a map by spec instead — one developer per clone, never two sessions in one working
-copy:
-
-```
-/orchestrate map <map> + spec <spec-a> + team
-/orchestrate map <map> + tail        # the serial owner, once every row is closed
-```
-
 A paired run — one run across several repositories, one map in each, the lead map carrying the run
 order — is planned by one `/grill-to-waves` session in the lead repository, and driven from one herdr
 pane opened in the folder that holds the repositories:
@@ -374,9 +367,9 @@ re-detecting it every run.
 
 ## Design notes
 
-- **The spec is the unit of splitting.** Tickets carry a write surface; specs are proved disjoint at
-  planning time, or fused when they collide. Disjoint writes prove non-collision, never independence —
-  serial merges plus a whole-gate re-run after each merge is the only net.
+- **Write surfaces order the waves.** Every ticket declares what it may write, and two tickets whose
+  writes overlap are never in flight together. A write outside the declared surface is a stop, never
+  a widening.
 - **The orchestrator verifies; the executor does not self-certify.** An executor's account of its own
   work is a claim. The orchestrator reads the diff, runs the gate, and measures rather than eyeballs.
 - **Executor tier and effort are separate axes.** Consequence and reach choose Sonnet, Opus or Fable;
@@ -388,7 +381,7 @@ re-detecting it every run.
   `high`, so the pipeline runs on an account without Fable, and an account with it pays for Fable
   where a wrong decision cannot be caught afterwards.
 - **Two agent sessions never share one working copy.** They contend on the tree, the dev server and
-  the dev database at once. Splitting a run means one developer per clone.
+  the dev database at once.
 - **Nothing is true until it is on the tracker** — and the map's *body* is where a resuming session
   looks first. Sessions share no context window, so a fact that was never posted did not happen, and
   a fact posted only as a comment on a long thread is a fact the next session acts without.

@@ -1,6 +1,6 @@
 ---
 name: grill-to-waves
-description: Run the delivery pipeline — grill the idea, write one spec per shippable slice, ticket each spec, prove the specs write-disjoint, publish the execution map — then stop for /orchestrate.
+description: Run the delivery pipeline — grill the idea, write one spec per shippable slice, ticket each spec, check the tickets for collisions and order them into waves, publish the execution map — then stop for /orchestrate.
 disable-model-invocation: true
 ---
 
@@ -10,19 +10,16 @@ One pipeline, seven stages (0 to 6), each gated by the one before it. Specs, tic
 live on the repo's issue tracker; the repo gets a durable docs copy of each spec. The product record
 (goals, constraints, success criteria) lives inside each spec — there is no separate PRD.
 
-**A run is normally executed by one `/orchestrate` session, wave by wave.** That is the default and
-the cheaper path: one session owns every merge, so there is nothing to coordinate. Stage 4 computes
-the wave order, which is what that session executes.
+**A run is executed in one of two shapes.** **Solo**, for work in one repository: one `/orchestrate`
+session, wave by wave, which owns every merge, so there is nothing to coordinate. **Paired**, for work
+that lands in several repositories: one `/orchestrate` session per repository, driven by `/conduct`
+(Stage 0 says how it is planned). Stage 3 gives every ticket a write surface, and Stage 4 turns the
+surfaces and the blocking edges into the wave order those sessions execute.
 
-**The spec is the unit of splitting when a team wants one.** Several developers can execute one map,
-one spec row each **on their own clones**, and this pipeline is the half that makes that safe: Stage 3
-gives every ticket a write surface, Stage 4 proves the specs disjoint (or fuses the ones that collide),
-Stage 5 publishes the result as the map's Sessions table. Splitting only pays when executor time per
-ticket clearly exceeds gate time — measure the gate at Stage 6 and say so. Two agent sessions never
-share one working copy: a split means one developer per clone, never two terminals in one tree. The
-protocol the split path needs — surfaces, collision, ownership, resume — is
-[SESSIONS.md](./SESSIONS.md); per-tracker mechanics are [TRACKERS.md](./TRACKERS.md). This file points
-at them rather than restating them.
+Two agent sessions never share one working copy: a second session in the same tree contends on the
+tree, the dev server and the dev database at once. The protocol both skills share — surfaces,
+collision, worktrees, paired runs — is [SESSIONS.md](./SESSIONS.md); per-tracker mechanics are
+[TRACKERS.md](./TRACKERS.md). This file points at them rather than restating them.
 
 This session runs on the frontier tier at `high` or above. Model and effort assignment follows
 [DEFAULTS.md](./DEFAULTS.md), which travels with this skill; a
@@ -45,7 +42,7 @@ Then make sure the repo carries the labels `meta:orchestration`, `ready-for-agen
 
 **Work that lands in more than one repository is a paired run**, planned by this one session from
 the lead repository. This stage then runs once per repository, and every later stage changes as
-[SESSIONS.md](./SESSIONS.md) §8 *Planning a paired run* says: read it before going on.
+[SESSIONS.md](./SESSIONS.md) §6 *Planning a paired run* says: read it before going on.
 
 Done when: every repository's tracker is named and carries the label vocabulary.
 
@@ -68,7 +65,7 @@ Stage 0 now.
 Consolidate the grilled understanding into one or more specs. A spec is a coherent, independently
 shippable slice — split where the work serves different surfaces or could ship separately; a small
 effort is legitimately one spec. **Split with Stage 4 in mind**: two specs that will edit the same
-files are one spec wearing two titles.
+files cannot ship separately, so they are one spec wearing two titles.
 
 Pick a run slug and create `run:<slug>` (description: "Belongs to delivery run <slug> - <title>").
 Before writing, sketch the seams the work will be tested at — existing seams first, the highest seam
@@ -163,11 +160,10 @@ writes: …
 reads: …
 runtime: dev-db | dev-server | none
 deps: shared | own
-exclusive: no | run
 ```
 
-The surface block follows SESSIONS.md §2 in full. A ticket without a surface cannot join a spec
-session, so there are no exceptions.
+The surface block follows SESSIONS.md §2 in full. A ticket without a surface cannot be placed in a
+wave, so there are no exceptions.
 
 A `runtime:` of `dev-server` means the orchestrator walks the app for that ticket, and the walk is
 driven by **Playwright MCP** where the server is connected — the executor never starts a dev server.
@@ -183,53 +179,24 @@ record every blocking edge, cross-spec and cross-repository edges included, per 
 Done when: every ticket is a child of its spec, carries executor, effort and run labels, declares a
 surface, and has its edges recorded.
 
-## Stage 4 — Sessions
+## Stage 4 — Waves
 
-Run the collision check of SESSIONS.md §3 over the tickets and resolve every collision by its three
-remedies, saying which you applied and why. Then compute, for the solo path, a **wave order**: no two
-tickets in one wave share a surface, blocking edges respected. A high-consequence ticket is
+Run the collision check of SESSIONS.md §3 over the tickets, then compute the **wave order**: no two
+tickets in one wave collide, blocking edges respected. A high-consequence ticket is
 usually the seam later tickets compose, so it sits in the wave that blocks them; check the edges say
 so. Nothing is committed and no tooling is added to the repo.
 
-Emit the **Sessions table** — one row per session with its specs, tickets, cross-row blocking edges
-it may idle on, and the exact `/orchestrate` launch line — the **tail** row, present even when empty,
-and the **verdict line** (`splittable N ways` or `not splittable: <fusing surface>`).
+### Settle where the run closes
 
-### Ask the user the execution shape
-
-The table says what *can* run apart; only the user knows who will run it. Ask once, in one question,
-and recommend the first unless the answer is obvious from what they have already said:
-
-- **solo** — one person, one session, wave by wave. The default, and the right answer for most runs.
-- **team** — several developers on their own machines, one spec row each. Choose this when there is
-  genuinely a second developer with their own clone, not merely a second terminal: two agent sessions
-  in one working copy contend on the tree, the dev server and the dev database, and that is a stop.
-
-A `not splittable` verdict answers the question by itself: the run is solo, and a second developer
-would be an audience rather than a second pair of hands. Say so rather than asking.
-
-**If the answer is team**, settle two things now and write both into the table:
-
-1. **Who owns which row.** Record it as the assignee on each spec item and on its tickets — that is the
-   ownership signal `/orchestrate + team` reads.
-2. **Who is the serial owner**, named once for the whole run. Every `exclusive: run` ticket — schema,
-   migrations, `package.json`, the lockfile, an environment target — belongs to that one person,
-   whichever row it came from, because two developers migrating in the same week produce divergent
-   histories that do not reconcile. Move those tickets into the tail row and assign them.
-
-Write the answer as an **Execution shape** line under the verdict: the shape, the reason, and for team
-the row-to-developer assignment and the serial owner.
-
-**Settle where the run closes** in the same exchange: `Run closes at:` — *merge request opened*,
-*merged* or *deployed* — and `Steps after close owned by:`, the person who takes what follows (the
+Ask the user once, in one question: `Run closes at:` — *merge request opened*, *merged* or
+*deployed* — and `Steps after close owned by:`, the person who takes what follows (the
 merge, the deploy, a data cleanup, a seed). Stage 5 writes both as the map's header lines, and
 `/orchestrate` reports every step past that point as handed over to that person, so a run that ends
 at an open review request says so from the start rather than closing "waiting on" a step that was
 never its own.
 
-Done when: every ticket appears in exactly one row and exactly one wave, the table is written, and the
-shape, the close point and its owner are recorded — in a paired run, for every repository, with the
-run order derived from the cross-repository edges.
+Done when: every ticket appears in exactly one wave, and the close point and its owner are recorded —
+in a paired run, for every repository, with the run order derived from the cross-repository edges.
 
 ## Stage 5 — Map
 
@@ -248,7 +215,7 @@ Stage 4: `Run closes at:` and `Steps after close owned by:`. Then, in order:
    cross-run gate ("must not start until run X closes"), each gate naming the tickets whose closed
    state satisfies it and carrying a real blocking edge on the tickets it gates.
 3. **How this is executed** — point at the tickets' labels for model and effort; one worktree per
-   ticket at `.claude/worktrees/<row>/<ticket>`; `deps: shared` worktrees never install or generate;
+   ticket at `.claude/worktrees/<run-slug>/<ticket>`; `deps: shared` worktrees never install or generate;
    serial merge-commit-only merges on a quiescent tree, and teardown likewise; no dev server from
    executors; check-versus-fix ownership; the per-wave in-flight ceiling (default five; above five only
    on the user's word, written as the number and the reason; below five for a named reason such as
@@ -256,57 +223,38 @@ Stage 4: `Run closes at:` and `Steps after close owned by:`. Then, in order:
    write-through rule — every fact the next session needs is posted the moment it becomes true.
 4. **Known shared-file contention** — the files parallel branches will collide on inside a session
    and how each collision is handled (append-plus-append catalogue, wave separation, stop-and-report).
-5. **Sessions** — Stage 4's table, tail row, verdict line and **Execution shape** line verbatim,
-   heading text beginning `Sessions` (admission matches on the word). Where the shape is team, this
-   section is also where the row-to-developer assignment and the **serial owner** are written down, so
-   a session that picks up an `exclusive: run` ticket can see in one read whether it may run it.
-6. **Waves** — the solo order, numbered globally; every ticket line carries its spec. Orchestrator-only
-   work pinned to a wave (a baseline, a runtime check) names its owner: a session row, or `tail`. A
-   pinned runtime check states **how it is driven**: Playwright MCP by default, the scripted Playwright
-   fallback or plain HTTP only where the check does not need a DOM, or where it produces an artifact
+5. **Waves** — Stage 4's wave order, numbered globally; every ticket line carries its spec.
+   Orchestrator-only work pinned to a wave (a baseline, a runtime check) names its owner: the session
+   that runs that wave, or the close. A pinned runtime check states **how it is driven**: Playwright
+   MCP by default, the scripted Playwright fallback or plain HTTP only where the check does not need a
+   DOM, or where it produces an artifact
    rather than a page and is settled by fetching it. `/orchestrate`'s walk brief carries the check
    verbatim, so write it as what the walker must open, measure and find.
-7. **Why the executors split this way** — one paragraph naming every ticket not at `high` and the
+6. **Why the executors split this way** — one paragraph naming every ticket not at `high` and the
    axis that moved it, and every high-consequence ticket, whichever tier runs it, with every clause
    it meets (irreversible, run-wide or adversarial) and the second verification it will get.
-8. **Completion gate** — the repo's one-shot gate commands and quality bars, from its `CLAUDE.md` or `AGENTS.md`.
-9. **Rework protocol** — hand-backs to the introducing executor, at most twice; gate re-runs whole;
+7. **Completion gate** — the repo's one-shot gate commands and quality bars, from its `CLAUDE.md` or `AGENTS.md`.
+8. **Rework protocol** — hand-backs to the introducing executor, at most twice; gate re-runs whole;
    post-merge defects become new issues; the mirror pass from Stage 2 runs before the map closes.
-10. **Out of scope** — carried from the specs so no executor picks it up opportunistically.
+9. **Out of scope** — carried from the specs so no executor picks it up opportunistically.
 
 **A paired run** — work that lands in more than one repository — has one map per repository, each in
 that repository's own tracker, and the lead map also carries the *Paired runs* line and the *Run order
-across repositories* section, all as SESSIONS.md §8 says.
+across repositories* section, all as SESSIONS.md §6 says.
 
 Update each spec mirror's header with the map reference. Done when: the map item exists and every
-ticket appears in exactly one wave and one session row.
+ticket appears in exactly one wave.
 
 ## Stage 6 — Stop
 
 The pipeline ends here, hard: no dispatch, no worktree, no executor, however ready it looks.
-Execution belongs to a fresh session. Report the tracker references (specs, map, tickets per wave and
-per row) and print the launch lines ready to copy, **the solo lines first, because they are the
-default**:
+Execution belongs to a fresh session. Report the tracker references (specs, map, tickets per wave)
+and print the solo launch lines ready to copy:
 
 ```
 /orchestrate map <map> + check                             # read-only preflight, writes nothing
 /orchestrate map <map>                                     # one session, wave by wave
 /orchestrate map <map> + all                               # one session, every wave, no stop between
-```
-
-Then the lines for the shape Stage 4 recorded, one per Sessions row plus the tail — **team**, one line
-per developer, each run in that developer's own clone:
-
-```
-/orchestrate map <map> + spec <spec-a> + team              # dev A
-/orchestrate map <map> + spec <spec-b> + team              # dev B
-/orchestrate map <map> + tail                              # the serial owner, once every row is closed
-```
-
-A fused row names every member on one line:
-
-```
-/orchestrate map <map> + spec <spec-b> + spec <spec-c> + team      # dev B, a fused row
 ```
 
 **A paired run** prints, in place of the solo lines, the run order as launch lines: every
@@ -330,14 +278,3 @@ repositories:
 /conduct <lead map>                                        # launch what is ready now, then stop
 /conduct <lead map> + watch                                # every step of the run order, waking as sessions settle
 ```
-
-**Measure the gate once and print its duration beside the lines** — in a paired run, each
-repository's. A solo session runs the whole gate once per wave; a team session runs it once per merge
-and again after every rejected push. Below roughly the executor time per ticket, splitting is not worth the extra context windows. Say which you
-recommend, and state the residual risks from SESSIONS.md §7 whenever you recommend team.
-
-**For a team run, also print the pre-flight the humans owe**, because no skill can do it for them:
-branch protection on the default branch with required status checks and *require branches to be up to
-date before merging*; whether CI's checks are weaker than this map's completion gate, naming which
-commands are missing; whether the developers share one dev database, and if so who owns migrations;
-and the serial owner's name.

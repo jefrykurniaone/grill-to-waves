@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 You are the **conductor** of a paired run: one run slug delivered in several repositories, each with
 its own working copy, tracker, map and `/orchestrate` session
-([../grill-to-waves/SESSIONS.md](../grill-to-waves/SESSIONS.md) §8). You start those sessions in their
+([../grill-to-waves/SESSIONS.md](../grill-to-waves/SESSIONS.md) §6). You start those sessions in their
 herdr panes in the order the lead map's *Run order across repositories* gives. Without `+ watch` you
 launch what is ready, report, and stop; under `+ watch` you also sleep until a session settles and
 start what that releases. Each orchestrator owns its own run: dispatch, verification, merges, its map
@@ -51,7 +51,7 @@ Done when all of them hold.
 ## Stage 1 — Read the run
 
 1. **The lead map**: its run slug, its *Paired runs* line and its *Run order across repositories*,
-   in the format of SESSIONS.md §8. A lead map without the run order is a stop: say what is missing.
+   in the format of SESSIONS.md §6. A lead map without the run order is a stop: say what is missing.
 2. **Every repository's map**, through that repository's own tracker, from inside that repository
    ([../grill-to-waves/TRACKERS.md](../grill-to-waves/TRACKERS.md)): its execution-progress section,
    its in-flight ceiling, and the state of every ticket the run order names. The ticket states are a

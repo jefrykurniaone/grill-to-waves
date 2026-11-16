@@ -3,8 +3,7 @@
 How each tracker implements the five operations the pipeline and the orchestrator need: **publish**
 an item, **link as child**, **record a blocking edge**, **label**, and **read the frontier**. A repo's
 own `docs/agents/issue-tracker.md` is read first and governs which tracker is used and its item,
-label, link and close mechanics. Ownership in a team run is the tracker's assignee
-([SESSIONS.md](./SESSIONS.md) §4); there is no agent-owned claim record.
+label, link and close mechanics.
 
 ## GitHub (`gh`)
 
@@ -67,8 +66,8 @@ One run per directory, `.scratch/<run-slug>/`.
   in `map-log.md`.
 - **Label**: header lines stand in — `Status:` (one of `ready-for-agent`, `ready-for-human`,
   `needs-info`, `wontfix`, `resolved`; `resolved` is the closed state everywhere this protocol says
-  "closed"), `Run:`, `Spec:`, `Executor:`, `Effort:`, `Assignee:`. The `## Surface` block lives in the
-  file verbatim.
+  "closed"), `Run:`, `Spec:`, `Executor:`, `Effort:`. The `## Surface` block lives in the file
+  verbatim.
 - **Link as child**: a `Part of: <parent filename>` header line.
 - **Blocking edge**: a `Blocked by: NN, NN` header line. A ticket is unblocked when every file it
   lists carries `Status: resolved`.
@@ -90,19 +89,19 @@ One run per directory, `.scratch/<run-slug>/`.
 `docs/agents/issue-tracker.md` describes the workflow in prose; follow it for publish, label, link,
 edge and close. Two things to establish before the first run and record in the map's "How this is
 executed" section: **how a comment is posted** (a REST call, or the CLI), and **what stands in for
-labels and the assignee** (a field, a component, a tag). Everything else in
+labels** (a field, a component, a tag). Everything else in
 [SESSIONS.md](./SESSIONS.md) is tracker-neutral.
 
 ## Across repositories
 
-A paired run ([SESSIONS.md](./SESSIONS.md) §8) writes trackers other than the working directory's
+A paired run ([SESSIONS.md](./SESSIONS.md) §6) writes trackers other than the working directory's
 and records blocking edges between them. Its repositories are sibling folders, each named by its
 folder.
 
 - **Name the other repository on every call**: `gh … -R <owner>/<repo>`,
   `glab … -R <group>/<project>`, and an `api` endpoint spelled out in full
   (`repos/<owner>/<repo>/…`, `projects/<url-encoded path>/…`), because `{owner}`, `{repo}`, `:id` and `:fullpath` resolve to the working directory's repository. A
-  local tracker is a path, `../<folder>/.scratch/<run-slug>/`, written only as SESSIONS.md §8
+  local tracker is a path, `../<folder>/.scratch/<run-slug>/`, written only as SESSIONS.md §6
   allows.
 - **The blocking edge lives on the blocked ticket**, in the form its own tracker's frontier read
   counts:
