@@ -59,6 +59,11 @@ Done when all of them hold.
    table with no decision in it: where `clerk-haiku-medium` is installed, give it one brief per
    repository — run the tracker's list command from inside that repository, return each named
    ticket's state as printed, touch nothing in the tree — and read them yourself where it is not.
+   For every lender a launch borrows, read what the borrow check needs (SESSIONS.md §6): from its
+   map, the cut, the recorded commit, the base and whether the map is open or closed; from its
+   working copy, the check's three reads, `git -C ../<folder> status --porcelain`,
+   `git -C ../<folder> worktree list` and its `HEAD`, with `origin/<base>` where its map records no
+   cut. Fetch nothing there.
 3. **Panes**: `herdr pane list` in every workspace. A repository's pane is the one whose cwd is that
    repository's root; where there are several, ask which. A repository without a pane gets a slot in
    your own tab when its launch is ready (Stage 3, *The slots*), and this stage creates none. Under
@@ -80,9 +85,11 @@ Done when all of them hold.
    context clear are kept nowhere: ask for them again.
 
 Done when every repository in the run order has a pane, waits for a slot, or was declined a tab by
-the user; has a session state; and every ticket the order names has a state read from its tracker.
+the user; has a session state; every ticket the order names has a state read from its tracker; and
+every lender has the reads its borrow check needs.
 
 **`+ check`** prints exactly that — every launch with its state (Stage 2) and its borrows, each
+borrowing launch's borrow check per lender with the condition that failed where one did, each
 repository's pane and session, the repositories without a pane, and what is ready — and stops. It
 creates, starts and sends nothing.
 
@@ -104,14 +111,24 @@ launched by the user with its own `/orchestrate` line, outside this run's schedu
   `orchestrate: waiting on executors`;
 - **held** while its session's turn has ended on `orchestrate: stopped`, on no outcome line, or on
   `orchestrate: done` with a ticket still open, until that session works again;
-- **ready** when it is released, not landed, in flight or held, and no other launch in flight or
-  held occupies a repository it occupies.
+- **ready** when it is released, not landed, in flight or held, no other launch in flight or
+  held occupies a repository it occupies, and, where it borrows, every lender passes the borrow
+  check (SESSIONS.md §6).
 
 A launch **occupies** its own repository and every repository it borrows: one session per working
 copy. The rule is symmetric — a launch that borrows a repository waits on that repository's launch
 in flight or held, and that repository's next launch waits on the borrower — and a held launch keeps
 occupying. A launch that borrows nothing occupies its own repository alone: one session per
 repository, its waves in order.
+
+**A lender that fails the borrow check** makes its borrower not ready, and the report names the
+lender and the condition that failed. The lender's own launch goes by its own state: a session that
+died mid-batch reads as no session (Stage 1), so its launch is ready and is relaunched before its
+borrower, and its orchestrator's Stage 1 brings the lender back to its recorded commit; one whose
+turn ended awaiting a go-ahead is held on the user. Where no launch of the lender is ready, in
+flight or held, nothing scheduled will make it pass, and the report says the borrower waits on the
+owner, who clears the condition. Under `+ watch` that is a nothing-ready stop like any other
+(Stage 5).
 
 Recompute every state on every wake and at every `/conduct`: a ticket can close inside a wave that
 later stops, or by hand. In flight at once: two sessions, or the `+ sessions <n>` the user gave —

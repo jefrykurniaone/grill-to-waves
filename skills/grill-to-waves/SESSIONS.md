@@ -197,12 +197,38 @@ of the maps, the **lead map**, also carries what crosses them:
   only those its row names, because the launch runs the whole wave. The borrows are written after its
   tickets as `· borrows <folder>[, <folder>]`: `portal · 1 · 02, 04 · borrows payments-service`,
   several as `· borrows billing-service, payments-service`. It is a suffix, not a column, because one
-  row holds several launches and only some of them borrow. **The borrowing
+  row holds several launches and only some of them borrow. The repository a launch borrows is its
+  **lender**. **The borrowing
   rule:** the launch occupies each working copy it borrows for its whole duration, as it occupies
   its own, so no session of that repository runs meanwhile and the borrower's session is the only
-  one there; its walk uses that working copy only at that repository's recorded commit and writes
-  nothing to it. `/orchestrate` *The runtime walk* has the walk's procedure, and `/conduct` Stage 2
+  one there; its walk uses that working copy only while the lender passes the borrow check below,
+  and writes nothing to its tracked tree but the one restoring `/orchestrate` *The runtime walk*
+  names. `/orchestrate` *The runtime walk* has the walk's procedure, and `/conduct` Stage 2
   when a launch is ready. A dependent uses another repository's working copy only by borrowing it.
+
+  **The borrow check** says whether a lender is somewhere a walk can use. `/conduct` runs it when
+  it computes a borrowing launch's readiness, and the borrower runs it before its walk, the same
+  way. A lender passes when all three hold:
+
+  1. `git -C ../<folder> status --porcelain` is empty.
+  2. `git -C ../<folder> worktree list` shows no registered worktree besides the lender's main
+     working copy. It is the lender's single-session guard's own read (`/orchestrate` Stage 1): a
+     registered worktree is a live session or its leftover, and either is the lender's own business
+     first.
+  3. Its `HEAD` (`git -C ../<folder> rev-parse HEAD`) matches its map's state, the map read through
+     the lender's own tracker ([TRACKERS.md](./TRACKERS.md) *Across repositories*):
+     - while its map is open and records a cut, `HEAD` equals its recorded commit;
+     - once its map is closed, `HEAD` holds its last recorded commit, an ancestor of `HEAD` or
+       equal to it (`git -C ../<folder> merge-base --is-ancestor <that commit> HEAD`), which also
+       covers a no-forge *merged* close whose `HEAD` is on the base;
+     - while its map records no cut, `HEAD` equals that clone's `origin/<base>` as last fetched,
+       the base its map names, or the local base where there is no remote.
+
+  The check only reads: neither the borrower nor the conductor fetches anything in the lender, and
+  a read that keeps failing fails its condition, never passes it. A live wave shows in the
+  lender's registered worktrees, which is what the second condition reads. **The residual risk:**
+  an owner's own session in a lender that makes no worktree is seen only by `/conduct`'s pane read,
+  and not at all outside herdr.
 
   Released launches of different repositories run at the same time when they occupy no repository
   in common; one repository's waves run one after another, in its one session.

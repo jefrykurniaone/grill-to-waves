@@ -307,7 +307,8 @@ repository it runs in, because each repository has its own session started there
 launch's `· borrows` suffix, as a comment, where it has one. A launch started by hand goes only while
 no other launch is in flight or held in, or borrowing, any repository it occupies, its own and every
 one it borrows: a borrower waits on the lender's session, and the lender's next launch waits on the
-borrower ([SESSIONS.md](./SESSIONS.md) §6):
+borrower. A borrowing launch also waits until every lender passes the borrow check
+([SESSIONS.md](./SESSIONS.md) §6):
 
 ```
 billing-service    /orchestrate map <its map> + check
