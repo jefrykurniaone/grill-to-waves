@@ -156,7 +156,8 @@ repository a pane and then:
    Code enters that mode only at launch, so a session that was already running keeps its own: name
    each such session in your first report. `agent_not_ready` is a dialog on that pane — folder
    trust, a sign-in, bypass mode's first-use warning — and the user's to answer: name the pane and go
-   on with the other launches. Its launch line goes out once the dialog is answered (Stage 4).
+   on with the other launches. Its launch line goes out once the dialog is answered and the launch
+   is still ready (Stage 4).
 2. **The clear.** One launch, one conversation: unless you started the session for this launch, send
    `herdr agent prompt <name> '/clear'` first, so no earlier wave's context rides into this one.
    Claude Code and Codex both start a fresh conversation in the same process: the session keeps its
@@ -205,7 +206,8 @@ outcome line can still show an old pause line.
 - **`blocked`**: a permission prompt or a question on that pane. Tell the user the repository, its
   pane or tab, and what the screen asks. It is still in flight.
 - **`idle` or `done`, not prompted yet**: the dialog that held its start is answered. Send its launch
-  line now (Stage 3, step 3).
+  line now (Stage 3, step 3) only while the launch is still ready (Stage 2); otherwise it waits like
+  any other launch and goes out on a later wake or `/conduct` once it is ready.
 - **`idle` or `done`**: read the session's last lines. Its **outcome line**, the last line of
   `/orchestrate`'s turn, decides:
   - `orchestrate: waiting on executors`: paused while its executors run in the background. It is
