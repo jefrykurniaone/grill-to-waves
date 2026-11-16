@@ -94,8 +94,8 @@ meets:
 - **Run-wide only, with the design settled in the ticket**: `scout-opus-high`. Checking an
   implementation against a written design is a diff review.
 - **Fable unavailable**: `scout-opus-high`.
-- **The ticket is irreversible and Fable did not verify it**: stop before the push and get the
-  user's go-ahead, naming the ticket and what a reset of the branch will not undo.
+- **The ticket is irreversible and Fable did not verify it**: wait for the user's go-ahead before its
+  wave is recorded green, naming the ticket and what a reset of the branch will not undo.
 
 The brief writes nothing. It carries the ticket, the diff and the checks: the invariant each clause
 names, and each decision the executor made that the ticket did not settle. Scope against `writes:`,
@@ -198,9 +198,8 @@ nor a re-grade.
 The skill text in this repo is written in Claude Code's vocabulary; the installer rewrites the
 invocation prefix and the agent directory when it installs for Codex, and nothing else. Codex
 sub-agents share the parent's working directory, so an executor brief on Codex names the worktree's
-absolute path and tells the executor to work only there. A Codex executor in a `workspace-write`
-sandbox may have no network: when it cannot push or open the review request, the orchestrator does
-both from the executor's branch, and the ticket's record says so.
+absolute path and tells the executor to work only there. On either host an executor commits on its
+ticket branch, pushes nothing and opens no review request, so its delivery needs no network.
 
 ## Worktree teardown — the junction trap
 

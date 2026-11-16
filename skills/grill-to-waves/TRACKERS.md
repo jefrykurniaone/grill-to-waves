@@ -5,6 +5,11 @@ an item, **link as child**, **record a blocking edge**, **label**, and **read th
 own `docs/agents/issue-tracker.md` is read first and governs which tracker is used and its item,
 label, link and close mechanics.
 
+Each tracker's **Deliver** line covers only the run's close. Up to then delivery is the same on every
+tracker: the orchestrator merges each ticket's branch into the run's integration branch locally, with
+a merge commit whose subject carries the ticket number as `#<n>` (`#NN` on a local tracker) — the
+reconcile evidence `/orchestrate`'s Stage 1 grep matches — and pushes nothing before the close.
+
 ## GitHub (`gh`)
 
 - **Publish**: `gh issue create --title "..." --body-file <file>`. Author bodies to a scratch file;
@@ -39,8 +44,11 @@ label, link and close mechanics.
   inline multi-line body is mangled by PowerShell. Where a comment id is wanted, post through REST
   and quote the endpoint — bare `{owner}` is a script block to PowerShell:
   `gh api -X POST 'repos/{owner}/{repo}/issues/<n>/comments' -F "body=@$file" --jq .id`.
-- **Deliver**: pull request, `gh pr create --body-file <file>`. The orchestrator merges locally, never
-  with `gh pr merge`.
+- **Deliver**: one pull request per run, from the integration branch to the base, opened by the
+  orchestrator at the close once the branch is pushed:
+  `gh pr create [--draft] --base <base> --head <integration branch> --title "..." --body-file <file>`,
+  `--draft` when `Run closes at:` is *draft review request opened*. Tickets reach the integration
+  branch by local merges and have no pull request of their own; executors open none.
 
 ## GitLab (`glab`)
 
@@ -53,7 +61,10 @@ label, link and close mechanics.
   frontier read parses it.
 - **Comment**: `glab issue note <iid>`, or `POST projects/:id/issues/<iid>/notes` where a numeric `id`
   is wanted.
-- **Deliver**: merge request, `glab mr create --description`. Merged locally, as on GitHub.
+- **Deliver**: one merge request per run, from the integration branch to the base, opened at the
+  close as on GitHub:
+  `glab mr create [--draft] --source-branch <integration branch> --target-branch <base> --title "..." --description "..." --yes`
+  (heredoc for the multi-line execution record).
 
 ## Local markdown (`.scratch/`)
 
@@ -79,10 +90,10 @@ One run per directory, `.scratch/<run-slug>/`.
   dispatching: move every dated section into `map-log.md` in its original order (creating the file),
   rewrite the execution-progress section to the bounded state `/orchestrate`'s *Record, close, tear
   down* prescribes, and say so in the wave report. Done when `map.md` has no `## <ISO date>` heading.
-- **Deliver**: no review request. The orchestrator merges the branch with a merge commit whose
-  subject carries the ticket number as `#NN` — the only reconcile evidence this tracker leaves, and
-  the form `/orchestrate`'s reconcile grep matches. References in
-  the map and mirrors are file paths, not numbers.
+- **Deliver**: no review request — the no-forge close. The run ends at *branch ready*, the
+  integration branch pushed where a remote exists and the merge handed to the owner, or at *merged*,
+  the orchestrator merging it into the base with `--no-ff` after the final gate and pushing the base
+  where a remote exists. References in the map and mirrors are file paths, not numbers.
 
 ## Other trackers (Jira, Linear, …)
 
