@@ -37,7 +37,7 @@ than once per run, and its failure mode is a production deploy rather than a han
 | `GLOSSARY.md` | Canonical distinctions: executor tier and reasoning effort, base branch and integration branch. |
 | `CHANGELOG.md` | What changed in the pipeline's rules and agent set, by date, and what to do after updating. |
 | `skills/grill-to-waves/SKILL.md` | The seven-stage pipeline (Stage 0 tracker → Stage 6 stop). |
-| `skills/grill-to-waves/SESSIONS.md` | The solo and paired shapes, write surfaces, the collision rule that orders the waves, worktrees, the breach stop, and a paired run across repositories: its format and how it is planned. The protocol the skills share. |
+| `skills/grill-to-waves/SESSIONS.md` | The solo and paired shapes, write surfaces, the collision rule that orders the waves, worktrees and the run's own ignored paths, the breach stop, and a paired run across repositories, borrowing included: its format and how it is planned. The protocol the skills share. |
 | `skills/grill-to-waves/TRACKERS.md` | The five tracker operations for GitHub (`gh`), GitLab (`glab`) and local markdown, and the blocking edges between repositories. |
 | `skills/grill-to-waves/DEFAULTS.md` | The session's model floor, the effort ladder, high-consequence tickets and the Fable tier, scouts and the clerk, and the junction-safe worktree teardown. |
 | `skills/orchestrate/SKILL.md` | The integration branch, wave dispatch, verification, merge gate, the close and closing upward. |
@@ -316,6 +316,9 @@ repositories run at once with five executors in each, and no background process 
 unless you pass `+ watch`, which starts one watcher for the whole run. It leaves every permission
 prompt and question to you: besides `/clear` and the launch line, it sends a session only what you
 tell it to.
+
+A launch whose walk needs another repository's running app borrows that repository, so no session
+runs there meanwhile; `+ check` shows each launch's borrows.
 
 Once a run's work has reached the base branch, promoting it is its own session:
 

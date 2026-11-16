@@ -3,6 +3,46 @@
 What changed in the pipeline's rules and agent set, newest first. The repository carries no version
 tags, so entries are dated. Tiers are named by alias only, as everywhere else in this repository.
 
+## 2026-11-16 — Borrowed working copies, ignored run paths and complete batch exits
+
+A paired run's walk can now use another repository's running app, by borrowing that repository's
+working copy while no session runs there. The run's own paths no longer show in `git status`, and
+every way out of a merge batch now says what it re-runs and what it keeps.
+
+### After updating
+
+Run the installer again on both hosts (`./install.ps1 -Target both` or `./install.sh --target both`).
+A paired map written before this change carries no `peer:` entries and no `borrows` suffixes, so a
+walk there that needs another repository's app is a stop until the declaration is added on the ticket
+and in the run order.
+
+### Changed
+
+- **Borrowing and occupying in a paired run.** A ticket's `runtime:` takes `peer:<folder>` entries,
+  and the run order's `· borrows <folder>[, <folder>]` suffix carries those of every ticket of the
+  repository wave a launch runs. `/conduct` defines *ready* by occupying: a launch occupies its own
+  repository and every repository it borrows, symmetrically, and a held launch keeps occupying. A
+  launch counts as in flight from its launch line, so readiness is recomputed within one pass, and a
+  launch deferred by a dialog goes out only while still ready. `+ check` prints the borrows. The
+  runtime walk gains *A borrowed working copy*: the lender's recorded commit must be at `HEAD` with a
+  clean tree or the walk waits, the app is started and stopped by the lender's own runbook, nothing is
+  written there, and an undeclared need or an app that will not start is a stop.
+- **The run's own paths stay out of `git status`.** The worktree and scratch folders, and `.scratch/`
+  where the tracker is local, are appended to the clone's local exclude file when not yet ignored, and
+  nothing is committed. `/orchestrate` applies it at preflight and names what it added, `+ check`
+  reports it, and `/grill-to-waves` applies it to `.scratch/` at Stage 0.
+- **The tracker record's layout.** `docs/agents/issue-tracker.md` now has a fixed layout in
+  TRACKERS: a title, one paragraph, *Structure*, *Labels* and *Operations*. `/orchestrate` writes it
+  to that layout in *Merge the batch*.
+- **The ways out of a merge batch.** A refused go-ahead and a red gate both reset to the recorded
+  commit, sync again where the preflight synced, and run the merge steps again without the ticket.
+  An `awaiting go-ahead:` line blocks dispatch, and `+ all` stops on it. A breach, whether reported
+  or read from the diff, drops its ticket; the rest of the batch goes green and the session stops at
+  the end of that wave.
+- **The `ready-for-human` teardown.** A ticket handed to a human has its worktree torn down but its
+  branch kept and named in the wave report, and reconcile leaves that branch alone.
+- **Two glossary terms.** *Borrowed working copy* and *Tracker record* join the glossary.
+
 ## 2026-11-16 — One integration branch per run
 
 Every run now delivers through a single integration branch and a single review request, instead of
