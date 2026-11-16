@@ -16,8 +16,8 @@ skills: one for the end of the day, one for the ticket.
 
 - **`/conduct`** drives a paired run — one run slug across several repositories — from one
   [herdr](https://herdr.dev) pane: it starts `/orchestrate` in each repository's own pane in the lead
-  map's run order, wakes when a session settles, starts what that releases, and relays every decision
-  to you. It sits beside the pipeline: each repository's run is still an ordinary `/orchestrate`.
+  map's run order, wakes when a session settles, starts what that releases, parks a launch whose
+  tickets went to a human, and relays every decision to you. It sits beside the pipeline: each repository's run is still an ordinary `/orchestrate`.
 - **`/daily-recap`** reports: at the end of the day it reads that day's commits and agent sessions,
   drafts the Done / Next / Blocker recap you post to your team, and asks once for the meetings and
   offline work no file records. It sits beside the pipeline rather than inside it.
@@ -318,7 +318,9 @@ prompt and question to you: besides `/clear` and the launch line, it sends a ses
 tell it to.
 
 A launch whose walk needs another repository's running app borrows that repository, so no session
-runs there meanwhile; `+ check` shows each launch's borrows.
+runs there meanwhile, and only while that repository passes the borrow check: a clean tree, no
+other worktree, and its recorded commit at `HEAD`. `+ check` shows each launch's borrows and each
+parked launch, whose tickets are the owner's to re-plan, close or go on without.
 
 Once a run's work has reached the base branch, promoting it is its own session:
 

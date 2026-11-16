@@ -3,6 +3,90 @@
 What changed in the pipeline's rules and agent set, newest first. The repository carries no version
 tags, so entries are dated. Tiers are named by alias only, as everywhere else in this repository.
 
+## 2026-11-17 — Parked launches, complete merge-batch exits and a clean cut
+
+A paired run no longer holds a launch whose tickets went to a human: it parks the launch and says
+how it ends. A borrowed working copy is checked before it is used and stays lent after its
+borrower's session dies. A merge conflict, a failed pinned check and a third failed hand-back each
+take a path, a dropped irreversible ticket settles the dev database with the owner, and the
+integration branch is cut without the base as its upstream.
+
+### After updating
+
+Run the installer again on both hosts (`./install.ps1 -Target both` or `./install.sh --target both`).
+An integration branch cut before this change has the base as its upstream until the next preflight
+removes it. A ticket stopped on a third hand-back before this change carries no label, so label it
+`ready-for-human` by hand before the next session, or its reconcile reads the worktree as a lost
+report. A paired run's held launches are re-read as parked where they qualify.
+
+### Changed
+
+- **`/grill-to-waves` and its shared files.**
+  - *The borrow check* (SESSIONS §6) says whether a lender is somewhere a walk can use. A lender
+    passes when all three hold: `git --no-optional-locks -C ../<folder> status --porcelain` is
+    empty; `git -C ../<folder> worktree list` shows no registered worktree besides its main working
+    copy; and its `HEAD` matches its map's state, read through its own tracker. The check only
+    reads, and a read that keeps failing fails its condition.
+  - *A borrow that outlived its session* (SESSIONS §6): a map's `borrowing <folder> since <time>`
+    line holds the lender against every launch but its borrower's own repository's, even after the
+    borrower's session died. That launch alone has the check's first condition waived on that
+    lender, and its cleanup removes the line.
+  - SESSIONS §5 says a third failed hand-back sends the ticket to `ready-for-human`, handled as a
+    breach is, and no longer that it changes no label.
+  - Stage 6's hand-started launch line waits for every lender to pass the borrow check, for a
+    lender held by a `borrowing` line, and for its own repository's earlier steps.
+  - DEFAULTS, *Verifying a high-consequence ticket*: the go-ahead bullet points at the dev
+    database question. The rule is unchanged.
+  - TRACKERS: an other tracker is never detected by Stage 0. Its record is the owner's, written by
+    hand before planning, and `/orchestrate` never writes it.
+- **`/orchestrate`.**
+  - *The runtime walk*: a borrowed walk runs the borrow check first, and the lender's tree is
+    re-read once its app is stopped, restoring only the app's own rewrites and stopping on any
+    other path. A failed row that names no ticket now has a path.
+  - Stage 1 gains *A borrowed walk that died*, run after the single-session guard and before any
+    other Stage 1 wait or stop. It stops the leftover app, re-reads the lender's tree, reports the
+    walk's data as possibly left in its dev database, and only then removes the `borrowing` line.
+    An app that cannot be stopped is a stop that keeps the line.
+  - *Merge the batch* step 2: an attributable conflict is resolved and named in the wave report;
+    any other conflict is aborted, its ticket dropped with no reset, and handed back for a rebase
+    once the batch records green. The delivery contract and the rework paragraph say why that
+    rebase is allowed.
+  - Step 4: a failed pinned-check row is attributed as a red whole gate is, by reading its
+    failures against the batch's diffs. One that points at no ticket merge is a stop: the defect
+    is filed and no green point is recorded. *Closing upward* step 4 does the same for a check
+    pinned to the close, before the push.
+  - One stripping rule, *When the stripping ends*, which *The integration branch* and the stop rule
+    point at. A reset and re-run leaves out every ticket the batch has dropped, for a conflict, a
+    breach or a third failure.
+  - A third failed hand-back goes to `ready-for-human` with its findings posted, then is handled
+    as a breach is. *Verify*, the teardown, the stop rule (which stops at the end of the wave) and
+    the outcome-line examples agree.
+  - A `dev database:` line (Stage 1, `+ check`, *Merge the batch* steps 4 and 5, and *The dev
+    database after a dropped irreversible ticket*). The go-ahead question carries three answers,
+    and a refusal writes the line with its answer before it swaps the labels. A reset and re-run
+    carries the answer out before the walk, a line with no answer is asked again, `+ all` stops on
+    it, and the green point replaces it.
+  - *The integration branch* is cut with `git switch --no-track -c <integration branch>
+    origin/<base>`. Preflight step 4 unsets any upstream other than `origin/<integration branch>`
+    and names it in the wave report, `+ check` reports an upstream and writes nothing, and a
+    resumed close keeps its post-push upstream.
+  - *Merge the batch* step 3 writes the tracker record only for a tracker Stage 0 detected.
+- **`/conduct`.**
+  - *Ready* now includes the borrow check for each lender, a `borrowing` line on a lender, and
+    wave order. It reads each lender as `<folder>` from the conductor's own folder.
+  - A launch is parked when its session's turn ended on `orchestrate: done` or `orchestrate:
+    stopped` and every open ticket it names is `ready-for-human` or waits on an open blocker.
+    A parked launch occupies its own repository only, its session is free and its slot may be
+    reused, and `+ check`, every wake's report and the stop report name it with its three ways out:
+    re-plan, close, or go on without it.
+  - A launch let out of parking is ready again and relaunched, and after a context clear a launch
+    that reads as held but names a ticket with a kept branch is asked about.
+  - Stages 1 to 5 read labels, open blockers and kept branches, and recognise parked in `+ check`,
+    slot reuse, the watcher and outcome lines, and the stop.
+- **`GLOSSARY.md`.** *Lender* joins, and *Tracker record* now holds for every tracker, with the
+  record of a tracker TRACKERS has no commands for describing them in prose.
+- **Agent definitions.** No agent definition changed.
+
 ## 2026-11-16 — Borrowed working copies, ignored run paths and complete batch exits
 
 A paired run's walk can now use another repository's running app, by borrowing that repository's
