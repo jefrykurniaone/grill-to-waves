@@ -57,7 +57,8 @@ _Avoid_: docs copy, spec file
 
 **Tracker record**:
 The file in a repository that names its tracker, so that planning and orchestration do not detect it
-again; the mechanics stay in TRACKERS.
+again; the mechanics stay in TRACKERS, except for a tracker TRACKERS has no commands for, whose record
+describes them in prose.
 _Avoid_: Tracker config, issue-tracker file
 
 **Promotion**:
