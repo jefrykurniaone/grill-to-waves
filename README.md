@@ -202,7 +202,7 @@ The pipeline requires three skills from [mattpocock/skills](https://github.com/m
 |---|---|
 | `grilling` | Stage 1 — the grill itself. |
 | `domain-modeling` | Stage 1, whenever vocabulary is in play. |
-| `setup-matt-pocock-skills` | Stage 0 — records the tracker choice in `docs/agents/issue-tracker.md`, run once per repo. |
+| `setup-matt-pocock-skills` | Stage 0, optionally — run before a run, it writes `docs/agents/issue-tracker.md`, which Stage 0 then reads. Without it, Stage 0 detects the tracker and the run's orchestrator writes that file. |
 
 The installer fetches the collection for you, straight from that GitHub repository at its **latest
 release**: the tag GitHub names as latest, or the highest `vX.Y.Z` tag when the API does not answer.
@@ -220,8 +220,11 @@ Re-run the installer to move to a newer release.
   second time under a `mattpocock-skills:` prefix, which the pipeline does not call. The installer
   warns when it finds it; remove it with `claude plugin uninstall mattpocock-skills@mattpocock`.
 
-Run `/setup-matt-pocock-skills` (`$setup-matt-pocock-skills` on Codex) once in each repository
-before its first pipeline run.
+Running `/setup-matt-pocock-skills` (`$setup-matt-pocock-skills` on Codex) in a repository before
+its first pipeline run is optional; commit the `docs/agents/issue-tracker.md` it writes before the
+run starts, or leave the file to the run. Planning writes no file: Stage 0 records the tracker it
+detected in the map, and the run's orchestrator writes `docs/agents/issue-tracker.md` and commits it
+with the first merge batch's spec mirrors.
 
 ### Codex CLI specifics
 
@@ -350,8 +353,8 @@ box, then flip to **Visual** to check it.
   check, and an irreversible one waits for your go-ahead. Haiku runs only the locate scout and the
   clerk. `DEFAULTS.md` has the rules.
 - **[mattpocock/skills](https://github.com/mattpocock/skills)**, required — `grilling` and
-  `domain-modeling` for Stage 1, and `setup-matt-pocock-skills` for the Stage 0 tracker record on
-  both hosts. The installer fetches them; see *The Matt Pocock skill collection* above.
+  `domain-modeling` for Stage 1, and `setup-matt-pocock-skills`, optional to run, for recording the
+  tracker before a run, on both hosts. The installer fetches them; see *The Matt Pocock skill collection* above.
 - **Playwright MCP**, optional, for runtime verification of `runtime: dev-server` tickets. Without it
   the walk falls back to scripted Playwright or plain HTTP, and says which it used.
   `--with-playwright-mcp` registers it; see *MCP servers*.
@@ -365,8 +368,9 @@ box, then flip to **Visual** to check it.
 
 Per-repository conventions — the completion gate, the seams, the hard rules an executor brief has to
 carry — are read from the repository's own `CLAUDE.md` or `AGENTS.md`, and override `DEFAULTS.md`
-where they differ. Recording the tracker choice in `docs/agents/issue-tracker.md` keeps Stage 0 from
-re-detecting it every run.
+where they differ. `docs/agents/issue-tracker.md` keeps Stage 0 from re-detecting the tracker every
+run; planning writes no file, and where it is missing the run's orchestrator writes it and commits it
+with the first merge batch's spec mirrors.
 
 ## Design notes
 
