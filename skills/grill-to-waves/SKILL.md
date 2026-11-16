@@ -174,7 +174,7 @@ effort independently. `xhigh` is never planned: `/orchestrate` reaches it by a h
 ## Surface
 writes: …
 reads: …
-runtime: dev-db | dev-server | none
+runtime: dev-db | dev-server | none[, peer:<folder>, …]
 deps: shared | own
 ```
 
@@ -186,7 +186,10 @@ driven by **Playwright MCP** where the server is connected — the executor neve
 Write the ticket's runtime criterion as what a walk must *observe*, not as an instruction to the
 executor: the surface to open, the role to sign in as, the property to measure, and the value it
 must hold. A criterion an executor cannot satisfy and a walk cannot check is not a
-criterion.
+criterion. In a paired run, a walk that needs another repository's running app declares it on the
+same line, one `peer:<folder>` entry per repository (`runtime: dev-server, peer:payments-service`):
+the launch then borrows that working copy (SESSIONS.md §2 and §6), and an undeclared need stops the
+walk.
 
 Label every ticket `ready-for-agent`, `run:<slug>`, its spec's `spec:<slug>`, its `executor:` and
 `effort:`, plus the repo's own area/type/priority vocabulary. Link it as a child of its spec and

@@ -71,6 +71,11 @@ One run slug delivered in several repositories, each with its own working copy, 
 orchestrator session. The lead map holds the run order across the repositories.
 _Avoid_: Multi-repo run, cross-repo map
 
+**Borrowed working copy**:
+Another repository's working copy in a paired run that a launch walks against; the launch occupies it
+for its duration, so no session of that repository runs meanwhile.
+_Avoid_: Shared working copy, peer runtime
+
 **Conductor**:
 The one session that starts each repository's orchestrator of a paired run in the run order and
 relays the user's decisions to them. It executes, verifies and decides nothing itself.

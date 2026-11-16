@@ -51,7 +51,8 @@ Done when all of them hold.
 ## Stage 1 — Read the run
 
 1. **The lead map**: its run slug, its *Paired runs* line and its *Run order across repositories*,
-   in the format of SESSIONS.md §6. A lead map without the run order is a stop: say what is missing.
+   in the format of SESSIONS.md §6, each launch in a cell read with its `· borrows` suffix where it
+   carries one. A lead map without the run order is a stop: say what is missing.
 2. **Every repository's map**, through that repository's own tracker, from inside that repository
    ([../grill-to-waves/TRACKERS.md](../grill-to-waves/TRACKERS.md)): its execution-progress section,
    its in-flight ceiling, and the state of every ticket the run order names. The ticket states are a
@@ -81,17 +82,18 @@ Done when all of them hold.
 Done when every repository in the run order has a pane, waits for a slot, or was declined a tab by
 the user; has a session state; and every ticket the order names has a state read from its tracker.
 
-**`+ check`** prints exactly that — every launch with its state (Stage 2), each repository's pane and
-session, the repositories without a pane, and what is ready — and stops. It creates, starts and sends
-nothing.
+**`+ check`** prints exactly that — every launch with its state (Stage 2) and its borrows, each
+repository's pane and session, the repositories without a pane, and what is ready — and stops. It
+creates, starts and sends nothing.
 
 ## Stage 2 — Launches and their states
 
-The unit is the **launch**: one repository wave of one step, `<repository> · <wave> · <tickets>`.
-Its launch line is `/orchestrate map <that repository's map> + wave <k>`, with the repository's own
-wave number, and `+ ceiling 5` appended when that map states an in-flight ceiling above five. A map's
-lower ceiling stands. A repository that needs more than five at once is launched by the user with its
-own `/orchestrate` line, outside this run's schedule. A launch is:
+The unit is the **launch**: one repository wave of one step, `<repository> · <wave> · <tickets>`,
+followed by `· borrows <folder>[, <folder>]` where its walk borrows another repository's working copy
+(SESSIONS.md §6). Its launch line is `/orchestrate map <that repository's map> + wave <k>`, with
+the repository's own wave number, and `+ ceiling 5` appended when that map states an in-flight
+ceiling above five. A map's lower ceiling stands. A repository that needs more than five at once is
+launched by the user with its own `/orchestrate` line, outside this run's schedule. A launch is:
 
 - **landed** when every ticket it names is closed;
 - **released** when everything its step's *Released by* names is closed, each ticket read on its own
@@ -102,8 +104,14 @@ own `/orchestrate` line, outside this run's schedule. A launch is:
   `orchestrate: waiting on executors`;
 - **held** while its session's turn has ended on `orchestrate: stopped`, on no outcome line, or on
   `orchestrate: done` with a ticket still open, until that session works again;
-- **ready** when it is released and none of the above, and no other launch of its repository is in
-  flight or held: one session per repository, its waves in order.
+- **ready** when it is released, not landed, in flight or held, and no other launch in flight or
+  held occupies a repository it occupies.
+
+A launch **occupies** its own repository and every repository it borrows: one session per working
+copy. The rule is symmetric — a launch that borrows a repository waits on that repository's launch
+in flight or held, and that repository's next launch waits on the borrower — and a held launch keeps
+occupying. A launch that borrows nothing occupies its own repository alone: one session per
+repository, its waves in order.
 
 Recompute every state on every wake and at every `/conduct`: a ticket can close inside a wave that
 later stops, or by hand. In flight at once: two sessions, or the `+ sessions <n>` the user gave —

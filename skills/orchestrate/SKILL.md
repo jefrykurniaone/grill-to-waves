@@ -133,8 +133,9 @@ run's tickets — or, in a paired run, on another repository's
 own tracker as [../grill-to-waves/TRACKERS.md](../grill-to-waves/TRACKERS.md) *Across repositories*
 says — verify it by reading those tickets' states, never by trusting the prose that describes it.
 A blocker in another repository is released once it is merged onto that repository's integration
-branch and closed, long before that run's close. An unsatisfied gate is a wait, not a failure: say
-what it waits on and stop.
+branch and closed, long before that run's close. A gate reads that repository's tracker and nothing
+else of it: a walk that needs its running app uses its working copy only by borrowing it
+(*The runtime walk*). An unsatisfied gate is a wait, not a failure: say what it waits on and stop.
 
 **The tree preflight**, run before each wave's dispatch and again before each merge batch — not
 before every step:
@@ -381,6 +382,25 @@ Judge the table against the criteria yourself. A failed row is a hand-back to th
 row whose evidence is thin is a re-dispatch of the walker with the gap named. Open the browser from this
 context only to settle a single disputed measurement. Done when every criterion in the brief carries a
 measured value or a named failure.
+
+**A borrowed working copy.** In a paired run, a ticket whose `runtime:` carries `peer:<folder>`
+entries walks against each such repository's running app, in that repository's working copy, which
+this launch borrows ([../grill-to-waves/SESSIONS.md](../grill-to-waves/SESSIONS.md) §6). For each
+of them:
+
+1. **Before the walk**, read that repository's recorded commit from its map, through its own tracker
+   as [../grill-to-waves/TRACKERS.md](../grill-to-waves/TRACKERS.md) *Across repositories* says. Its
+   working copy's `HEAD` (`git -C ../<folder> rev-parse HEAD`) must equal it, and its
+   `git status --porcelain` must be empty; otherwise the walk is a wait with its reason.
+2. **Start its app** the way that repository's own steering file (`CLAUDE.md`, `AGENTS.md`) or
+   runbook says, run the walk, and stop the app once the walk returns, whatever it found.
+
+Write nothing to that repository's tracked tree, and the walk brief says the same: no checkout, no
+`git worktree add` — that repository's single-session guard would read it as another session — no
+install, no code generation, no migration, no seed. Data the walk writes into that repository's dev
+database follows the rules above: every account stays and is reported with its password, and other
+sentinel data is wiped, with the wipe proven. A need for another repository's app that no `peer:`
+entry declares, or an app that does not start at its recorded commit, is a stop with a report.
 
 ## Record, close, tear down
 
