@@ -1,8 +1,8 @@
 # spec: claim-identity v1 - Pane identity, renewal and take-over recovery for the working-copy claim
 
-Spec: [#58](https://github.com/jefrykurniaone/grill-to-waves/issues/58) · Map: [#62](https://github.com/jefrykurniaone/grill-to-waves/issues/62) · Tickets: [#59](https://github.com/jefrykurniaone/grill-to-waves/issues/59), [#60](https://github.com/jefrykurniaone/grill-to-waves/issues/60), [#61](https://github.com/jefrykurniaone/grill-to-waves/issues/61)
+Spec: [#58](https://github.com/jefrykurniaone/grill-to-waves/issues/58) · Map: [#62](https://github.com/jefrykurniaone/grill-to-waves/issues/62) · Tickets: [#59](https://github.com/jefrykurniaone/grill-to-waves/issues/59), [#60](https://github.com/jefrykurniaone/grill-to-waves/issues/60), [#61](https://github.com/jefrykurniaone/grill-to-waves/issues/61), [#63](https://github.com/jefrykurniaone/grill-to-waves/issues/63)
 
-Copied 2026-11-18 onto `feat/claim-identity`. Below this header, the body of #58 verbatim; the issue, not this file, is the spec.
+Copied 2026-11-18 onto `feat/claim-identity`, and regenerated from #58 at the run's close on 2026-11-18. Below this header, the body of #58 verbatim; the issue, not this file, is the spec.
 
 ---
 
@@ -158,3 +158,40 @@ Prior art: the previous runs' maps (#44, #54), their consistency sweeps (seam 2)
 
 - Filed as #56 by the consistency sweep at the close of run `working-copy-claim` (map #54, spec #50), with two comments from the second verification and the delta re-verification of #55.
 - Grilled with the owner on 2026-11-17, who chose, among the alternatives: a hashed server fingerprint over the raw herdr session name or never taking over a line-only claim; renewal on every later turn over accepting the two-process window as a residual risk; and waiving the worktree question wherever the claim needs no question, not only beside a stale claim under herdr.
+
+
+## Delivery notes
+
+Run `claim-identity` (map #62) delivered this spec on 2026-11-18, on `feat/claim-identity`, cut at `bff9fff` from `origin/main` with `--no-track`. The branch goes to `main` in one draft pull request, opened at the run's close.
+
+| Ticket | Merge on `feat/claim-identity` | Executor | Second verification |
+| --- | --- | --- | --- |
+| #59 The claim in `/orchestrate`: pane identity, renewal and take-over recovery | `d945772` | Opus, `high`. An earlier session dispatched it and died before the report; the commit was recovered from its surviving worktree and verified as an executor's result without its report | Fable, read-only, on the adversarial clause: PASS, with eight concurrency scenarios traced and three minor findings |
+| #60 Lenders and the conductor read the claim by server, own pane and move-aside files | `120e033` | Opus, `high` | — |
+| #61 Changelog entry and README for pane identity and renewal | `1392956` | Sonnet, `medium` | — |
+| #63 Restore a conversation's own claim from a move-aside file at the guard, and close the sweep's minor gaps (added at the close by the consistency sweep) | `7c89484` | Opus, `high` | Fable, read-only, on the adversarial clause: PASS, with races traced and minor findings filed as #65 |
+
+No ticket was handed back. This spec's mirror was committed in wave 1's batch as `ca89474`.
+
+**Claims in this body that delivery refined or reversed.** They are marked here and left in place above.
+
+- *Recovery from a move-aside file*, "Where the ownership check finds no claim file …".
+  - **The guard restores too.** At the start of a turn the guard restores this conversation's own claim from a move-aside file the same way, then renews it. Without this, a claim left in a move-aside file by a take-over that died mid-move, or by a release that died mid-way, had three readings at the guard, and none of them restored it (#63, found by the close's consistency sweep).
+  - **A failed create re-reads.** Where the restore's create fails, the ownership check re-reads the claim file. It passes where the file now carries this session's token and own pane, and otherwise stops as before (#63).
+- *The take-over*. As delivered, the branch that stops also covers a move that succeeded whose moved file is gone by the time it is read, because its holder restored it in between (#63).
+- *A move-aside file as evidence*.
+  - **The guard's own file is restored, not judged.** A move-aside file holding this conversation's own claim, found with no claim file, is restored and renewed instead of being judged by the table. One kept after a failed restore is judged by the table (#63).
+  - **The borrow check counts leftovers.** It counts every move-aside file that a second read still finds, a stale leftover included (#60).
+- *The worktree question*. As delivered, the sentence sending the worktrees to the reconcile without a question defers to *Lifecycle*. In a later turn whose four reads are unchanged, the session acts from the step where it stopped (#63).
+- *Reading a claim's pane*. `/orchestrate` has no section of that name. The rule sits under *A claim found*, and *The server fingerprint* and *The own pane* are their own bold leads (#59, #60).
+
+**Decisions made in delivery that this spec did not settle:**
+
+- **`/conduct`'s server for its launches.** `/conduct` takes its own server fingerprint as the server of every launch it starts, since each runs on its own herdr server (#60).
+- **The order of a restore at the guard.** The guard restores before it judges. A restore it made stays where the guard then stops, its claim file holding what the move-aside file held. `+ check` restores none (#63).
+- **Release removes only this session's own claim line.** A line written back by a session taken over by mistake can outlive a release that comes before any rewrite. The next guard then judges it by the row for a claim line without a claim file. This is kept deliberately, so a release that lost a race never deletes a new holder's line (#63).
+
+**Filed outside this run:**
+
+- #64: two inferences for the sandbox run, seam 4. They are a nested session's pane attribution, and the fingerprint's host name across bash and PowerShell.
+- #65: minor follow-ups from #63's verification. They cover the order between the line-only renewal and the restore, a three-way race that stops both sessions for one prompt, and three sentences that still name only the ownership check as the restorer.
