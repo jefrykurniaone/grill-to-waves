@@ -242,9 +242,10 @@ of the maps, the **lead map**, also carries what crosses them:
      map's claim line. A `working-copy-claim.<token>` file beside the claim file that a second read
      still finds is a claim standing too: it is the name a take-over or a release passes the claim
      file through, and a take-over that died mid-move can leave a live claim only there
-     (`/orchestrate` Stage 1, *A move-aside file*). No guard removes one, stale or not: its holder's
-     ownership check restores it as the claim file, or the owner removes it. One that a second read
-     no longer finds was another session's take-over or release passing through.
+     (`/orchestrate` Stage 1, *A move-aside file*). No other session's guard removes one, stale or
+     not: its holder's next guard or ownership check restores it as the claim file, or deletes it
+     once the claim file carries the holder's token again, or the owner removes it. One that a
+     second read no longer finds was another session's take-over or release passing through.
   3. Its `HEAD` (`git -C ../<folder> rev-parse HEAD`) matches its map's state, the map read through
      the lender's own tracker ([TRACKERS.md](./TRACKERS.md) *Across repositories*):
      - while its map is open and records a cut, `HEAD` equals its recorded commit;
