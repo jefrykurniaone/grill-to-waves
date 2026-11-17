@@ -32,11 +32,13 @@ line appears at the first take.
     take-over moves the stale file aside to `working-copy-claim.<token>` and reads it first; a
     leftover of that name is never a claim, and the owner removes it.
   - *The single-session guard* reads the claim file and the claim line beside `git worktree list`,
-    before Stage 1 writes anything. Its table judges a claim from the pane it names under herdr: no
-    claim is taken; another run's or an unreadable file stops; a gone pane or an ended turn is stale
-    and taken over; a `working` or `blocked` agent, or one `idle` on the pause line, is live and
-    stops; an unknown pane asks. Outside herdr a claim that would be stale under herdr asks. Its one
-    question now covers the claim as well as the open tickets' worktrees.
+    before Stage 1 writes anything. Its table judges a claim from the pane it names under herdr: with
+    no claim file and no claim line, the session takes one; another run's or an unreadable file stops;
+    a gone pane, a pane holding no agent, the session's own pane, or a turn that ended without
+    release is stale and taken over; a `working` or `blocked` agent, or one `idle` or `done` on the
+    pause line, is live and stops; an `unknown` pane or a claim without a pane asks. Outside herdr,
+    or with the pane unreadable, a claim of this run that would be taken over or stopped on by its
+    pane asks instead. Its one question now covers the claim as well as the open tickets' worktrees.
   - *The ownership check* confirms the claim file carries this session's token before the tree
     preflight, at each step of the close and at release. A mismatch or a missing file stops with
     nothing written, and neither file nor line is removed.
@@ -56,13 +58,15 @@ line appears at the first take.
     registered worktree besides the lender's main working copy, no claim file at the top of its git
     common directory and no claim line on its map. It reads whether a claim stands, never whether
     it is stale, so a stale claim fails it until the lender's next session takes it over or the
-    owner removes it. A borrower takes no claim in its lender, so the claim stays held through *A
-    borrow that outlived its session*.
+    owner removes it. *A borrow that outlived its session* still waives only the first condition,
+    and a claim, like a registered worktree, is no walk's leftover, since a borrower takes no claim
+    in its lender: a claim still fails the check even for the cleanup launch.
   - *The residual risk* (SESSIONS §6) is narrowed to what no claim can show: an agent session that
     runs no `/orchestrate`, seen only by `/conduct`'s pane read and not at all outside herdr, and a
     claim left by a session that died outside herdr, which costs the next session one question.
   - SESSIONS §5 stops on a second agent session found by its registered worktree or by a live
-    claim. Stage 4's session rules name the claim beside one agent session per working copy.
+    claim. `/grill-to-waves` Stage 5's *How this is executed* names the claim beside one agent session per
+    working copy.
   - GLOSSARY: a **Working-copy claim** entry, avoiding lock, session lock and marker.
 
 ## 2026-11-17 — Parked launches, complete merge-batch exits and a clean cut
