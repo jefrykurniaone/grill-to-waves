@@ -166,7 +166,9 @@ what keeps a later session from merging it: a resuming session's reconcile reads
 as rework in progress — either way, work it may verify and merge.
 
 Stop and hand the decision to the user, with the reason posted on the ticket or the map, for: a
-non-quiescent tree that cannot be cleaned, or a second agent session found in this working copy.
+non-quiescent tree that cannot be cleaned, or a second agent session found in this working copy —
+by its registered worktree, or by a live working-copy claim (`/orchestrate` Stage 1, *The
+single-session guard*).
 
 ## 6. Paired runs — one run across repositories
 
