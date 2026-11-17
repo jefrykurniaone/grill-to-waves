@@ -320,10 +320,11 @@ tell it to.
 
 A launch whose walk needs another repository's running app borrows that repository, so no session
 runs there meanwhile, and only while that repository passes the borrow check: a clean tree, no
-other worktree, no working-copy claim, and its `HEAD` where its map says it may be. A repository
-held by a claim that is not one of the run's own launches', and that its launch's guard would not
-take over, is occupied by a session outside the run order, and its launches wait; a claim that guard
-would take over leaves the launch ready. `+ check` shows each launch's borrows, each repository's
+other worktree, no working-copy claim (a move-aside file left by a take-over counts as one), and its
+`HEAD` where its map says it may be. A repository held by a claim that is not one of the run's own
+launches' by server and pane, and that its launch's guard would not take over, is occupied by a
+session outside the run order, and its launches wait; a claim that guard would take over leaves the
+launch ready. `+ check` shows each launch's borrows, each repository's
 claim and each parked launch, whose tickets are the owner's to re-plan, close or go on without.
 
 Once a run's work has reached the base branch, promoting it is its own session:
