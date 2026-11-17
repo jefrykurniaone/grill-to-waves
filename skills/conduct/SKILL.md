@@ -65,10 +65,18 @@ Done when all of them hold.
    ticket's state as printed, touch nothing in the tree — and read them yourself where it is not.
    For every lender a launch borrows, read what the borrow check needs (SESSIONS.md §6): from its
    map, the cut, the recorded commit, the base and whether the map is open or closed; from its
-   working copy, the check's three reads, run from your own folder as `git -C <folder>` — §6
+   working copy, the check's reads, run from your own folder as `git -C <folder>` — §6
    writes `../<folder>`, the view from a sibling repository:
-   `git --no-optional-locks -C <folder> status --porcelain`, `git -C <folder> worktree list` and
-   its `HEAD`, with `origin/<base>` where its map records no cut. Fetch nothing there.
+   `git --no-optional-locks -C <folder> status --porcelain`, `git -C <folder> worktree list`, its
+   claim (below) and its `HEAD`, with `origin/<base>` where its map records no cut. Fetch nothing
+   there.
+
+   **Every repository's claim** (`/orchestrate` Stage 1, *The working-copy claim*), at every
+   recompute: its claim line, `claimed: …`, from the execution progress just read, and its claim
+   file, `working-copy-claim` at the top of the directory that
+   `git -C <folder> rev-parse --path-format=absolute --git-common-dir` prints, run from your own
+   folder. An absent file is no claim; a file that is there and cannot be read is the table's
+   unreadable one. A `working-copy-claim.<token>` file beside it is a leftover, never a claim.
 3. **Panes**: `herdr pane list` in every workspace. A repository's pane is the one whose cwd is that
    repository's root; where there are several, ask which. A repository without a pane gets a slot in
    your own tab when its launch is ready (Stage 3, *The slots*), and this stage creates none. Under
@@ -91,16 +99,33 @@ Done when all of them hold.
    collision SESSIONS.md stops on. Go-aheads, the owner's go-on past a parked launch (Stage 2) and
    relays from before a context clear are kept nowhere: ask for them again.
 
+   Then judge each repository's claim, its file and its line, by `/orchestrate` Stage 1's table and
+   the rules under it (*A claim found*), as that repository's next launch's guard would, read-only
+   and with your own pane reads: the pane list above, `herdr agent get <pane>` for the pane the
+   claim names, and for `idle` or `done` its last outcome line (*Reading a session*, Stage 4). A
+   claim is *of this run* when its `run:` is the run slug and its `map:` is that repository's map
+   as its launch line names it (Stage 2), the reference its orchestrator's Stage 0 resolves, never
+   prefixed by its folder.
+   The row for a claim naming the guard's own pane and the rule for one carrying its own token are
+   that guard's alone: skip them. Where the *gone* rule sets aside the guard's own pane, set aside
+   the panes of your launches in flight or held in that repository, and count every other pane
+   whose cwd is its root. Each verdict is a take-over, a stop or a question, and Stage 2 says what
+   it does to the launches. You take, release, take over and remove no claim: it is its session's,
+   or the owner's.
+
 Done when every repository in the run order has a pane, waits for a slot, or was declined a tab by
-the user; has a session state; every ticket the order names has a state read from its tracker; and
-every lender has the reads its borrow check needs.
+the user; has a session state and its claim judged; every ticket the order names has a state read
+from its tracker; and every lender has the reads its borrow check needs.
 
 **`+ check`** prints exactly that — every launch with its state (Stage 2) and its borrows, each
 parked launch as *A parked launch* (Stage 2) says, each
 borrowing launch's borrow check per lender with the condition that failed where one did, each
 `borrowing` line as Stage 2 says, each
-repository's pane and session, the repositories without a pane, and what is ready — and stops. It
-creates, starts and sends nothing.
+repository's pane and session, each repository's claim — the claim file's fields, the claim line
+and the table's verdict with the pane read behind it — and any leftover beside the file for the
+owner to remove, each repository occupied by a session outside the run order as Stage 2 says, the
+repositories without a pane, and what is ready — and stops. It creates, starts and sends nothing,
+and takes, releases, takes over and removes no claim.
 
 ## Stage 2 — Launches and their states
 
@@ -132,10 +157,11 @@ launched by the user with its own `/orchestrate` line, outside this run's schedu
 - **ready** when it is released, not landed, in flight, held or parked, every launch of its own
   repository in an earlier step has landed or is parked with the owner's go-on (*A parked
   launch*), no other launch in flight, held or parked occupies a repository it occupies, no other
-  repository's `borrowing` line holds one (below), and, where it borrows, every lender passes the
-  borrow check (SESSIONS.md §6). That order inside one repository is read from the steps, so it
-  holds even where a later step's *Released by* names only other repositories' tickets, which is
-  all it names.
+  repository's `borrowing` line holds one (below), no session outside the run order occupies one
+  (*Occupied by a session outside the run order*, below), and, where it borrows, every lender
+  passes the borrow check (SESSIONS.md §6). That order inside one repository is read from the
+  steps, so it holds even where a later step's *Released by* names only other repositories'
+  tickets, which is all it names.
 
 A launch **occupies** its own repository and every repository it borrows: one session per working
 copy. The rule is symmetric — a launch that borrows a repository waits on that repository's launch
@@ -170,10 +196,12 @@ stopped — …` and a ticket it names has a kept branch in its comments, ask th
 parked, and read it as let out of parking only on a yes.
 
 **A lender that fails the borrow check** makes its borrower not ready, and the report names the
-lender and the condition that failed. The lender's own launch goes by its own state: a session that
-died mid-batch reads as no session (Stage 1), so its launch is ready and is relaunched before its
-borrower, and its orchestrator's Stage 1 brings the lender back to its recorded commit; one whose
-turn ended awaiting a go-ahead is held on the user. Where no launch of the lender is ready, in
+lender and the condition that failed, and where it is a claim, the claim's time, host and pane.
+The lender's own launch goes by its own state: a session that died mid-batch reads as no session
+(Stage 1), and the claim it left as one the table takes over, so its launch is ready and is
+relaunched before its borrower, its guard taking that claim over, and its orchestrator's Stage 1
+brings the lender back to its recorded commit; one whose turn ended awaiting a go-ahead is held on
+the user. Where no launch of the lender is ready, in
 flight or held, and no `borrowing` line holds it, nothing scheduled will make it pass, and the
 report says the borrower waits on the owner, who clears the condition. A lender a line holds is
 reported as *A borrow that outlived its session* says, naming the launch that clears it. Under
@@ -191,6 +219,30 @@ owner restores access to that tracker. `+ check` and every report name each line
 holds and the launch that clears it. Where the map reads and no launch of that repository is ready,
 in flight or held, they say the lender waits on the owner, who does that cleanup, or has a session
 of that repository do it, and sees the line removed.
+
+**Occupied by a session outside the run order.** A repository is occupied by a session outside the
+run order while a claim read there (Stage 1) is one the table would stop or ask on, and is not the
+claim of a launch you have in flight or held in that repository. A claim is such a launch's own
+where it is of this run and names the pane of the session that runs that launch; the user's own
+session (Stage 1) holding a claim is outside the run order, as is a session started by hand in
+another pane or outside herdr, a claim without a pane, another run's claim and an unreadable one.
+Every launch that occupies that repository — its own repository's next launch and every launch that
+borrows it — is not ready, and waits until the claim is gone or the table would take it over. A
+claim the table would take over leaves the launch ready by the usual rule, and that launch's own
+guard takes it over when it starts; a lender's claim still fails its borrow check, stale or not
+(SESSIONS.md §6), and is reported as *A lender that fails the borrow check* says. This decides
+readiness only: a launch already in flight, held or parked goes by its own state, and what keeps a
+second session out of a working copy is each launch's own guard, which runs whatever you decide
+(`/orchestrate` Stage 1, *The single-session guard*).
+
+`+ check`, every wake's report (Stage 4) and the stop report (Stage 5) name each such claim — its
+time, host and pane, or that it names none, and the table's verdict with the pane read behind it —
+the launches it holds, and that the owner either ends that session or removes its claim file,
+`working-copy-claim` in that repository's git common directory. A session ended without its release
+leaves its claim behind: under herdr its pane then reads as stale, and a claim without a pane stays
+until the owner removes the file. No watcher covers that session, so a claim gone is seen on the
+next wake or the next `/conduct`. Under `+ watch`, a run held only by such claims is a
+nothing-ready stop like any other (Stage 5).
 
 Recompute every state on every wake and at every `/conduct`: a ticket can close inside a wave that
 later stops, or by hand. In flight at once: two sessions, or the `+ sessions <n>` the user gave —
@@ -306,8 +358,9 @@ outcome line can still show an old pause line.
 
 Then recompute every state (Stage 2), launch what is ready (Stage 3), and arm one new watcher over
 what is in flight, each session from the `state_change_seq` you last read for it. The wake's report
-names each parked launch as *A parked launch* (Stage 2) says. Nothing in flight means no watcher,
-and Stage 5.
+names each parked launch as *A parked launch* (Stage 2) says, and each repository occupied by a
+session outside the run order as *Occupied by a session outside the run order* (Stage 2) says.
+Nothing in flight means no watcher, and Stage 5.
 
 **Reading a session**: `herdr agent read <name> --source recent-unwrapped --lines 80`. Where that
 comes back blank, read the last assistant message of the session's transcript, and only that
@@ -324,11 +377,13 @@ Approvals, answers and go-aheads you were not given wait for the user.
 
 Without `+ watch`, stop once this turn's launches are out. Under `+ watch`, stop when every launch
 has landed, or when nothing is in flight and nothing is ready — a run whose only open launches are
-parked, held or waiting on a lender among them. Either way no watcher outlives the
+parked, held, waiting on a lender or waiting on a repository occupied by a session outside the run
+order, among them. Either way no watcher outlives the
 stop: a session that settles afterwards is picked up by the next `/conduct`.
 
 The report names each launch with its state, what every open launch waits on and on whom, each
-parked launch as *A parked launch* (Stage 2) says, each
+parked launch as *A parked launch* (Stage 2) says, each repository occupied by a session outside the
+run order as *Occupied by a session outside the run order* (Stage 2) says, each
 relayed question still unanswered, and the next `/conduct` line — without `+ watch`, the line to run
 once a session settles. It names the sessions still running, read from `herdr agent list` at the
 stop because the user may have closed one meanwhile, by pane label or tab, and marks as safe
