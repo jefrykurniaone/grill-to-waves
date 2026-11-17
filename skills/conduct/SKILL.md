@@ -107,8 +107,9 @@ Done when all of them hold.
    claim names, and for `idle` or `done` its last outcome line (*Reading a session*, Stage 4). A
    claim is *of this run* when its `run:` is the run slug and its `map:` is that repository's map,
    the one its launch line names (Stage 2), in the one form a claim writes it (`/orchestrate`
-   Stage 1, *A claim found*): the issue reference with its `#` (`#54`), or the local map's path
-   relative to that repository's root with no leading `./`, never prefixed by its folder.
+   Stage 1, *A claim found*): the map's reference as its tracker writes it (`#54`, or a key such
+   as `ABC-12`), or the local map's path relative to that repository's root with no leading `./`,
+   never prefixed by its folder.
    The row for a claim naming the guard's own pane and the rule for one carrying its own token are
    that guard's alone: skip them. Where the *gone* rule sets aside the guard's own pane, set aside
    the panes of your launches in flight or held in that repository, and count every other pane

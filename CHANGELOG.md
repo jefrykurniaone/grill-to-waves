@@ -22,26 +22,29 @@ line appears at the first take.
 
 - **`/orchestrate`.**
   - *The working-copy claim* (Stage 1): the claim file, `working-copy-claim` at the top of the
-    clone's git common directory, holds the token, run, map, host, time and, under herdr, pane. The
-    token is one per conversation, minted at its first take and reused at every re-take, and the
-    time is the current take's. The map is written and compared in one form: `#<n>`, or the local
-    map's path from the repository root with no leading `./`. The file is created exclusively, so
-    of two sessions taking at once one create fails and stops. The claim
+    clone's git common directory, holds the token, run, map, host, time and, under herdr, pane. A
+    token names one take: every take, take-over and re-take mints a new one, its time that take's,
+    the same as `since`, and the conversation keeps its latest take's token to compare against. The
+    map is written and compared in one form: its reference as its tracker writes it (`#54`, or a key
+    such as `ABC-12`), or the local map's path from the repository root with no leading `./`. The
+    file is created exclusively, so of two sessions taking at once one create fails and stops. The claim
     line, `claimed: <token> since <time> · <host>[ · pane <id>]`, sits on the map's execution
     progress and carries no path and no machine name. The file is the authority. Only a take, a
     take-over and a release write the line: every other rewrite of the execution progress keeps it
     exactly as the map carries it when re-read, so a session taken over cannot write its own line
-    back.
+    back, and a re-read line carrying another token than the session's stops the rewrite with
+    nothing written.
   - *Lifecycle*: take before any other write, held while the launch is in flight, a turn that ends
     on `orchestrate: waiting on executors` included, and released as the last act before
     `orchestrate: done` or `orchestrate: stopped — …`, a stop that asks a question included. A
-    take-over moves the stale file aside to `working-copy-claim.<token>` and reads it first, and
-    stops where that name already exists; a file of that name is never a claim, is a leftover only
-    where a second read still finds it, and the owner removes it. A later turn of the same
-    conversation, such as an answer to a stop, takes the claim again; its guard asks nothing about
-    worktrees that conversation registered, and where the integration branch's `HEAD`, the
-    execution progress and the worktrees are as it left them, it acts on the answer from where it
-    stopped, and otherwise runs Stage 1 in full.
+    take-over moves the stale file aside to `working-copy-claim.<token>` and reads it first; a file
+    of that name is never a claim, is a leftover only where a second read still finds it, and the
+    owner removes it. A later turn of the same conversation, such as an answer to a stop, takes the
+    claim again with a new token and compares Stage 1's reads against what the stopped turn left:
+    the integration branch's `HEAD`, the execution progress, the worktrees, and the run's tickets'
+    states and labels. Where none changed, its guard asks nothing about worktrees that
+    conversation registered, and it acts on the answer from where it stopped; where any changed,
+    Stage 1 runs in full, with no such exemption.
   - *The single-session guard* reads the claim file and the claim line beside `git worktree list`,
     before Stage 1 writes anything. Its table judges a claim from the pane it names under herdr: with
     no claim file and no claim line, the session takes one; another run's or an unreadable file
@@ -53,12 +56,15 @@ line appears at the first take.
     pane asks instead. Its one question now covers the claim as well as the open tickets' worktrees.
     A claim carrying the conversation's own token is held still, but under herdr only where it
     names no pane or the session's own: where it names another pane whose agent is live, the
-    conversation is running in a second process, and the guard stops and names that pane.
+    conversation is running in a second process, and the guard stops and names that pane; where
+    that other pane reads any other way, the claim is judged by the table's rows. Where the claim
+    file and the claim line differ, in token or in pane, each is judged and the stricter verdict
+    holds.
   - *The ownership check* confirms the claim file carries this session's token before the tree
-    preflight, at each step of the close and at release, in a session that holds the claim. A
+    preflight, at each step of the close and at release, in every session but `+ check`. A
     mismatch or a missing file stops with nothing written, and neither file nor line is removed.
   - `+ check` prints the claim file's fields, the claim line, any leftover beside the file and the
-    table's verdict, and takes, releases and takes over nothing. It holds no token, so it skips the
+    table's verdict, and takes, releases and takes over nothing. It takes no claim, so it skips the
     ownership check and never reports that another session took the working copy.
 - **`/conduct`.**
   - Stage 1 reads every repository's claim at every recompute and judges it by `/orchestrate`'s
