@@ -172,9 +172,12 @@ working copy before reconciling them, other than those this conversation registe
 earlier turn where a later turn finds nothing changed (*Lifecycle*, below). Confirmed: the
 reconcile above handles them, each by its label and any `hand-back:` line. Not confirmed: stop.
 Where the claim's verdict needs no question — no claim found, a stale claim taken over, or this
-conversation's own claim renewed — they go to the reconcile without one: every live `/orchestrate`
-session holds the one claim and takes it before it registers any worktree, so with no claim
-standing, or one shown stale, no live session can own them. A **registered** worktree anywhere else, besides
+conversation's own claim renewed, restored first where the guard restores it — they go to the
+reconcile without one: every live `/orchestrate` session holds the one claim and takes it before it
+registers any worktree, so with no claim standing, or one shown stale, no live session can own them.
+*Lifecycle* (below) comes first: in a later turn of this conversation where its comparison of
+Stage 1's four reads finds nothing changed, the session acts from the step where it stopped, and
+those worktrees are not reconciled. A **registered** worktree anywhere else, besides
 this working copy itself, is another session and says yes: stop and report, because two sessions in one tree contend on the tree, the dev server and the dev
 database at once. An empty leftover directory under `.claude/worktrees/` is not a registered worktree,
 so read the list, never the filesystem.
@@ -221,13 +224,21 @@ ended without releasing it, or held across the pause line, and nothing is asked 
 itself by the take-over's steps (below), the moved file required to carry the previous token, and
 replace the claim line with this session's new one; a claim line of its own without a claim file
 is renewed as a take-over takes such a line, by creating the file exclusively and replacing the
-line. Where the token is this conversation's but the panes differ — it names another pane, or
+line. A claim of this conversation's left only in a move-aside file — by a take-over that died
+after moving it aside, or by a release that died between its move and its delete — is
+**restored** by the guard as the ownership check restores one (below). Where the guard finds no
+claim file, it reads every move-aside file as it always does, and where one that a second read
+still finds carries this conversation's own token, and its own pane by this rule, the guard creates
+the claim file exclusively with that file's content, then deletes the move-aside file, and judges
+the restored claim as this conversation's own claim, so it renews it. Where that create fails, the
+guard judges what the claim file now holds, as it judges any claim file, and keeps the move-aside
+file. Where the token is this conversation's but the panes differ — it names another pane, or
 names one where this session has none, or names none where this session has one — it is judged by the table's rows as any claim of this run is, its pane
 read under the rules above: a live reading means this conversation is running in a second process,
 so stop, and name that pane; where the guard clears, take it over with a new token. Where the claim
 file and the claim line differ, in token or in pane, judge each, and the strictest verdict holds: a
-stop over a question, a question over a take-over or a renewal. A move-aside file of this run is
-judged beside them (*A move-aside file*, below).
+stop over a question, a question over a take-over or a renewal. Every other move-aside file of this run, one the guard
+does not restore, is judged beside them (*A move-aside file*, below).
 
 **The question is the guard's one question**, widened: it is asked only where the guard asks about
 a claim, and then covers the claim and the open tickets' worktrees above, and names the claim's
@@ -240,7 +251,8 @@ claim, take it over, or renew it, before anything else in this stage writes; whe
 cleared without a question, the open tickets' worktrees go to the reconcile without one (above). A
 take-over is named in the wave report, or in the turn's report where no wave runs; a renewal of
 this conversation's own claim is not. A stop of the guard's own takes nothing and cleans up
-nothing.
+nothing; a restore it made before the stop stays, its claim file holding what the move-aside file
+held.
 
 The guard sees every `/orchestrate` session in this working copy at every moment of its turn,
 whichever host runs it: by its registered worktrees while a wave is in flight, and by its claim from
@@ -342,7 +354,7 @@ nothing is moved, and the session stops. Where it still carries that token, move
 without `-Force`), a rename only one session can make of that file and one that no earlier take's
 leftover shares a name with, and read the moved file. Where the moved file
 carries the stale claim's token, delete it, create the claim exclusively as above, and replace the
-stale claim line with this session's. Where the move finds no file, or the moved file carries another token, another
+stale claim line with this session's. Where the move finds no file, the read of the moved file finds none, or the moved file carries another token, another
 session took this working copy meanwhile: write a moved file's content back by the same exclusive
 create and delete the moved file — or, where that create fails too, keep the moved file — and stop.
 The read before the move narrows the window in which a take-over can move a fresh claim aside, and
@@ -352,9 +364,12 @@ file is taken over by creating the file exclusively and replacing the line.
 **A move-aside file**, `working-copy-claim.<token>` beside the claim file, is the name a take-over
 or a release passes the claim file through, never a claim file itself; another session's take-over
 or release passes through that name for an instant, so only a file that a second read still finds
-is evidence. The guard and `+ check` read every such file. One that a second read still finds and
-that holds a claim of this run is judged by the table's rows beside the claim file and the claim
-line, and the strictest verdict holds: a stop over a question, a question over a take-over. One
+is evidence. The guard and `+ check` read every such file, and `+ check` restores none. Where the
+guard finds no claim file, one that a second read still finds and that carries this conversation's
+own token, and its own pane by that paragraph's rule, is restored and renewed, not judged by the
+table (*This conversation's own claim*, above). Any other one that a second read still finds and
+that holds a claim of this run, one kept where the restore's create failed included, is judged by
+the table's rows beside the claim file and the claim line, and the strictest verdict holds: a stop over a question, a question over a take-over. One
 judged stale stays a leftover: the guard neither takes it over nor removes it, and reports it for
 the owner to remove. Any other such file that a second read still finds is a leftover, as a
 take-over's or a release's: the guard and `+ check` report it, and the owner removes it.
@@ -370,10 +385,12 @@ below, then remove this session's claim line, then the file, so that a crash bet
 file, the stronger evidence. The file goes the way a take-over removes one: move it aside to
 `working-copy-claim.<this session's token>` and delete it only where it carries this session's
 token, and its own pane by the ownership check's rule; otherwise write it back by the exclusive
-create, as a take-over does, and stop. A later turn of the same session after a release, or after a turn that
+create, as a take-over does, and stop. A release that dies between that move and that delete
+leaves its claim in a move-aside file, which this conversation's next guard restores (*This
+conversation's own claim*). A later turn of the same session after a release, or after a turn that
 ended on no outcome line — an answer to its stop, for one — takes the claim again through the
-guard's read, or renews it where the guard finds this conversation's own claim, minting a new token
-either way, and runs Stage 1's four reads again before acting on the answer;
+guard's read, or renews it where the guard finds this conversation's own claim, restored first
+from a move-aside file where the guard restores it, minting a new token either way, and runs Stage 1's four reads again before acting on the answer;
 what the user already answered in this conversation is not asked again. The four reads are reads,
 compared against the state the turn that stopped left behind: the integration branch's `HEAD`, the
 execution progress, its `claimed:` line aside, the worktrees, and the states and labels of the
@@ -382,7 +399,7 @@ worktree this conversation registered itself, and the session acts on the answer
 where it stopped. Where any of them changed, Stage 1 runs in full, the reconcile included, and that
 worktree exemption does not apply. Either way the open tickets' worktrees are asked about only
 where the guard asks about a claim (*The single-session guard*). `+ check` never takes, renews,
-releases or takes over a claim.
+restores, releases or takes over a claim.
 
 **The ownership check** reads the claim file and confirms it carries this session's token, and,
 where the file names a pane and this session has an own pane, that the file's server and pane are
@@ -393,8 +410,12 @@ every rewrite of the execution progress other than a take, a take-over or a rele
 working-copy claim*). Where it finds no claim file, it reads every move-aside file beside it, and
 where one that a second read still finds carries this session's token, and its own pane by the
 rule above, it restores it: it creates the claim file exclusively with that file's content, deletes
-the move-aside file, and goes on, the check passed. Where that create fails, it is a stop as a
-mismatch is, and the move-aside file is kept. A mismatch, or a missing file with no such move-aside
+the move-aside file, and goes on, the check passed; the guard restores one the same way at the start
+of a turn (*This conversation's own claim*). Where that create fails, it re-reads the claim file:
+where the file now carries this session's token, and its own pane by the rule above, the check
+passes, and the session deletes the move-aside file only where a second read still finds it and it
+carries this session's token; otherwise it is a stop as a mismatch is, and the move-aside file is
+kept. A mismatch, or a missing file with no such move-aside
 file, is a stop: nothing more is
 written — not to the tree, the tracker or the map — neither the file nor the line is removed, and
 the report says that another session took this working copy.
@@ -476,8 +497,8 @@ commits past the line's sha,
 what the guard found — this session's server fingerprint and own pane, or that it has none, the
 claim file's fields, the claim line, every `working-copy-claim.<token>` file beside the claim file,
 judged as the guard judges a move-aside file, and the verdict the guard's table gives with the pane
-read behind it, or why the pane is unreadable, taking, renewing, releasing and taking over
-nothing —
+read behind it, or why the pane is unreadable, taking, renewing, restoring, releasing and taking
+over nothing —
 what the preflight's other steps found — never that another session took this working copy, since
 `+ check` takes no claim and runs no ownership check — which of the run's own paths
 ([../grill-to-waves/SESSIONS.md](../grill-to-waves/SESSIONS.md) §4) are not yet ignored, cross-run gates with the tickets they wait on, and the

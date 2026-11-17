@@ -275,8 +275,8 @@ of the maps, the **lead map**, also carries what crosses them:
     takes it over without asking;
   - in the window between a take-over's read of the claim file and its move, a fresh claim another
     session has just written can be moved aside; the take-over writes it back, and where it dies
-    first, the claim is left in a move-aside file, which its holder's next ownership check restores
-    and which fails the second condition meanwhile.
+    first, the claim is left in a move-aside file, which its holder's next guard or ownership check
+    restores and which fails the second condition meanwhile.
 
   **A borrow that outlived its session.** A borrower's map carries `borrowing <folder> since <time>`
   from before it starts a lender's app until that walk's leftovers are dealt with (`/orchestrate`

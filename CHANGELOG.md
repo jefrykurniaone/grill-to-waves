@@ -38,7 +38,7 @@ names a pane without a server, and costs the next session one question.
     turn that finds it renews it with a new token, which the earlier entry left unstated for the
     held case; where the panes differ it is judged by the table's rows, and a live reading means a
     second process of one conversation, which stops.
-  - *The take-over* reads the claim file before it moves it, and stops where the file no longer
+  - *A take-over* reads the claim file before it moves it, and stops where the file no longer
     carries the token being taken over. It moves the file aside to `working-copy-claim.<the new
     token>`. *A move-aside file* is judged by every guard and `+ check` as a claim where a second read
     still finds it and it holds a claim of this run, by the table beside the claim file and the claim
@@ -49,6 +49,11 @@ names a pane without a server, and costs the next session one question.
     the execution progress, which then writes the session's own `claimed:` line from its token, never
     the line as re-read: a line a session taken over wrote back over the holder's is healed at the
     holder's next rewrite and stops no one.
+  - *This conversation's own claim*: the guard restores this conversation's own claim from a
+    move-aside file, as the ownership check does. Where it finds no claim file and a move-aside file
+    that a second read still finds carries the conversation's own token and own pane, it creates the
+    claim file exclusively with that content, deletes the move-aside file and renews the claim, so a
+    take-over that died mid-move, or a release that died mid-way, heals at the holder's next turn.
   - *Its residual risk* (Stage 1) is widened to a claim written under another server or machine, a
     nested terminal that neither renames the terminal program nor sets a multiplexer's marker, and
     the window between a take-over's read and its move.

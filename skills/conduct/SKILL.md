@@ -215,8 +215,9 @@ parked, and read it as let out of parking only on a yes.
 lender and the condition that failed, and where it is a claim, the claim's time, host, and pane
 with its server, and whether the claim file, the claim line or a move-aside file holds it. The
 second condition counts every move-aside file that a second read still finds as a claim standing,
-a leftover included (SESSIONS.md §6), and no guard removes one: a live holder's next ownership
-check restores its own as its claim file (`/orchestrate` Stage 1, *The ownership check*), and any
+a leftover included (SESSIONS.md §6), and no guard removes one: a live holder's next guard or
+ownership check restores its own as its claim file (`/orchestrate` Stage 1, *This conversation's
+own claim* and *The ownership check*), and any
 other stays until the owner removes it: for such a file the report says the borrower waits on the
 owner, whatever the lender's launches do.
 The lender's own launch goes by its own state: a session that died mid-batch reads as no session
