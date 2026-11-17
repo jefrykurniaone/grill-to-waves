@@ -76,7 +76,9 @@ Done when all of them hold.
    file, `working-copy-claim` at the top of the directory that
    `git -C <folder> rev-parse --path-format=absolute --git-common-dir` prints, run from your own
    folder. An absent file is no claim; a file that is there and cannot be read is the table's
-   unreadable one. A `working-copy-claim.<token>` file beside it is a leftover, never a claim.
+   unreadable one. A `working-copy-claim.<token>` file beside it is never a claim, and is a
+   leftover only where a second read still finds it, since another session's take-over or release
+   passes through that name for an instant.
 3. **Panes**: `herdr pane list` in every workspace. A repository's pane is the one whose cwd is that
    repository's root; where there are several, ask which. A repository without a pane gets a slot in
    your own tab when its launch is ready (Stage 3, *The slots*), and this stage creates none. Under
@@ -103,9 +105,11 @@ Done when all of them hold.
    the rules under it (*A claim found*), as that repository's next launch's guard would, read-only
    and with your own pane reads: the pane list above, `herdr agent get <pane>` for the pane the
    claim names, and for `idle` or `done` its last outcome line (*Reading a session*, Stage 4). A
-   claim is *of this run* when its `run:` is the run slug and its `map:` is that repository's map
-   as its launch line names it (Stage 2), the reference its orchestrator's Stage 0 resolves, never
-   prefixed by its folder.
+   claim is *of this run* when its `run:` is the run slug and its `map:` is that repository's map,
+   the one its launch line names (Stage 2), in the one form a claim writes it (`/orchestrate`
+   Stage 1, *A claim found*): the map's reference as its tracker writes it (`#54`, or a key such
+   as `ABC-12`), or the local map's path relative to that repository's root with no leading `./`,
+   never prefixed by its folder.
    The row for a claim naming the guard's own pane and the rule for one carrying its own token are
    that guard's alone: skip them. Where the *gone* rule sets aside the guard's own pane, set aside
    the panes of your launches in flight or held in that repository, and count every other pane
@@ -237,12 +241,13 @@ second session out of a working copy is each launch's own guard, which runs what
 
 `+ check`, every wake's report (Stage 4) and the stop report (Stage 5) name each such claim — its
 time, host and pane, or that it names none, and the table's verdict with the pane read behind it —
-the launches it holds, and that the owner either ends that session or removes its claim file,
-`working-copy-claim` in that repository's git common directory. A session ended without its release
-leaves its claim behind: under herdr its pane then reads as stale, and a claim without a pane stays
-until the owner removes the file. No watcher covers that session, so a claim gone is seen on the
-next wake or the next `/conduct`. Under `+ watch`, a run held only by such claims is a
-nothing-ready stop like any other (Stage 5).
+the launches it holds, and that the owner either ends that session or removes its claim: both its
+claim file, `working-copy-claim` in that repository's git common directory, and, where its map
+carries one, the map's `claimed:` line, since a claim line left alone still reads as a claim. A
+session ended without its release leaves its claim behind: under herdr its pane then reads as
+stale, and a claim without a pane stays until the owner removes the file and the line. No watcher
+covers that session, so a claim gone is seen on the next wake or the next `/conduct`. Under
+`+ watch`, a run held only by such claims is a nothing-ready stop like any other (Stage 5).
 
 Recompute every state on every wake and at every `/conduct`: a ticket can close inside a wave that
 later stops, or by hand. In flight at once: two sessions, or the `+ sessions <n>` the user gave —

@@ -321,9 +321,10 @@ tell it to.
 A launch whose walk needs another repository's running app borrows that repository, so no session
 runs there meanwhile, and only while that repository passes the borrow check: a clean tree, no
 other worktree, no working-copy claim, and its `HEAD` where its map says it may be. A repository
-held by a claim that is not one of the run's own launches' is occupied by a session outside the run
-order, and its launches wait. `+ check` shows each launch's borrows, each repository's claim and
-each parked launch, whose tickets are the owner's to re-plan, close or go on without.
+held by a claim that is not one of the run's own launches', and that its launch's guard would not
+take over, is occupied by a session outside the run order, and its launches wait; a claim that guard
+would take over leaves the launch ready. `+ check` shows each launch's borrows, each repository's
+claim and each parked launch, whose tickets are the owner's to re-plan, close or go on without.
 
 Once a run's work has reached the base branch, promoting it is its own session:
 
@@ -403,7 +404,8 @@ with the first merge batch's spec mirrors.
 - **Two agent sessions never share one working copy.** They contend on the tree, the dev server and
   the dev database at once. Each `/orchestrate` session marks its working copy with a claim from its
   guard to its outcome line, so a second launch there stops or asks first; an agent session that runs
-  no `/orchestrate` takes no claim and is not seen.
+  no `/orchestrate` takes no claim, so it is seen only by `/conduct`'s pane read, and not at all
+  outside herdr.
 - **Nothing is true until it is on the tracker** — and the map's *body* is where a resuming session
   looks first. Sessions share no context window, so a fact that was never posted did not happen, and
   a fact posted only as a comment on a long thread is a fact the next session acts without.

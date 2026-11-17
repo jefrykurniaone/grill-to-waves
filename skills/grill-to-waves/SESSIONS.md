@@ -234,8 +234,9 @@ of the maps, the **lead map**, also carries what crosses them:
      its leftover, a claim is a live session from its guard to its outcome line or one that died
      holding it, and each is the lender's own business first. This condition reads whether a claim
      stands, never whether it is stale: a stale claim fails it too, until the lender's next session
-     takes it over or the owner removes it. A `working-copy-claim.<token>` file beside it is a
-     take-over's or a release's leftover, never a claim file.
+     takes it over or the owner removes it — its claim file and, where its map carries one, the
+     map's claim line. A `working-copy-claim.<token>` file beside it is a take-over's or a
+     release's leftover, never a claim file.
   3. Its `HEAD` (`git -C ../<folder> rev-parse HEAD`) matches its map's state, the map read through
      the lender's own tracker ([TRACKERS.md](./TRACKERS.md) *Across repositories*):
      - while its map is open and records a cut, `HEAD` equals its recorded commit;
@@ -255,8 +256,9 @@ of the maps, the **lead map**, also carries what crosses them:
     at all outside herdr;
   - a claim left by a session that died outside herdr cannot be told stale without the user, so it
     costs the next session in that lender one question (`/orchestrate` Stage 1, *The question is
-    the guard's one question*), or under `/conduct` the owner's removing it (`/conduct` Stage 2,
-    *Occupied by a session outside the run order*), and until then it fails the second condition.
+    the guard's one question*), or under `/conduct` the owner's removing it — its claim file and,
+    where its map carries one, the map's claim line (`/conduct` Stage 2, *Occupied by a session
+    outside the run order*), and until then it fails the second condition.
 
   **A borrow that outlived its session.** A borrower's map carries `borrowing <folder> since <time>`
   from before it starts a lender's app until that walk's leftovers are dealt with (`/orchestrate`
