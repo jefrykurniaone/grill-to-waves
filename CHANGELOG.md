@@ -3,6 +3,80 @@
 What changed in the pipeline's rules and agent set, newest first. The repository carries no version
 tags, so entries are dated. Tiers are named by alias only, as everywhere else in this repository.
 
+## 2026-11-18 — The claim names its server, and a held claim is renewed
+
+A working-copy claim now names its pane together with its herdr server, so a pane id is read only
+on the server it belongs to, and a session counts only a pane it runs in directly as its own. A
+pane on another server, or one a claim names without a server, is never read: the guard asks about
+it instead. The "gone" rule counts every pane inside the working copy, and the guard asks about the
+open tickets' worktrees only together with a question about the claim.
+
+### After updating
+
+Run the installer again on both hosts (`./install.ps1 -Target both` or `./install.sh --target both`).
+Before that, finish or stop every `/orchestrate` session in flight: a claim written by the old rules
+names a pane without a server, and costs the next session one question.
+
+### Changed
+
+- **`/orchestrate`.**
+  - *The working-copy claim* (Stage 1): the claim file carries `server:` beside `pane:`, and the
+    claim line names the pane as `<server>/<pane id>`. The server is a fingerprint, the first 8
+    hexadecimal digits of the SHA-256 of the host name and `HERDR_SOCKET_PATH`, so two machines or
+    two herdr servers never share a pane id and a map that may be public carries no path. A session
+    has an own pane only where it runs in a herdr pane directly: a terminal nested inside one
+    (tmux, screen, zellij or an editor's terminal) has none, and reads the outer pane as another
+    session's. A claim whose server differs, one naming a pane without a server, and every claim
+    where the session has no fingerprint are judged in the table's *pane unreadable* column.
+  - *The single-session guard*: the "gone" rule counts every pane whose cwd is the working copy's
+    root or any path under it, compared whole path component by whole path component. The open
+    tickets' worktrees are asked about only where the guard asks about a claim; where it finds no
+    claim, takes a stale one over or renews its own, they go to the reconcile without a question,
+    and the one question names the claim's pane with its server.
+  - *This conversation's own claim*: a claim carrying the conversation's own token is its own only
+    where its server and pane equal the session's own pane, or where neither names one. Every later
+    turn that finds it renews it with a new token, which the earlier entry left unstated for the
+    held case; where the panes differ it is judged by the table's rows, and a live reading means a
+    second process of one conversation, which stops.
+  - *A take-over* reads the claim file before it moves it, and stops where the file no longer
+    carries the token being taken over. It moves the file aside to `working-copy-claim.<the new
+    token>`. *A move-aside file* is judged by every guard and `+ check` as a claim where a second read
+    still finds it and it holds a claim of this run, by the table beside the claim file and the claim
+    line, the strictest verdict holding; one judged stale stays for the owner to remove.
+  - *The ownership check* also confirms the claim's pane is the session's own, and where the claim
+    file is missing restores it from a move-aside file that carries the session's token, so a
+    take-over that died mid-move heals at its holder's next check. It runs before every rewrite of
+    the execution progress, which then writes the session's own `claimed:` line from its token, never
+    the line as re-read: a line a session taken over wrote back over the holder's is healed at the
+    holder's next rewrite and stops no one.
+  - *This conversation's own claim*: the guard restores this conversation's own claim from a
+    move-aside file, as the ownership check does. Where it finds no claim file and a move-aside file
+    that a second read still finds carries the conversation's own token and own pane, it creates the
+    claim file exclusively with that content, deletes the move-aside file and renews the claim, so a
+    take-over that died mid-move, or a release that died mid-way, heals at the holder's next turn.
+  - *Its residual risk* (Stage 1) is widened to a claim written under another server or machine, a
+    nested terminal that neither renames the terminal program nor sets a multiplexer's marker, and
+    the window between a take-over's read and its move.
+- **`/conduct`.**
+  - Stage 1 reads a claim's pane only where its server equals the conductor's own fingerprint, and
+    judges every move-aside file as a claim beside the claim file and the claim line, the strictest
+    verdict holding. Its "gone" count includes every pane inside the repository.
+  - *Occupied by a session outside the run order* (Stage 2): a claim is a launch's own only where it
+    names the conductor's server and that launch's pane, so a claim of another server or naming a
+    pane without a server is outside the run order. The reports name the pane with its server and
+    whether the file, the line or a move-aside file holds the claim.
+  - *A lender that fails the borrow check* names the claim's server and where it is held; a
+    move-aside file leaves the borrower waiting on the owner.
+- **`/grill-to-waves` and its shared files.**
+  - *The borrow check* (SESSIONS §6): the second condition now holds only with all four of no
+    registered worktree, no claim file, no move-aside file that a second read still finds and no
+    claim line. A move-aside file is a claim standing, a leftover included, and no guard removes
+    one: its holder's ownership check restores it, or the owner removes it.
+  - *The residual risk* (SESSIONS §6) adds the nested terminal and the take-over's window to what
+    no claim can show or judge without asking. SESSIONS §5 stops on a claim whether the claim file,
+    the claim line or a move-aside file holds it.
+  - GLOSSARY: an **Own pane** entry, avoiding current pane and focused pane.
+
 ## 2026-11-17 — The working-copy claim
 
 An `/orchestrate` session now marks the working copy it acts in, from its guard to its outcome line,

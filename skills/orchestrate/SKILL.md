@@ -96,7 +96,7 @@ stop. The exception is a batch awaiting an irreversible go-ahead: the execution 
 `awaiting go-ahead: #<n>[, #<m>…] @ <batch head sha>`. Where a ticket the line names now carries
 `ready-for-human`, the go-ahead was refused and its re-run did not finish, wherever `HEAD` is: the
 tickets the line names that carry that label are the refused ones, and the line exempts nothing any
-more. Once the guard below has been answered, the refused tickets' worktrees go by their
+more. Once the guard below has cleared, the refused tickets' worktrees go by their
 `ready-for-human` label, and the batch's other tickets' surviving worktrees are verified as *Verify*
 says and merged in the re-run, never torn down and dispatched again — but for a ticket with a
 `hand-back:` line, which goes as that line says (below); then reset and re-run that
@@ -128,10 +128,10 @@ post the record and close it, never re-run it. A ticket branch with no worktree:
 when its ticket is `ready-for-human`, because it is the work handed to a human; otherwise delete it
 when the recorded commit already holds it, or inspect, salvage or delete it, and say which. A
 worktree whose ticket is closed: tear it down. A worktree whose ticket is `ready-for-human`, once the
-guard below has been answered: tear it down and keep its branch, as *Record, close, tear down* says
+guard below has cleared: tear it down and keep its branch, as *Record, close, tear down* says
 for that label, and name the branch in the wave report; never verify, merge or dispatch it. An open
 `ready-for-agent` ticket whose worktree survives, outside a batch awaiting a go-ahead, with no
-`hand-back:` line (below), and once the guard below has been answered: the executor's report died
+`hand-back:` line (below), and once the guard below has cleared: the executor's report died
 with the session. Where its branch has commits past the recorded commit
 (`git log <recorded commit>..<ticket branch>`), they are an
 executor's result without its report: verify them as *Verify* says, reading the diff and running
@@ -142,7 +142,7 @@ their own, so there are none to reconcile.
 **A `hand-back:` line** in the execution progress,
 `hand-back: #<n> <k> of 2 @ <ticket branch sha> — <the finding, in a few words>`, names a ticket
 handed back for rework, the hand-backs it has spent, and its branch's tip that failed (*Record,
-close, tear down*). Once the guard below has been answered, that ticket's surviving
+close, tear down*). Once the guard below has cleared, that ticket's surviving
 `ready-for-agent` worktree is rework in progress, not a lost report. Its commits past that tip
 (`git log <ticket branch sha>..<ticket branch>`) are the rework's result: verify them as *Verify*
 says. Where there are none, send the rework again with the line's finding — a fresh dispatch into
@@ -159,18 +159,25 @@ zero.
 **The single-session guard.** It asks one question — is another *agent session* live in **this working
 copy**? It runs on Stage 1's four reads, before this stage writes anything — before a reset of the
 integration branch, before the reconcile above and before *A borrowed walk that died* below — and
-reads three things: `git worktree list`, the claim file and the map's claim line (*The working-copy
-claim*, below). A worktree registered under `.claude/worktrees/<run-slug>/` is this
+reads three things: `git worktree list`, the claim file with every move-aside file beside it, and
+the map's claim line (*The working-copy claim*, below). A worktree registered under `.claude/worktrees/<run-slug>/` is this
 run's own: a leftover of an earlier session of this run, or the live worktree of a second launch of
 it, such as a relaunch of a session that looked hung. Where this run's worktrees are registered for
-open tickets outside a batch awaiting a go-ahead, other than those this conversation registered
-itself in an earlier turn where a later turn finds nothing changed (*Lifecycle*, below) —
-`ready-for-agent` and `ready-for-human` alike,
+open tickets outside a batch awaiting a go-ahead — `ready-for-agent` and `ready-for-human` alike,
 since an open ticket's worktree may be one a live second session is still working in, and the
-reconcile would tear it down, verify it or merge it under that session — ask the user, in one
-question, to confirm that no other session of this run is live in this working copy before
-reconciling them, the same question that asks about a claim (below). Confirmed: the reconcile above handles them, each by its label and any
-`hand-back:` line. Not confirmed: stop. A **registered** worktree anywhere else, besides
+reconcile would tear it down, verify it or merge it under that session — the guard's verdict on the
+claim (below) decides whether the user is asked about them. Where the guard asks about a claim,
+the same one question asks the user to confirm that no other session of this run is live in this
+working copy before reconciling them, other than those this conversation registered itself in an
+earlier turn where a later turn finds nothing changed (*Lifecycle*, below). Confirmed: the
+reconcile above handles them, each by its label and any `hand-back:` line. Not confirmed: stop.
+Where the claim's verdict needs no question — no claim found, a stale claim taken over, or this
+conversation's own claim renewed, restored first where the guard restores it — they go to the
+reconcile without one: every live `/orchestrate` session holds the one claim and takes it before it
+registers any worktree, so with no claim standing, or one shown stale, no live session can own them.
+*Lifecycle* (below) comes first: in a later turn of this conversation where its comparison of
+Stage 1's four reads finds nothing changed, the session acts from the step where it stopped, and
+those worktrees are not reconciled. A **registered** worktree anywhere else, besides
 this working copy itself, is another session and says yes: stop and report, because two sessions in one tree contend on the tree, the dev server and the dev
 database at once. An empty leftover directory under `.claude/worktrees/` is not a registered worktree,
 so read the list, never the filesystem.
@@ -180,57 +187,91 @@ this run* when its `run:` is this run's slug and its `map:` is this map's refere
 form a claim writes it and every reader compares it: the map's reference as its tracker writes it
 (`#54`, or a key such as `ABC-12`), or the local map's path relative to the repository root with no
 leading `./` (`.scratch/<run-slug>/map.md`). Under herdr
-(`HERDR_ENV=1`), read the pane the claim names, read-only, with the herdr skill's read commands, as
+(`HERDR_ENV=1`), the pane a claim names is read only where the claim's server equals this session's
+server fingerprint (*The working-copy claim*, below), since a pane id means something only on its
+own herdr server. Read it read-only, with the herdr skill's read commands, as
 `/conduct` reads a session: `herdr pane list` in every workspace says whether the pane exists and
 what its cwd is, `herdr agent get <pane>` gives its agent's state, and for `idle` or `done` its last
-outcome line is read as `/conduct` Stage 4, *Reading a session*, reads it.
+outcome line is read as `/conduct` Stage 4, *Reading a session*, reads it. A claim whose server
+differs from this session's fingerprint, a claim that names a pane without a server (one written
+before claims carried a server), and every claim where this session has no fingerprint are judged
+in the table's *pane unreadable* column.
 
-| Found | Under herdr | Outside herdr, or the pane unreadable |
+| Found | Under herdr, the pane read on this session's server | Outside herdr, or the pane unreadable: another server, a pane without a server, or no fingerprint here |
 |---|---|---|
 | No claim file, no claim line | take | take |
 | A claim file of another run or another map, or one that cannot be read | stop; report the file; the owner removes it, and its map's `claimed:` line where that map carries one | same |
-| A claim of this run naming this session's own pane (`HERDR_PANE_ID`) | stale: take over, name it in the report | — |
+| A claim of this run naming this session's own pane, by its server and its pane both | stale: take over, name it in the report | — |
 | A claim of this run naming a pane that is gone or holds no agent | stale: take over | ask |
 | A claim of this run whose agent is `working` or `blocked` | live: stop, name the pane | ask |
 | A claim of this run, `idle` or `done`, its last outcome line the pause line | live: stop | ask |
 | A claim of this run, `idle` or `done`, any other last line or none | stale, its turn ended without release: take over | ask |
 | `unknown`, or a claim without a pane | ask | ask |
-| A claim line without a claim file | judged by the rows above by the line's pane where it names one; ask otherwise | ask |
+| A claim line without a claim file | judged by the rows above by the line's server and pane where it names both; ask otherwise | ask |
 
-A pane counts as **gone** only where no pane other than this session's own whose cwd is this
-working copy's root holds an agent that is `working`, `blocked`, or `idle` or `done` on the pause line: a pane moved to another
-herdr workspace gets a new id, so its old id reads as gone while its session lives, and where such
-a pane exists the guard asks instead. A claim carrying this conversation's own token, its latest
-take's, is read before the table: it is this
-session's own, left by a turn that ended without releasing it: it is held still, and nothing is
-asked about it — under herdr, only where it names no pane or this session's own pane
-(`HERDR_PANE_ID`). Where it names another pane, read that pane as above: an agent there that is
-`working` or `blocked`, or `idle` or `done` on the pause line, means this conversation is running in
-a second process, so stop, and name that pane; any other reading is judged by the table's rows, as
-any claim of this run is. Where the claim file and the claim line differ, in token or in pane,
-judge each, and the stricter verdict holds: a stop over a question, a question over a take-over.
+A pane counts as **gone** only where no pane whose cwd is this working copy's root or any path
+under it, other than this session's own pane, holds an agent that is `working`, `blocked`, or
+`idle` or `done` on the pause line. The cwd is compared with the root whole path component by whole path
+component, so a sibling folder whose name begins with the root's name never counts. A pane moved to
+another herdr workspace gets a new id, so its old id reads as gone while its session lives, and
+where such a pane exists the guard asks instead.
 
-**The question is the guard's one question**, widened: it covers the open tickets' worktrees above
-and the claim, and names the claim's time, host and pane, or that it names none. Confirmed: take the
-claim over, and the reconcile handles the worktrees as above. Not confirmed: stop. An answer this
-conversation already holds is not asked again; it covers the worktrees and the claim's token it
-named, and a claim with another token is a new question. Where the guard clears — nothing found, a
-stale claim, or the user's confirmation — take the claim, or take it over, before anything else in
-this stage writes. A take-over is named in the wave report, or in the turn's report where no wave
-runs. A stop of the guard's own takes nothing and cleans up nothing.
+**This conversation's own claim.** A claim carrying this conversation's own token, its latest
+take's, is read before the table. It is this session's own only where its pane equals this
+session's own pane, its server and its pane both, or where neither names one: left by a turn that
+ended without releasing it, or held across the pause line, and nothing is asked about it. It is
+**renewed**, never left as it stands: mint a new token and take the claim over from this session
+itself by the take-over's steps (below), the moved file required to carry the previous token, and
+replace the claim line with this session's new one; a claim line of its own without a claim file
+is renewed as a take-over takes such a line, by creating the file exclusively and replacing the
+line. A claim of this conversation's left only in a move-aside file — by a take-over that died
+after moving it aside, or by a release that died between its move and its delete — is
+**restored** by the guard as the ownership check restores one (below). Where the guard finds no
+claim file, it reads every move-aside file as it always does, and where one that a second read
+still finds carries this conversation's own token, and its own pane by this rule, the guard creates
+the claim file exclusively with that file's content, then deletes the move-aside file, and judges
+the restored claim as this conversation's own claim, so it renews it. Where that create fails, the
+guard judges what the claim file now holds, as it judges any claim file, and keeps the move-aside
+file. Where the token is this conversation's but the panes differ — it names another pane, or
+names one where this session has none, or names none where this session has one — it is judged by the table's rows as any claim of this run is, its pane
+read under the rules above: a live reading means this conversation is running in a second process,
+so stop, and name that pane; where the guard clears, take it over with a new token. Where the claim
+file and the claim line differ, in token or in pane, judge each, and the strictest verdict holds: a
+stop over a question, a question over a take-over or a renewal. Every other move-aside file of this run, one the guard
+does not restore, is judged beside them (*A move-aside file*, below).
+
+**The question is the guard's one question**, widened: it is asked only where the guard asks about
+a claim, and then covers the claim and the open tickets' worktrees above, and names the claim's
+time, host, and pane with its server, or that it names none or names a pane without a server.
+Confirmed: take the claim over, and the reconcile handles the worktrees as above. Not confirmed:
+stop. An answer this conversation already holds is not asked again; it covers the worktrees and the
+claim's token it named, and a claim with another token is a new question. Where the guard clears —
+nothing found, a stale claim, this conversation's own claim, or the user's confirmation — take the
+claim, take it over, or renew it, before anything else in this stage writes; where the guard
+cleared without a question, the open tickets' worktrees go to the reconcile without one (above). A
+take-over is named in the wave report, or in the turn's report where no wave runs; a renewal of
+this conversation's own claim is not. A stop of the guard's own takes nothing and cleans up
+nothing; a restore it made before the stop stays, its claim file holding what the move-aside file
+held.
 
 The guard sees every `/orchestrate` session in this working copy at every moment of its turn,
 whichever host runs it: by its registered worktrees while a wave is in flight, and by its claim from
-its guard to its outcome line. An agent session that runs no `/orchestrate`, such as the owner
-working by hand, makes no worktree and takes no claim, so the guard cannot see it.
+its guard to its outcome line. **Its residual risk** is what it cannot see, or cannot judge without
+asking: an agent session that runs no `/orchestrate`, such as the owner working by hand, which
+makes no worktree and takes no claim; a claim left by a session that died outside herdr, or written
+under another herdr server or on another machine, which it cannot tell stale, so it costs the next
+session one question; a terminal nested inside a herdr pane that neither renames the terminal
+program nor sets a multiplexer's marker, whose session reads the outer pane as its own pane; and
+the window between a take-over's read of the claim file and its move, in which a fresh claim
+another session has just written can be moved aside.
 
 **The working-copy claim** is the record that one `/orchestrate` session is acting in this working
 copy. It is recorded twice, and the file is the authority and the only mutual exclusion:
 
 - **The claim file**, `working-copy-claim` at the top of the clone's git common directory
   (`git rev-parse --path-format=absolute --git-common-dir`). Every worktree of the clone shares it,
-  `git status` never shows it, and a session on any host sees it. One field per line, `pane:` only
-  where `HERDR_PANE_ID` is set:
+  `git status` never shows it, and a session on any host sees it. One field per line, `server:` and
+  `pane:` only where this session has an own pane (below), and never one without the other:
 
   ```
   token: <host>-<UTC time of this take, compact>-<8 random hex digits>
@@ -238,13 +279,15 @@ copy. It is recorded twice, and the file is the authority and the only mutual ex
   map: #<n> | <tracker key, such as ABC-12> | <the local map's path from the repository root, no leading ./>
   host: claude | codex | <other>
   since: <UTC time of this take, ISO 8601>
+  server: <server fingerprint>
   pane: <HERDR_PANE_ID>
   ```
 
   The token, `codex-20261117T093000Z-3f9a1c2e` for one, names one take: every take and take-over
-  mints a new one, its time that take's, the same as `since`, and a re-take mints a new one too
-  (*Lifecycle*). The conversation keeps the token of its latest take, and the own-token rule
-  above, the ownership check and release compare against that token. Keep it, and
+  mints a new one, its time that take's, the same as `since`, and a re-take and a renewal mint a new
+  one too (*Lifecycle*). The conversation keeps the token of its latest take, and the own-token rule
+  (*This conversation's own claim*, above), the ownership check and release compare against that
+  token. Keep it, and
   never take it back from the file or the line, because the ownership check below compares against
   it; a session that no longer holds its own token, after a context compaction for one, fails the
   ownership check and stops. The file is **created exclusively**, so that of two sessions taking at once one create fails,
@@ -252,63 +295,128 @@ copy. It is recorded twice, and the file is the authority and the only mutual ex
   exists:
 
   ```sh
-  ( set -C; printf '%s\n' 'token: <token>' 'run: <run slug>' 'map: <map>' 'host: <host>' 'since: <time>' 'pane: <pane>' > "$(git rev-parse --path-format=absolute --git-common-dir)/working-copy-claim" )
+  ( set -C; printf '%s\n' 'token: <token>' 'run: <run slug>' 'map: <map>' 'host: <host>' 'since: <time>' 'server: <server>' 'pane: <pane>' > "$(git rev-parse --path-format=absolute --git-common-dir)/working-copy-claim" )
   ```
 
   In PowerShell, `New-Item` without `-Force`, which fails the same way:
 
   ```powershell
-  New-Item -ItemType File -ErrorAction Stop -Path (Join-Path (git rev-parse --path-format=absolute --git-common-dir) 'working-copy-claim') -Value "token: <token>`nrun: <run slug>`nmap: <map>`nhost: <host>`nsince: <time>`npane: <pane>`n"
+  New-Item -ItemType File -ErrorAction Stop -Path (Join-Path (git rev-parse --path-format=absolute --git-common-dir) 'working-copy-claim') -Value "token: <token>`nrun: <run slug>`nmap: <map>`nhost: <host>`nsince: <time>`nserver: <server>`npane: <pane>`n"
   ```
 
-  Leave the `pane:` field out of either where `HERDR_PANE_ID` is unset.
+  Leave the `server:` and `pane:` fields out of either where this session has no own pane.
 - **The claim line**, on the map's execution progress beside its other live-state lines:
-  `claimed: <token> since <time> · <host>[ · pane <id>]`. It carries no path and no machine name,
-  because the map may be public. Only a take, a take-over and a release write it: every other
-  rewrite of the execution progress — the green point (*Merge the batch*, step 5) and *Record,
-  close, tear down* among them — keeps the `claimed:` line exactly as the map carries it when
-  re-read for that rewrite, and never restores it from an earlier copy, so a session that was taken
-  over cannot write its own line back over the new holder's. A rewrite whose re-read finds a
-  `claimed:` line carrying a token other than this session's writes nothing and stops, as a failed
-  ownership check does.
+  `claimed: <token> since <time> · <host>[ · pane <server>/<pane id>]`, the pane named with its
+  server where the claim file names both. It carries no path and no machine name, because the map
+  may be public, and the server fingerprint is a hash for the same reason. A take, a take-over and a
+  release write it. Every other rewrite of the execution progress — the green point (*Merge the
+  batch*, step 5) and *Record, close, tear down* among them — runs the ownership check (below) on
+  the claim file first, and where it fails is a stop with nothing written. Where it passes, the
+  rewrite writes this session's own `claimed:` line from its token and its claim's fields, never the
+  line as re-read and never one restored from an earlier copy, so a line that a session taken over
+  by mistake wrote back over the holder's is healed at the holder's next rewrite and never stops it.
+
+**The server fingerprint.** Under herdr, this session's server fingerprint is the first 8
+hexadecimal digits of the SHA-256 of the text `<host name>:<HERDR_SOCKET_PATH>`: the machine's host
+name and the socket path herdr gives the session. Pane ids belong to one herdr server, and two
+machines can both have `w1:p1`; the socket path tells two herdr servers on one machine apart, the
+host name tells two machines apart, and the hash keeps both off a map that may be public. In bash,
+with `sha256sum`, or `shasum -a 256` where that is the tool at hand:
+
+```sh
+[ -n "$HERDR_SOCKET_PATH" ] && printf '%s' "$(uname -n):$HERDR_SOCKET_PATH" | { sha256sum 2>/dev/null || shasum -a 256 2>/dev/null; } | cut -c1-8
+```
+
+In PowerShell:
+
+```powershell
+if ($env:HERDR_SOCKET_PATH) { (Get-FileHash -Algorithm SHA256 -InputStream ([IO.MemoryStream]::new([Text.Encoding]::UTF8.GetBytes("$([Net.Dns]::GetHostName()):$env:HERDR_SOCKET_PATH")))).Hash.Substring(0, 8).ToLower() }
+```
+
+Where `HERDR_SOCKET_PATH` is unset or empty, or no SHA-256 tool is at hand, either prints nothing,
+and this session has no fingerprint.
+
+**The own pane.** This session's own pane is the herdr pane it runs in directly, on its own herdr
+server: its server fingerprint with `HERDR_PANE_ID`. It has one only where all of these hold: it is
+under herdr (`HERDR_ENV=1`), it has a server fingerprint, `TERM_PROGRAM` is `herdr`, and none of
+`TMUX`, `STY` or `ZELLIJ` is set. Otherwise it has none, and is read as outside any pane: a terminal
+nested inside a herdr pane — tmux, screen, zellij or an editor's terminal — inherits that pane's
+`HERDR_PANE_ID`, and that pane is another session's, read like any other. A pane a claim names
+equals this session's own pane only where both its server and its pane equal this session's
+fingerprint and `HERDR_PANE_ID`.
 
 **Take** writes the file, then the line, before any other write. **A take-over** removes the stale
-file and creates it again exclusively, and removes the stale file only: move it aside first, to
-`working-copy-claim.<this session's token>` beside it (`mv`, or `Move-Item` without `-Force`), a
-rename only one session can make of that file, and read the moved file. Where the moved file
+file and creates it again exclusively, and removes the stale file only. It mints this session's new
+token first, then reads the claim file before moving it: where the file no longer carries the token
+of the claim being taken over, or is gone, another session took this working copy meanwhile,
+nothing is moved, and the session stops. Where it still carries that token, move it aside to
+`working-copy-claim.<the token this take-over has just minted>` beside it (`mv`, or `Move-Item`
+without `-Force`), a rename only one session can make of that file and one that no earlier take's
+leftover shares a name with, and read the moved file. Where the moved file
 carries the stale claim's token, delete it, create the claim exclusively as above, and replace the
-stale claim line with this session's. Where the move finds no file, or the moved file carries another token, another
+stale claim line with this session's. Where the move finds no file, the read of the moved file finds none, or the moved file carries another token, another
 session took this working copy meanwhile: write a moved file's content back by the same exclusive
 create and delete the moved file — or, where that create fails too, keep the moved file — and stop.
-A claim line without a claim file is taken over by
-creating the file exclusively and replacing the line. A `working-copy-claim.<token>` file is a
-take-over's or a release's leftover, never a claim file — and a leftover only where a second read
-still finds it, since another session's take-over or release passes through that name for an
-instant: the guard and `+ check` report it, and the owner removes it.
+The read before the move narrows the window in which a take-over can move a fresh claim aside, and
+nothing on a plain file system closes it (*Its residual risk*, above). A claim line without a claim
+file is taken over by creating the file exclusively and replacing the line.
+
+**A move-aside file**, `working-copy-claim.<token>` beside the claim file, is the name a take-over
+or a release passes the claim file through, never a claim file itself; another session's take-over
+or release passes through that name for an instant, so only a file that a second read still finds
+is evidence. The guard and `+ check` read every such file, and `+ check` restores none. Where the
+guard finds no claim file, one that a second read still finds and that carries this conversation's
+own token, and its own pane by that paragraph's rule, is restored and renewed, not judged by the
+table (*This conversation's own claim*, above). Any other one that a second read still finds and
+that holds a claim of this run, one kept where the restore's create failed included, is judged by
+the table's rows beside the claim file and the claim line, and the strictest verdict holds: a stop over a question, a question over a take-over. One
+judged stale stays a leftover: the guard neither takes it over nor removes it, and reports it for
+the owner to remove. Any other such file that a second read still finds is a leftover, as a
+take-over's or a release's: the guard and `+ check` report it, and the owner removes it.
 
 **Lifecycle.** The claim is held while this launch is in flight, in `/conduct`'s sense: a turn that
-ends on `orchestrate: waiting on executors` keeps it, and the turn that follows the pause holds it
-still. **Release** is the last act before any other outcome line, `orchestrate: done` or
+ends on `orchestrate: waiting on executors` keeps it. Every later turn that finds this
+conversation's own claim renews it (*This conversation's own claim*, above), the turn that follows
+the pause line included, so the claim never stands still across turns: of two processes of one
+conversation that start a turn at once, the take-over's rename lets only one through, under herdr
+or outside it. **Release** is the last act before any other outcome line, `orchestrate: done` or
 `orchestrate: stopped — …`, a stop that asks a question included (*Stop rule*): the ownership check
 below, then remove this session's claim line, then the file, so that a crash between them leaves the
 file, the stronger evidence. The file goes the way a take-over removes one: move it aside to
 `working-copy-claim.<this session's token>` and delete it only where it carries this session's
-token; otherwise write it back by the exclusive create, as a take-over does, and stop. A later turn of the same session after a release, or after a turn that
+token, and its own pane by the ownership check's rule; otherwise write it back by the exclusive
+create, as a take-over does, and stop. A release that dies between that move and that delete
+leaves its claim in a move-aside file, which this conversation's next guard restores (*This
+conversation's own claim*). A later turn of the same session after a release, or after a turn that
 ended on no outcome line — an answer to its stop, for one — takes the claim again through the
-guard's read — minting a new token where it takes one, while a claim the guard holds still keeps its
-token — and runs Stage 1's four reads again before acting on the answer;
+guard's read, or renews it where the guard finds this conversation's own claim, restored first
+from a move-aside file where the guard restores it, minting a new token either way, and runs Stage 1's four reads again before acting on the answer;
 what the user already answered in this conversation is not asked again. The four reads are reads,
 compared against the state the turn that stopped left behind: the integration branch's `HEAD`, the
 execution progress, its `claimed:` line aside, the worktrees, and the states and labels of the
-run's tickets. Where none of these changed, the guard asks nothing about a worktree this
-conversation registered itself, and the session acts on the answer from the step where it stopped.
-Where any of them changed, Stage 1 runs in full, the reconcile and its question included, and that
-worktree exemption does not apply. `+ check` never takes,
-releases or takes over a claim.
+run's tickets. Where none of these changed, a question the guard asks about a claim names no
+worktree this conversation registered itself, and the session acts on the answer from the step
+where it stopped. Where any of them changed, Stage 1 runs in full, the reconcile included, and that
+worktree exemption does not apply. Either way the open tickets' worktrees are asked about only
+where the guard asks about a claim (*The single-session guard*). `+ check` never takes, renews,
+restores, releases or takes over a claim.
 
-**The ownership check** reads the claim file and confirms it carries this session's token. It runs
+**The ownership check** reads the claim file and confirms it carries this session's token, and,
+where the file names a pane and this session has an own pane, that the file's server and pane are
+this session's own pane. It runs
 in every session but `+ check`, which takes no claim: before the tree preflight's first step, at
-the start of each step of *The close runs in this order* (*Closing upward*), and at release. A mismatch, or a missing file, is a stop: nothing more is
+the start of each step of *The close runs in this order* (*Closing upward*), at release, and before
+every rewrite of the execution progress other than a take, a take-over or a release (*The
+working-copy claim*). Where it finds no claim file, it reads every move-aside file beside it, and
+where one that a second read still finds carries this session's token, and its own pane by the
+rule above, it restores it: it creates the claim file exclusively with that file's content, deletes
+the move-aside file, and goes on, the check passed; the guard restores one the same way at the start
+of a turn (*This conversation's own claim*). Where that create fails, it re-reads the claim file:
+where the file now carries this session's token, and its own pane by the rule above, the check
+passes, and the session deletes the move-aside file only where a second read still finds it and it
+carries this session's token; otherwise it is a stop as a mismatch is, and the move-aside file is
+kept. A mismatch, or a missing file with no such move-aside
+file, is a stop: nothing more is
 written — not to the tree, the tracker or the map — neither the file nor the line is removed, and
 the report says that another session took this working copy.
 
@@ -325,8 +433,9 @@ else of it: a walk that needs its running app uses its working copy only by borr
 **A borrowed walk that died.** Where the execution progress carries `borrowing <folder> since
 <time>`, a walk against that repository's working copy died mid-way (*The runtime walk*, *A
 borrowed working copy*), and its walker's report died with it. Clean up once the single-session
-guard has cleared — it found no other session, found a stale claim, or the user confirmed there is
-none — and this session has taken the claim, because the
+guard has cleared — it found no claim, a stale claim or this conversation's own claim, or the user
+confirmed there is no other session — and this session has taken the claim, taken it over or
+renewed it, because the
 walk may be a live session's, and before this stage ends on any other wait or stop, an unsatisfied
 gate included. A stop of the guard's own takes no claim, does no cleanup and leaves the line standing. In this
 order: check whether that repository's app still runs, by its runbook (its port or health URL);
@@ -342,7 +451,9 @@ from the line. `+ check` reports the line and does none of this.
 
 **The tree preflight**, run before each wave's dispatch and again before each merge batch — not
 before every step. It begins with the ownership check (*The ownership check*, above): the claim
-file carries this session's token, or the preflight is a stop before step 1. `+ check`, which takes
+file carries this session's token and, where it names a pane, its own pane by that check's rule,
+restored from a move-aside file where that check restores it, or the preflight is a stop before
+step 1. `+ check`, which takes
 no claim, skips it. Then:
 
 1. `git fetch --prune` exits 0 (retry a few times; a persistent failure is a wait, never a pass).
@@ -383,9 +494,11 @@ no wave dispatchable until it is answered,
 a `dev database:` line as part of that state, with its answer or that it has none,
 each `hand-back:` line with its ticket, its count and its finding, and whether its branch has
 commits past the line's sha,
-what the guard found — the claim file's fields, the claim line, any `working-copy-claim.<token>`
-file beside the claim file, and the verdict the guard's table gives with the pane read behind it,
-taking, releasing and taking over nothing —
+what the guard found — this session's server fingerprint and own pane, or that it has none, the
+claim file's fields, the claim line, every `working-copy-claim.<token>` file beside the claim file,
+judged as the guard judges a move-aside file, and the verdict the guard's table gives with the pane
+read behind it, or why the pane is unreadable, taking, renewing, restoring, releasing and taking
+over nothing —
 what the preflight's other steps found — never that another session took this working copy, since
 `+ check` takes no claim and runs no ownership check — which of the run's own paths
 ([../grill-to-waves/SESSIONS.md](../grill-to-waves/SESSIONS.md) §4) are not yet ignored, cross-run gates with the tickets they wait on, and the
@@ -590,8 +703,8 @@ failures verbatim; attributing a break and judging the tree stay here:
 5. **Record the green point, and push nothing.** Only when the gate and the walk are both green —
    and, where the batch holds an irreversible ticket Fable did not verify, once the user has given
    the go-ahead — rewrite the map's execution progress to carry `<integration branch> @ <sha>`
-   before anything else, its `claimed:` line kept as the map carries it (Stage 1, *The working-copy
-   claim*). While that go-ahead is pending, the execution progress carries
+   before anything else, once the ownership check has passed on the claim file, with this
+   session's own `claimed:` line (Stage 1, *The working-copy claim*). While that go-ahead is pending, the execution progress carries
    `awaiting go-ahead: #<n>[, #<m>…] @ <batch head sha>`, naming every irreversible ticket in the
    batch, written the moment the gate and the walk are green, so the wait survives the session's
    end (Stage 1); the green point replaces it. The go-ahead question names each such ticket and what
@@ -745,10 +858,9 @@ Per wave, **two writes on the map, and the body is the one that matters**:
 - **Rewrite the map's execution-progress section in its body.** The cut line,
   `<integration branch> cut at <sha>`, kept as it was written, because the reconcile range starts
   there; the last green point, `<integration branch> @ <sha>`, already written by *Merge the batch*;
-  the `claimed:` line, kept exactly as the map carries it when re-read for this rewrite and never
-  restored from an earlier copy, since only a take, a take-over and a release write it, and a
-  re-read line carrying another token than this session's is a stop with nothing written (Stage 1,
-  *The working-copy claim*);
+  the `claimed:` line, this session's own, written from its token once the ownership check has
+  passed on the claim file, never the line as re-read, and a failed check is a stop with nothing
+  written (Stage 1, *The working-copy claim*);
   the waves table with what landed and its merge commit, how many tickets remain, the next
   dispatchable tickets from a live blocking-edge read, the open items still blocking the close,
   every `hand-back:` line still standing (the rework paragraph below), and the tree state. A fact
@@ -845,7 +957,9 @@ close that finds one, open or merged, goes straight to step 7. A no-forge *merge
 `origin/<base>` already holding the integration branch's tip (the local base where there is no
 remote) goes straight to step 8. Each step begins with the ownership check (Stage 1, *The
 ownership check*), since the tree preflight does not run at the close: the claim file carries
-this session's token, or the close stops before that step writes anything.
+this session's token and, where it names a pane, its own pane by that check's rule, restored from
+a move-aside file where that check restores it, or the close stops before that step writes
+anything.
 
 1. **Delivery notes** on each spec item this run produced.
 2. **The mirror pass, as one commit** on the integration branch: each mirror regenerated whole
@@ -909,10 +1023,11 @@ the run back to the user, such as a question, a decision, a red gate no ticket m
 of a wave that handed a ticket to a human for a breach or a third failure;
 and `orchestrate: waiting on executors` when the turn ends while executors still run in the
 background. `/conduct` reads that line to tell a pause from the end. The pause line keeps this
-session's working-copy claim; before `orchestrate: done` or `orchestrate: stopped — …`, a stop
+session's working-copy claim, and the turn that follows renews it; before `orchestrate: done` or `orchestrate: stopped — …`, a stop
 that asks a question included, release it as the turn's last act (Stage 1, *The working-copy
 claim*). A turn that holds no claim, as at a stop of the guard's own, releases nothing, and a stop
-on a failed ownership check removes neither the claim file nor the claim line.
+on a failed ownership check removes neither the claim file nor the claim line, and keeps any
+move-aside file.
 
 **This run ends at its close point.** Promotion starts from the base branch:
 taking what the base holds to staging or production is `/ship-it-to stg` or `/ship-it-to prd`, in

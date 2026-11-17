@@ -92,6 +92,11 @@ The record that one orchestrating session is acting in a working copy, held whil
 flight. A session that dies leaves it behind, and only its pane or the user can say it is stale.
 _Avoid_: lock, session lock, marker
 
+**Own pane**:
+The herdr pane a session runs in directly, on the herdr server it runs under; a session in a
+terminal nested inside a pane has none.
+_Avoid_: current pane, focused pane
+
 **Conductor**:
 The one session that starts each repository's orchestrator of a paired run in the run order and
 relays the user's decisions to them. It executes, verifies and decides nothing itself.

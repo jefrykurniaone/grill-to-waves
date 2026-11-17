@@ -167,8 +167,10 @@ as rework in progress — either way, work it may verify and merge.
 
 Stop and hand the decision to the user, with the reason posted on the ticket or the map, for: a
 non-quiescent tree that cannot be cleaned, or a second agent session found in this working copy —
-by its registered worktree, or by a live working-copy claim (`/orchestrate` Stage 1, *The
-single-session guard*).
+by its registered worktree, or by a working-copy claim its guard reads as live or the user does not
+confirm stale, whether the claim file, the claim line or a move-aside file holds it (`/orchestrate`
+Stage 1, *The single-session guard*). What the guard cannot see, or cannot judge without asking,
+is the residual risk §6 states.
 
 ## 6. Paired runs — one run across repositories
 
@@ -221,11 +223,13 @@ of the maps, the **lead map**, also carries what crosses them:
 
   1. `git --no-optional-locks -C ../<folder> status --porcelain` is empty. The option keeps the
      read off the lender's index lock, which a merge under way there needs.
-  2. The lender shows no session: it passes this condition only with all three of these:
+  2. The lender shows no session: it passes this condition only with all four of these:
      - `git -C ../<folder> worktree list` shows no registered worktree besides the lender's main
        working copy;
      - no claim file, `working-copy-claim`, sits at the top of the lender's git common directory
        (`git -C ../<folder> rev-parse --path-format=absolute --git-common-dir`);
+     - no move-aside file, `working-copy-claim.<token>`, sits beside it where a second read still
+       finds it;
      - its map carries no claim line, `claimed: …`, which the third condition's read of the map
        already gives.
 
@@ -235,8 +239,12 @@ of the maps, the **lead map**, also carries what crosses them:
      holding it, and each is the lender's own business first. This condition reads whether a claim
      stands, never whether it is stale: a stale claim fails it too, until the lender's next session
      takes it over or the owner removes it — its claim file and, where its map carries one, the
-     map's claim line. A `working-copy-claim.<token>` file beside it is a take-over's or a
-     release's leftover, never a claim file.
+     map's claim line. A `working-copy-claim.<token>` file beside the claim file that a second read
+     still finds is a claim standing too: it is the name a take-over or a release passes the claim
+     file through, and a take-over that died mid-move can leave a live claim only there
+     (`/orchestrate` Stage 1, *A move-aside file*). No guard removes one, stale or not: its holder's
+     ownership check restores it as the claim file, or the owner removes it. One that a second read
+     no longer finds was another session's take-over or release passing through.
   3. Its `HEAD` (`git -C ../<folder> rev-parse HEAD`) matches its map's state, the map read through
      the lender's own tracker ([TRACKERS.md](./TRACKERS.md) *Across repositories*):
      - while its map is open and records a cut, `HEAD` equals its recorded commit;
@@ -249,16 +257,26 @@ of the maps, the **lead map**, also carries what crosses them:
   The check only reads: neither the borrower nor the conductor fetches anything in the lender, and
   a read that keeps failing fails its condition, never passes it. A live `/orchestrate` session
   in the lender shows in its claim at every moment of its turn, and a live wave in its registered
-  worktrees too, which is what the second condition reads. **The residual risk** is what no claim
-  can show, and only that:
+  worktrees too, which is what the second condition reads. **The residual risk** is what the claim
+  cannot show, or cannot judge without asking, and only that (`/orchestrate` Stage 1, *Its
+  residual risk*):
   - an agent session that runs no `/orchestrate`, such as the owner working by hand, makes no
     worktree and takes no claim, so in a lender it is seen only by `/conduct`'s pane read, and not
     at all outside herdr;
-  - a claim left by a session that died outside herdr cannot be told stale without the user, so it
-    costs the next session in that lender one question (`/orchestrate` Stage 1, *The question is
-    the guard's one question*), or under `/conduct` the owner's removing it — its claim file and,
-    where its map carries one, the map's claim line (`/conduct` Stage 2, *Occupied by a session
-    outside the run order*), and until then it fails the second condition.
+  - a claim left by a session that died outside herdr, or one written under another herdr server or
+    on another machine, whose pane no session here reads, cannot be told stale without the user,
+    so it costs the next session in that lender one question (`/orchestrate` Stage 1, *The
+    question is the guard's one question*), or under `/conduct` the owner's removing it — its
+    claim file and, where its map carries one, the map's claim line (`/conduct` Stage 2, *Occupied
+    by a session outside the run order*), and until then it fails the second condition;
+  - a terminal nested inside a herdr pane that neither renames the terminal program nor sets a
+    multiplexer's marker reads that pane as its own pane (`/orchestrate` Stage 1, *The own pane*),
+    so its session's guard reads a live claim of the outer pane as one naming its own pane, and
+    takes it over without asking;
+  - in the window between a take-over's read of the claim file and its move, a fresh claim another
+    session has just written can be moved aside; the take-over writes it back, and where it dies
+    first, the claim is left in a move-aside file, which its holder's next guard or ownership check
+    restores and which fails the second condition meanwhile.
 
   **A borrow that outlived its session.** A borrower's map carries `borrowing <folder> since <time>`
   from before it starts a lender's app until that walk's leftovers are dealt with (`/orchestrate`
