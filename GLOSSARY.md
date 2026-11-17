@@ -87,6 +87,11 @@ The repository of a paired run whose working copy a launch borrows; while the bo
 session of its own runs, and the borrower walks against it only where the borrow check passes.
 _Avoid_: Peer repository, host repository
 
+**Working-copy claim**:
+The record that one orchestrating session is acting in a working copy, held while its launch is in
+flight. A session that dies leaves it behind, and only its pane or the user can say it is stale.
+_Avoid_: lock, session lock, marker
+
 **Conductor**:
 The one session that starts each repository's orchestrator of a paired run in the run order and
 relays the user's decisions to them. It executes, verifies and decides nothing itself.

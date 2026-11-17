@@ -3,6 +3,97 @@
 What changed in the pipeline's rules and agent set, newest first. The repository carries no version
 tags, so entries are dated. Tiers are named by alias only, as everywhere else in this repository.
 
+## 2026-11-17 — The working-copy claim
+
+An `/orchestrate` session now marks the working copy it acts in, from its guard to its outcome line,
+so a second launch there stops or asks first, whichever host runs it. The claim is a file in the
+clone's git common directory, which is the only mutual exclusion, and a claim line on the map. The
+borrow check and `/conduct` read it, so a lender in use is not borrowed and a repository held by a
+session outside the run order is not launched into.
+
+### After updating
+
+Run the installer again on both hosts (`./install.ps1 -Target both` or `./install.sh --target both`).
+Before that, finish or stop every `/orchestrate` session in flight: a session on the old rules takes
+no claim, and a session on the new rules cannot see it. A map needs no change, because its claim
+line appears at the first take.
+
+### Changed
+
+- **`/orchestrate`.**
+  - *The working-copy claim* (Stage 1): the claim file, `working-copy-claim` at the top of the
+    clone's git common directory, holds the token, run, map, host, time and, under herdr, pane. A
+    token names one take: every take, take-over and re-take mints a new one, its time that take's,
+    the same as `since`, and the conversation keeps its latest take's token to compare against. The
+    map is written and compared in one form: its reference as its tracker writes it (`#54`, or a key
+    such as `ABC-12`), or the local map's path from the repository root with no leading `./`. The
+    file is created exclusively, so of two sessions taking at once one create fails and stops. The claim
+    line, `claimed: <token> since <time> · <host>[ · pane <id>]`, sits on the map's execution
+    progress and carries no path and no machine name. The file is the authority. Only a take, a
+    take-over and a release write the line: every other rewrite of the execution progress keeps it
+    exactly as the map carries it when re-read, so a session taken over cannot write its own line
+    back, and a re-read line carrying another token than the session's stops the rewrite with
+    nothing written.
+  - *Lifecycle*: take before any other write, held while the launch is in flight, a turn that ends
+    on `orchestrate: waiting on executors` included, and released as the last act before
+    `orchestrate: done` or `orchestrate: stopped — …`, a stop that asks a question included. A
+    take-over moves the stale file aside to `working-copy-claim.<token>` and reads it first; a file
+    of that name is never a claim, is a leftover only where a second read still finds it, and the
+    owner removes it. A later turn of the same conversation, such as an answer to a stop, takes the
+    claim again with a new token and compares Stage 1's reads against what the stopped turn left:
+    the integration branch's `HEAD`, the execution progress, the worktrees, and the run's tickets'
+    states and labels. Where none changed, its guard asks nothing about worktrees that
+    conversation registered, and it acts on the answer from where it stopped; where any changed,
+    Stage 1 runs in full, with no such exemption.
+  - *The single-session guard* reads the claim file and the claim line beside `git worktree list`,
+    before Stage 1 writes anything. Its table judges a claim from the pane it names under herdr: with
+    no claim file and no claim line, the session takes one; another run's or an unreadable file
+    stops, and the owner removes it and its map's claim line; a gone pane, a pane holding no
+    agent, the session's own pane, or a turn that ended without
+    release is stale and taken over; a `working` or `blocked` agent, or one `idle` or `done` on the
+    pause line, is live and stops; an `unknown` pane or a claim without a pane asks. Outside herdr,
+    or with the pane unreadable, a claim of this run that would be taken over or stopped on by its
+    pane asks instead. Its one question now covers the claim as well as the open tickets' worktrees.
+    A claim carrying the conversation's own token is held still, but under herdr only where it
+    names no pane or the session's own: where it names another pane whose agent is live, the
+    conversation is running in a second process, and the guard stops and names that pane; where
+    that other pane reads any other way, the claim is judged by the table's rows. Where the claim
+    file and the claim line differ, in token or in pane, each is judged and the stricter verdict
+    holds.
+  - *The ownership check* confirms the claim file carries this session's token before the tree
+    preflight, at each step of the close and at release, in every session but `+ check`. A
+    mismatch or a missing file stops with nothing written, and neither file nor line is removed.
+  - `+ check` prints the claim file's fields, the claim line, any leftover beside the file and the
+    table's verdict, and takes, releases and takes over nothing. It takes no claim, so it skips the
+    ownership check and never reports that another session took the working copy.
+- **`/conduct`.**
+  - Stage 1 reads every repository's claim at every recompute and judges it by `/orchestrate`'s
+    table with its own pane reads; it takes, releases, takes over and removes none.
+  - *Occupied by a session outside the run order* (Stage 2): a claim the table would stop or ask on,
+    which is not the claim of a launch in flight or held in that repository, makes every launch that
+    occupies it not ready. A claim the table would take over leaves the launch ready, and its own
+    guard takes it over. `+ check`, each wake's report and the stop report name it and say that the
+    owner ends that session or removes its claim file and its map's claim line, and under
+    `+ watch` a run held only by such claims is a nothing-ready stop.
+  - `+ check` prints each repository's claim and any leftover beside the file, counted only where
+    a second read still finds it.
+- **`/grill-to-waves` and its shared files.**
+  - *The borrow check* (SESSIONS §6): the second condition now holds only with all three of no
+    registered worktree besides the lender's main working copy, no claim file at the top of its git
+    common directory and no claim line on its map. It reads whether a claim stands, never whether
+    it is stale, so a stale claim fails it until the lender's next session takes it over or the
+    owner removes its claim file and its map's claim line. *A borrow that outlived its session*
+    still waives only the first condition,
+    and a claim, like a registered worktree, is no walk's leftover, since a borrower takes no claim
+    in its lender: a claim still fails the check even for the cleanup launch.
+  - *The residual risk* (SESSIONS §6) is narrowed to what no claim can show: an agent session that
+    runs no `/orchestrate`, seen only by `/conduct`'s pane read and not at all outside herdr, and a
+    claim left by a session that died outside herdr, which costs the next session one question.
+  - SESSIONS §5 stops on a second agent session found by its registered worktree or by a live
+    claim. `/grill-to-waves` Stage 5's *How this is executed* names the claim beside one agent session per
+    working copy.
+  - GLOSSARY: a **Working-copy claim** entry, avoiding lock, session lock and marker.
+
 ## 2026-11-17 — Parked launches, complete merge-batch exits and a clean cut
 
 A paired run no longer holds a launch whose tickets went to a human: it parks the launch and says
