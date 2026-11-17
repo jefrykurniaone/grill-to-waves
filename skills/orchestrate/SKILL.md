@@ -65,8 +65,8 @@ before the close, so the remote carries none of it.
    it over the log — and rewrite it when this wave ends. Its `claimed:` line, where it carries one,
    is the claim line the guard reads (*The working-copy claim*, below). The log (the comment thread; `map-log.md`
    beside a local `map.md`) is history, read only when a question needs it; a local `map.md` still
-   carrying dated sections is moved to that layout first, as
-   [../grill-to-waves/TRACKERS.md](../grill-to-waves/TRACKERS.md) says. Read with it any other open
+   carrying dated sections is moved to that layout first, once the claim is taken (*The
+   single-session guard*, below), as [../grill-to-waves/TRACKERS.md](../grill-to-waves/TRACKERS.md) says. Read with it any other open
    map that names this run, which *Cross-run gates* below relies on.
 2. **One frontier listing** of every open item under `run:<slug>` — state, labels, bodies, open blocker
    counts.
@@ -174,7 +174,8 @@ database at once. An empty leftover directory under `.claude/worktrees/` is not 
 so read the list, never the filesystem.
 
 **A claim found** — a claim file, a claim line, or both — is judged by this table. A claim is *of
-this run* when its `run:` is this run's slug and its `map:` is this map. Under herdr
+this run* when its `run:` is this run's slug and its `map:` is this map's reference exactly as
+Stage 0 resolves it, such as the issue number (`#54`) or the local map's path. Under herdr
 (`HERDR_ENV=1`), read the pane the claim names, read-only, with the herdr skill's read commands, as
 `/conduct` reads a session: `herdr pane list` in every workspace says whether the pane exists and
 what its cwd is, `herdr agent get <pane>` gives its agent's state, and for `idle` or `done` its last
@@ -192,10 +193,10 @@ outcome line is read as `/conduct` Stage 4, *Reading a session*, reads it.
 | `unknown`, or a claim without a pane | ask | ask |
 | A claim line without a claim file | judged by the rows above by the line's pane where it names one; ask otherwise | ask |
 
-A pane counts as **gone** only where no other pane whose cwd is this working copy's root holds an
-agent that is `working`, `blocked`, or `idle` or `done` on the pause line: a pane moved to another
+A pane counts as **gone** only where no pane other than this session's own whose cwd is this
+working copy's root holds an agent that is `working`, `blocked`, or `idle` or `done` on the pause line: a pane moved to another
 herdr workspace gets a new id, so its old id reads as gone while its session lives, and where such
-a pane exists the guard asks instead. A claim carrying this conversation's own token is this
+a pane exists the guard asks instead. A claim carrying this conversation's own token is read before the table: it is this
 session's own, left by a turn that ended without releasing it: it is held still, and nothing is
 asked about it. Where the claim file and the claim line name different tokens, judge each, and the
 stricter verdict holds: a stop over a question, a question over a take-over.
@@ -225,7 +226,7 @@ copy. It is recorded twice, and the file is the authority and the only mutual ex
   ```
   token: <host>-<UTC time taken, compact>-<8 random hex digits>
   run: <run slug>
-  map: <map reference>
+  map: <map reference, exactly as Stage 0 resolves it>
   host: claude | codex | <other>
   since: <UTC time taken, ISO 8601>
   pane: <HERDR_PANE_ID>
@@ -233,7 +234,8 @@ copy. It is recorded twice, and the file is the authority and the only mutual ex
 
   The token, `codex-20261117T093000Z-3f9a1c2e` for one, is this conversation's own: keep it, and
   never take it back from the file or the line, because the ownership check below compares against
-  it. The file is **created exclusively**, so that of two sessions taking at once one create fails,
+  it; a session that no longer holds its own token, after a context compaction for one, fails the
+  ownership check and stops. The file is **created exclusively**, so that of two sessions taking at once one create fails,
   and that session stops. In bash, a `set -C` (noclobber) redirection, which fails where the file
   exists:
 
@@ -259,15 +261,20 @@ rename only one session can make of that file, and read the moved file. Where it
 claim's token, delete it, create the claim exclusively as above, and replace the stale claim line
 with this session's. Where the move finds no file, or the moved file carries another token, another
 session took this working copy meanwhile: write a moved file's content back by the same exclusive
-create, delete the moved file, and stop. A claim line without a claim file is taken over by
-creating the file exclusively and replacing the line.
+create and delete the moved file — or, where that create fails too, keep the moved file — and stop.
+A claim line without a claim file is taken over by
+creating the file exclusively and replacing the line. A `working-copy-claim.<token>` file is a
+take-over's or a release's leftover, never a claim file: the guard and `+ check` report it, and the
+owner removes it.
 
 **Lifecycle.** The claim is held while this launch is in flight, in `/conduct`'s sense: a turn that
 ends on `orchestrate: waiting on executors` keeps it, and the turn that follows the pause holds it
 still. **Release** is the last act before any other outcome line, `orchestrate: done` or
 `orchestrate: stopped — …`, a stop that asks a question included (*Stop rule*): the ownership check
 below, then remove this session's claim line, then the file, so that a crash between them leaves the
-file, the stronger evidence. A later turn of the same session after a release, or after a turn that
+file, the stronger evidence. The file goes the way a take-over removes one: move it aside to
+`working-copy-claim.<this session's token>` and delete it only where it carries this session's
+token; otherwise write it back by the exclusive create, as a take-over does, and stop. A later turn of the same session after a release, or after a turn that
 ended on no outcome line — an answer to its stop, for one — takes the claim again through the
 guard's read and runs Stage 1's four reads again before acting on the answer; what the user already
 answered in this conversation is not asked again. `+ check` never takes, releases or takes over a
