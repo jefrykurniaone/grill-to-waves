@@ -1,8 +1,8 @@
 # spec: working-copy-claim v1 - a working-copy claim the single-session guard sees at every moment of a session's turn
 
-Spec: [#50](https://github.com/jefrykurniaone/grill-to-waves/issues/50) · Map: [#54](https://github.com/jefrykurniaone/grill-to-waves/issues/54) · Tickets: [#51](https://github.com/jefrykurniaone/grill-to-waves/issues/51), [#52](https://github.com/jefrykurniaone/grill-to-waves/issues/52), [#53](https://github.com/jefrykurniaone/grill-to-waves/issues/53)
+Spec: [#50](https://github.com/jefrykurniaone/grill-to-waves/issues/50) · Map: [#54](https://github.com/jefrykurniaone/grill-to-waves/issues/54) · Tickets: [#51](https://github.com/jefrykurniaone/grill-to-waves/issues/51), [#52](https://github.com/jefrykurniaone/grill-to-waves/issues/52), [#53](https://github.com/jefrykurniaone/grill-to-waves/issues/53), [#55](https://github.com/jefrykurniaone/grill-to-waves/issues/55)
 
-Copied 2026-11-17 onto `feat/working-copy-claim`. Below this header, the body of #50 verbatim; the issue, not this file, is the spec.
+Copied 2026-11-17 onto `feat/working-copy-claim`, and regenerated from #50 at the run's close on 2026-11-17. Below this header, the body of #50 verbatim; the issue, not this file, is the spec.
 
 ---
 
@@ -156,3 +156,47 @@ Prior art: the previous runs' maps (#16, #29, #44), their consistency sweeps (se
 
 - Found by the second verification of #38 in run `stalls-and-exits` (map #44, spec #37), on `feat/stalls-and-exits` @ `5055f62`.
 - After this spec, the precondition #45 names for letting a check pinned to the close borrow — a liveness test that holds at the close — is met. The change itself is a decision for a later run.
+
+## Delivery notes
+
+Run `working-copy-claim` (map #54) delivered this spec on 2026-11-17, on `feat/working-copy-claim`. That branch was cut at `928a004` from `origin/main` with `--no-track`. It goes to `main` in one draft pull request, opened at the run's close.
+
+| Ticket | Merge on `feat/working-copy-claim` | Executor | Second verification |
+| --- | --- | --- | --- |
+| #51 The working-copy claim in `/orchestrate`: take, release, and a guard that sees a session at every moment of its turn | `98dde1f` | Opus, `high`; one hand-back, which folded in the verifier's non-blocking findings | Fable, read-only, adversarial clause. All twelve checks held, and the exclusive create and the `mv` take-over were probed with concurrent races. A delta re-read found it can merge |
+| #52 Lenders and the conductor read the working-copy claim | `7055dc6` | Opus, `high` | — |
+| #53 Changelog entry and README for the working-copy claim | `a6fcc4b` | Sonnet, `medium`; one hand-back, for changelog accuracy | — |
+| #55 Close the working-copy claim's gaps found at the close (added at the close by the consistency sweep) | `5d60c5d` | Opus, `high`; re-dispatched once on a corrected ticket premise (item F), which is not a hand-back | Fable, read-only, adversarial clause. The first pass blocked on item F; it closed on a delta re-read, with the probe re-run |
+
+This spec's mirror was committed in wave 1's batch as `2c903a3`.
+
+**Claims in this body that delivery refined or reversed.** They are marked here and left in place above.
+
+- *The claim file*, "A take-over removes the stale file and creates it again exclusively". As delivered, a take-over first moves the file aside to `working-copy-claim.<token>`, a rename only one session can make. It deletes the moved file only where it carries the stale claim's token. Otherwise it writes the file back by the exclusive create, or keeps it where that create fails too, and stops. Release removes the file the same way. A `working-copy-claim.<token>` file is a leftover and never a claim. It counts as a leftover only where a second read still finds it. A plain delete-and-create would let two sessions that face one stale claim both believe they hold it (#51, #55).
+- *The claim file*, `map: <map reference>`. As delivered, the reference has one form: the map's reference as its tracker writes it (`#54`, or a key such as `ABC-12`), or the local map's path relative to the repository root with no leading `./` (#51, #55).
+- *Lifecycle*, "The claim is taken when the guard clears: before the reconcile and before *A borrowed walk that died*". As delivered, the guard runs before any Stage 1 write. That includes the reset of the integration branch and the move of a legacy `map.md` (#51).
+- *Lifecycle*, a later turn "runs Stage 1's four reads again before acting on the answer". As delivered, the reads are compared against the state the stopped turn left: `HEAD`, the execution progress with its `claimed:` line aside, the worktrees, and the tickets' states and labels. Where none changed, the guard asks nothing about worktrees this conversation registered, and the turn resumes from the step where it stopped. Where any changed, Stage 1 runs in full (#55).
+- *The guard's table*, "'Gone' counts only where no other pane …". As delivered it reads "no pane other than this session's own". In the other reading the guard's own pane would mean a pane is never gone. An agent `done` on the pause line counts as live, the same as one `idle` (#51).
+- *Ownership checks*. As delivered, the check runs in every session but `+ check`, which takes no claim. A session that no longer holds its own token, after a context compaction for one, fails the check. A rewrite of the execution progress whose re-read finds a `claimed:` line carrying another token writes nothing and stops (#51, #55).
+- *The borrow check*. As delivered, the second condition reads whether a claim stands, never whether it is stale, so a stale claim fails it too until the lender's next session takes it over or the owner removes it (#52).
+- *`/conduct`*, "the owner ends that session or removes its claim file". As delivered, the owner removes both the claim file and, where the map carries one, the `claimed:` line, because a line alone still reads as a claim. Removing only the file left a repository occupied under `/conduct` (#55).
+- *What the protocol says about a second session*, the second residual case, "costs the next session one question". As delivered it adds "or under `/conduct` the owner's removing it — its claim file and the map's claim line" (#52, #55).
+
+**Decisions made in delivery that this spec did not settle:**
+
+- **A token names one take.** Every take and take-over mints a new token, and the conversation keeps its latest one. A claim held still keeps its token. With one token per conversation, a session once told a claim was dead would take over that conversation's later live claim without asking. The second verification of #55 found this (#55).
+- **The own-token rule.** It is read before the table. Under herdr it holds the claim only where the claim names no pane or this session's own pane. A live agent in another pane means this conversation runs in a second process, so the session stops. Any other reading is judged by the table (#51, #55).
+- **A file and a line that differ**, in token or in pane, are each judged, and the stricter verdict holds (#51, #55).
+- **An answer covers one claim.** It covers the worktrees and the claim token it named, and a claim with another token is a new question (#51).
+- **Only a take, a take-over and a release write the claim line.** Every other rewrite keeps the line as the map carries it on re-read, so a session that was taken over cannot write its own line back (#55).
+- **`/conduct`.** *Occupied by a session outside the run order* is a readiness condition, not a new state. A claim is `/conduct`'s own launch's by its pane, and the *gone* rule sets aside the panes of `/conduct`'s own launches in flight or held there (#52).
+- **The token example in the skill text is `codex-…`.** A `claude-<digits>` token in a tracked `.md` file trips CI's docs check (#51).
+
+**Filed outside this run:** #56 covers the gaps that need a decision this spec did not make:
+
+- pane identity across herdr servers and in nested terminals;
+- a pane whose cwd is a subdirectory;
+- the worktree question beside a stale claim under herdr;
+- a take-over that dies mid-move;
+- one conversation in two processes under herdr;
+- three wording points from #55's last verification.
