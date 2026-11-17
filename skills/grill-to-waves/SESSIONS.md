@@ -221,10 +221,21 @@ of the maps, the **lead map**, also carries what crosses them:
 
   1. `git --no-optional-locks -C ../<folder> status --porcelain` is empty. The option keeps the
      read off the lender's index lock, which a merge under way there needs.
-  2. `git -C ../<folder> worktree list` shows no registered worktree besides the lender's main
-     working copy. It is the lender's single-session guard's own read (`/orchestrate` Stage 1): a
-     registered worktree is a live session or its leftover, and either is the lender's own business
-     first.
+  2. The lender shows no session: it passes this condition only with all three of these:
+     - `git -C ../<folder> worktree list` shows no registered worktree besides the lender's main
+       working copy;
+     - no claim file, `working-copy-claim`, sits at the top of the lender's git common directory
+       (`git -C ../<folder> rev-parse --path-format=absolute --git-common-dir`);
+     - its map carries no claim line, `claimed: …`, which the third condition's read of the map
+       already gives.
+
+     They are the lender's single-session guard's own reads (`/orchestrate` Stage 1, *The
+     single-session guard*, *The working-copy claim*): a registered worktree is a live session or
+     its leftover, a claim is a live session from its guard to its outcome line or one that died
+     holding it, and each is the lender's own business first. This condition reads whether a claim
+     stands, never whether it is stale: a stale claim fails it too, until the lender's next session
+     takes it over or the owner removes it. A `working-copy-claim.<token>` file beside it is a
+     take-over's or a release's leftover, never a claim file.
   3. Its `HEAD` (`git -C ../<folder> rev-parse HEAD`) matches its map's state, the map read through
      the lender's own tracker ([TRACKERS.md](./TRACKERS.md) *Across repositories*):
      - while its map is open and records a cut, `HEAD` equals its recorded commit;
@@ -235,10 +246,17 @@ of the maps, the **lead map**, also carries what crosses them:
        the base its map names, or the local base where there is no remote.
 
   The check only reads: neither the borrower nor the conductor fetches anything in the lender, and
-  a read that keeps failing fails its condition, never passes it. A live wave shows in the
-  lender's registered worktrees, which is what the second condition reads. **The residual risk:**
-  an owner's own session in a lender that makes no worktree is seen only by `/conduct`'s pane read,
-  and not at all outside herdr.
+  a read that keeps failing fails its condition, never passes it. A live `/orchestrate` session
+  in the lender shows in its claim at every moment of its turn, and a live wave in its registered
+  worktrees too, which is what the second condition reads. **The residual risk** is what no claim
+  can show, and only that:
+  - an agent session that runs no `/orchestrate`, such as the owner working by hand, makes no
+    worktree and takes no claim, so in a lender it is seen only by `/conduct`'s pane read, and not
+    at all outside herdr;
+  - a claim left by a session that died outside herdr cannot be told stale without the user, so it
+    costs the next session in that lender one question (`/orchestrate` Stage 1, *The question is
+    the guard's one question*), or under `/conduct` the owner's removing it (`/conduct` Stage 2,
+    *Occupied by a session outside the run order*), and until then it fails the second condition.
 
   **A borrow that outlived its session.** A borrower's map carries `borrowing <folder> since <time>`
   from before it starts a lender's app until that walk's leftovers are dealt with (`/orchestrate`
@@ -248,8 +266,8 @@ of the maps, the **lead map**, also carries what crosses them:
   is the work of the next session of the borrower's repository (`/orchestrate` Stage 1, *A
   borrowed walk that died*). For that session's launch alone, whoever starts it waives the check's
   first condition on that lender, because the app's own rewrites are what its cleanup restores. The
-  other two still hold, since a registered worktree or a moved `HEAD` is no walk's leftover, and
-  its next walk runs the whole check.
+  other two still hold, since a registered worktree, a claim or a moved `HEAD` is no walk's
+  leftover — a borrower takes no claim in its lender — and its next walk runs the whole check.
 
   Released launches of different repositories run at the same time when they occupy no repository
   in common; one repository's waves run one after another, in its one session.

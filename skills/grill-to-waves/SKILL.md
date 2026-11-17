@@ -263,7 +263,9 @@ from Stage 4: `Run closes at:`, `Steps after close owned by:`, and beside them
    serial merge-commit-only merges on a quiescent tree, and teardown likewise; no dev server from
    executors; check-versus-fix ownership; the per-wave in-flight ceiling (default five; above five only
    on the user's word, written as the number and the reason; below five for a named reason such as
-   heavy installs or a rate limit); one agent session per working copy; the
+   heavy installs or a rate limit); one agent session per working copy, which each `/orchestrate`
+   session marks with its working-copy claim from its guard to its outcome line, so a second launch
+   there stops or asks first (`/orchestrate` Stage 1, *The working-copy claim*); the
    write-through rule — every fact the next session needs is posted the moment it becomes true.
 4. **Known shared-file contention** — the files parallel branches will collide on inside a session
    and how each collision is handled (append-plus-append catalogue, wave separation, stop-and-report).
