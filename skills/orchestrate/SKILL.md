@@ -217,28 +217,32 @@ another herdr workspace gets a new id, so its old id reads as gone while its ses
 where such a pane exists the guard asks instead.
 
 **This conversation's own claim.** A claim carrying this conversation's own token, its latest
-take's, is read before the table. It is this session's own only where its pane equals this
-session's own pane, its server and its pane both, or where neither names one: left by a turn that
-ended without releasing it, or held across the pause line, and nothing is asked about it. It is
+take's, is read before the table. It is this session's own only where its pane equals this session's
+own pane, its server and its pane both, or where neither names one: left by a turn that ended
+without releasing it, or held across the pause line, and nothing is asked about it. It is
 **renewed**, never left as it stands: mint a new token and take the claim over from this session
 itself by the take-over's steps (below), the moved file required to carry the previous token, and
-replace the claim line with this session's new one; a claim line of its own without a claim file
-is renewed as a take-over takes such a line, by creating the file exclusively and replacing the
-line. A claim of this conversation's left only in a move-aside file — by a take-over that died
-after moving it aside, or by a release that died between its move and its delete — is
-**restored** by the guard as the ownership check restores one (below). Where the guard finds no
-claim file, it reads every move-aside file as it always does, and where one that a second read
-still finds carries this conversation's own token, and its own pane by this rule, the guard creates
-the claim file exclusively with that file's content, then deletes the move-aside file, and judges
-the restored claim as this conversation's own claim, so it renews it. Where that create fails, the
-guard judges what the claim file now holds, as it judges any claim file, and keeps the move-aside
-file. Where the token is this conversation's but the panes differ — it names another pane, or
-names one where this session has none, or names none where this session has one — it is judged by the table's rows as any claim of this run is, its pane
-read under the rules above: a live reading means this conversation is running in a second process,
-so stop, and name that pane; where the guard clears, take it over with a new token. Where the claim
-file and the claim line differ, in token or in pane, judge each, and the strictest verdict holds: a
-stop over a question, a question over a take-over or a renewal. Every other move-aside file of this run, one the guard
-does not restore, is judged beside them (*A move-aside file*, below).
+replace the claim line with this session's new one; a claim line of its own without a claim file,
+where the guard restores no move-aside file (below), is renewed as a take-over takes such a line, by
+creating the file exclusively and replacing the line. A claim of this conversation's left only in a
+move-aside file — by a take-over that died after moving it aside, or by a release that died between
+its move and its delete — is **restored** by the guard as the ownership check restores one (below).
+Where the guard finds no claim file, it reads every move-aside file as it always does, and where one
+that a second read still finds carries this conversation's own token, and its own pane by this rule,
+the guard creates the claim file exclusively with that file's content, then deletes the move-aside
+file, and judges the restored claim as this conversation's own claim, so it renews it. Where that
+create fails, the guard judges what the claim file now holds, as it judges any claim file. Where
+that file now carries this conversation's own token, and its own pane by this rule, the guard renews
+it and first deletes the move-aside file as the ownership check does, only where a second read still
+finds it and it carries this conversation's own token; otherwise the guard keeps the move-aside
+file. Where the token is this conversation's but the panes differ — it names another pane, or names
+one where this session has none, or names none where this session has one — it is judged by the
+table's rows as any claim of this run is, its pane read under the rules above: a live reading means
+this conversation is running in a second process, so stop, and name that pane; where the guard
+clears, take it over with a new token. Where the claim file and the claim line differ, in token or
+in pane, judge each, and the strictest verdict holds: a stop over a question, a question over a
+take-over or a renewal. Every other move-aside file of this run, one the guard does not restore, is
+judged beside them (*A move-aside file*, below).
 
 **The question is the guard's one question**, widened: it is asked only where the guard asks about
 a claim, and then covers the claim and the open tickets' worktrees above, and names the claim's
@@ -263,7 +267,12 @@ under another herdr server or on another machine, which it cannot tell stale, so
 session one question; a terminal nested inside a herdr pane that neither renames the terminal
 program nor sets a multiplexer's marker, whose session reads the outer pane as its own pane; and
 the window between a take-over's read of the claim file and its move, in which a fresh claim
-another session has just written can be moved aside.
+another session has just written can be moved aside. The guard's restore, which comes before its
+judgment, adds a cost in liveness, never a second session: where a conversation whose release died
+mid-way is resumed after another session took a fresh claim, and its guard lands between that
+holder's move and its create in a renewal, the restore wins the create, the holder's create fails
+and it stops, and the restoring guard then stops on the holder's live claim line. Neither proceeds
+until the holder's next turn takes the restored claim over as stale, at the cost of one prompt.
 
 **The working-copy claim** is the record that one `/orchestrate` session is acting in this working
 copy. It is recorded twice, and the file is the authority and the only mutual exclusion:
@@ -1025,9 +1034,10 @@ and `orchestrate: waiting on executors` when the turn ends while executors still
 background. `/conduct` reads that line to tell a pause from the end. The pause line keeps this
 session's working-copy claim, and the turn that follows renews it; before `orchestrate: done` or `orchestrate: stopped — …`, a stop
 that asks a question included, release it as the turn's last act (Stage 1, *The working-copy
-claim*). A turn that holds no claim, as at a stop of the guard's own, releases nothing, and a stop
-on a failed ownership check removes neither the claim file nor the claim line, and keeps any
-move-aside file.
+claim*). A stop of the guard's own releases nothing, a claim file it restored before the stop
+included (Stage 1, *The question is the guard's one question*), and neither does any other turn
+that holds no claim; a stop on a failed ownership check removes neither the claim file nor the
+claim line, and keeps any move-aside file.
 
 **This run ends at its close point.** Promotion starts from the base branch:
 taking what the base holds to staging or production is `/ship-it-to stg` or `/ship-it-to prd`, in

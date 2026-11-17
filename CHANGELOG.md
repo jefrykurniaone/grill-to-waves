@@ -40,9 +40,10 @@ names a pane without a server, and costs the next session one question.
     second process of one conversation, which stops.
   - *A take-over* reads the claim file before it moves it, and stops where the file no longer
     carries the token being taken over. It moves the file aside to `working-copy-claim.<the new
-    token>`. *A move-aside file* is judged by every guard and `+ check` as a claim where a second read
-    still finds it and it holds a claim of this run, by the table beside the claim file and the claim
-    line, the strictest verdict holding; one judged stale stays for the owner to remove.
+    token>`. *A move-aside file* that the guard does not restore is judged by every guard and
+    `+ check` as a claim where a second read still finds it and it holds a claim of this run, by the
+    table beside the claim file and the claim line, the strictest verdict holding; one judged stale
+    stays for the owner to remove.
   - *The ownership check* also confirms the claim's pane is the session's own, and where the claim
     file is missing restores it from a move-aside file that carries the session's token, so a
     take-over that died mid-move heals at its holder's next check. It runs before every rewrite of
@@ -54,9 +55,16 @@ names a pane without a server, and costs the next session one question.
     that a second read still finds carries the conversation's own token and own pane, it creates the
     claim file exclusively with that content, deletes the move-aside file and renews the claim, so a
     take-over that died mid-move, or a release that died mid-way, heals at the holder's next turn.
+    Only where the guard restores no move-aside file is a claim line of its own without a claim
+    file renewed by creating the file. Where the restore's create fails and the claim file now
+    carries the conversation's own token and own pane, the guard deletes the move-aside file before
+    it renews, as the ownership check does; otherwise it keeps the file, judged by the table.
+  - *Stop rule*: a stop of the guard's own releases nothing, a claim file it restored before the
+    stop included.
   - *Its residual risk* (Stage 1) is widened to a claim written under another server or machine, a
-    nested terminal that neither renames the terminal program nor sets a multiplexer's marker, and
-    the window between a take-over's read and its move.
+    nested terminal that neither renames the terminal program nor sets a multiplexer's marker, the
+    window between a take-over's read and its move, and a race in which a resumed conversation's
+    restore lands in a live holder's renewal and both stop, at the cost of one prompt.
 - **`/conduct`.**
   - Stage 1 reads a claim's pane only where its server equals the conductor's own fingerprint, and
     judges every move-aside file as a claim beside the claim file and the claim line, the strictest
@@ -70,8 +78,9 @@ names a pane without a server, and costs the next session one question.
 - **`/grill-to-waves` and its shared files.**
   - *The borrow check* (SESSIONS §6): the second condition now holds only with all four of no
     registered worktree, no claim file, no move-aside file that a second read still finds and no
-    claim line. A move-aside file is a claim standing, a leftover included, and no guard removes
-    one: its holder's ownership check restores it, or the owner removes it.
+    claim line. A move-aside file is a claim standing, a leftover included, and no other session's
+    guard removes one: its holder's next guard or ownership check restores it, or deletes it once
+    the claim file carries the holder's token again, or the owner removes it.
   - *The residual risk* (SESSIONS §6) adds the nested terminal and the take-over's window to what
     no claim can show or judge without asking. SESSIONS §5 stops on a claim whether the claim file,
     the claim line or a move-aside file holds it.
