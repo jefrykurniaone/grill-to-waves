@@ -5,6 +5,14 @@ What changed in the pipeline's rules and agent set, newest first. Releases are t
 dated entries under it, down to the previous release heading, are what that release ships. Tiers are
 named by alias only, as everywhere else in this repository.
 
+## 2026-11-21 — actions/checkout v7
+
+### Changed
+
+- **CI and the release workflow** check out with `actions/checkout@v7`, which runs on Node.js 24.
+  `@v4` ran on Node.js 20, which GitHub has deprecated and was forcing onto Node.js 24 with a
+  warning on every job.
+
 ## v0.1.0 — 2026-11-21
 
 The first tagged release. It ships everything in `CHANGELOG.md` up to this release: the seven-stage
