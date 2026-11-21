@@ -67,7 +67,7 @@
 #   ./install.sh [--target claude|codex|both|auto] [--project PATH] [--no-backup] [--ref REF]
 #                [--skip-mattpocock] [--mattpocock-exclude "NAME NAME"] [--status] [--link]
 #                [--with-playwright-mcp] [--with-context7-mcp] [--with-markitdown-mcp]
-#   curl -fsSL https://raw.githubusercontent.com/jefrykurniaone/grill-to-waves/main/install.sh | bash
+#   curl -fsSL https://github.com/jefrykurniaone/grill-to-waves/releases/latest/download/install.sh | bash
 set -euo pipefail
 
 REPO="https://github.com/jefrykurniaone/grill-to-waves.git"
@@ -161,7 +161,7 @@ else
   command -v git >/dev/null 2>&1 || { echo "git is required when running without a local checkout." >&2; exit 1; }
   SRC="$(mktemp -d)/grill-to-waves"
   step "Source: cloning $REPO ($REF) to $SRC"
-  git clone --quiet --depth 1 --branch "$REF" "$REPO" "$SRC"
+  git -c advice.detachedHead=false clone --quiet --depth 1 --branch "$REF" "$REPO" "$SRC"
 fi
 
 for skill in "${SKILLS[@]}"; do

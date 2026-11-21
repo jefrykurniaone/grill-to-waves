@@ -36,7 +36,7 @@ than once per run, and its failure mode is a production deploy rather than a han
 | Piece | What it is |
 |---|---|
 | `GLOSSARY.md` | Canonical distinctions: executor tier and reasoning effort, base branch and integration branch. |
-| `CHANGELOG.md` | What changed in the pipeline's rules and agent set, by date, and what to do after updating. |
+| `CHANGELOG.md` | What changed in the pipeline's rules and agent set, by release and date, and what to do after updating. |
 | `skills/grill-to-waves/SKILL.md` | The seven-stage pipeline (Stage 0 tracker → Stage 6 stop). |
 | `skills/grill-to-waves/SESSIONS.md` | The solo and paired shapes, write surfaces, the collision rule that orders the waves, worktrees and the run's own ignored paths, and the breach stop. The protocol the skills share. |
 | `skills/grill-to-waves/PAIRED.md` | A paired run across repositories, borrowing included: its format and how it is planned. Read only by a run that spans several repositories. |
@@ -68,13 +68,17 @@ a context clear would lose.
 
 ```powershell
 # Windows / PowerShell
-irm https://raw.githubusercontent.com/jefrykurniaone/grill-to-waves/main/install.ps1 | iex
+irm https://github.com/jefrykurniaone/grill-to-waves/releases/latest/download/install.ps1 | iex
 ```
 
 ```bash
 # macOS / Linux
-curl -fsSL https://raw.githubusercontent.com/jefrykurniaone/grill-to-waves/main/install.sh | bash
+curl -fsSL https://github.com/jefrykurniaone/grill-to-waves/releases/latest/download/install.sh | bash
 ```
+
+Each one installs the latest release. To pin one, replace `latest/download` with
+`download/vX.Y.Z`; to install `main` as it stands, fetch the installer from
+`https://raw.githubusercontent.com/jefrykurniaone/grill-to-waves/main/` instead. See *Releases*.
 
 With no arguments, either installer asks whether to install for Claude Code, Codex CLI, or both.
 Use `-Target` / `--target` to skip the prompt in automation.
@@ -92,7 +96,7 @@ cd grill-to-waves
 | `--target claude\|codex\|both\|auto` (`-Target`) | Skip the prompt and choose a host. `auto` does Claude Code, and Codex too when `~/.codex` exists. |
 | `--project PATH` (`-Project`) | Install into the project instead of the home directory: `PATH/.claude` for Claude Code; `PATH/.agents/skills` and `PATH/.codex/agents` for Codex. |
 | `--no-backup` (`-NoBackup`) | Do not move a replaced directory or file to `<backups>/<name>-<timestamp>` first (`~/.claude/backups`, `~/.codex/backups`). |
-| `--ref REF` (`-Ref`) | Branch, tag or commit to fetch when running without a local checkout. |
+| `--ref REF` (`-Ref`) | Branch, tag or commit to fetch when running without a local checkout. Default: the release the installer came from, or `main` for the installer on `main`. |
 | `--skip-mattpocock` (`-SkipMattPocock`) | Do not fetch the Matt Pocock skill collection — offline, or where it is installed some other way. |
 | `--mattpocock-exclude "NAME NAME"` (`-MattPocockExclude NAME,NAME`) | Matt Pocock skills to leave out. Default: `pr`. |
 | `--status` (`-Status`) | Install nothing; report each installed skill and agent as `identical`, `linked`, `differs` or `not installed`. See *Status and tests*. |
@@ -229,6 +233,7 @@ machine's browser:
 pwsh -NoProfile -File tests/test-install.ps1           # install.ps1 under PowerShell 7
 powershell -NoProfile -File tests/test-install.ps1     # install.ps1 under Windows PowerShell 5.1
 bash tests/test-install.sh                             # install.sh
+bash tests/test-release.sh                             # the release notes and installer stamp
 pwsh -NoProfile -File tests/check-docs.ps1             # no Claude model named with a version
 ```
 
@@ -237,7 +242,8 @@ The parity test runs both installers and compares the trees, so the PowerShell s
 one that test is skipped, or fails when `G2W_REQUIRE_PARITY=1`. The bash suite also runs
 `install.ps1` for `--link` and the Playwright browser choice when `pwsh` is there, under the same
 rule, so CI covers `install.ps1` on Linux too. CI (`.github/workflows/ci.yml`) runs
-all of it on push and pull request, with PSScriptAnalyzer and shellcheck.
+all of it on branch push and pull request, and before every release, with PSScriptAnalyzer and
+shellcheck.
 
 ### The Matt Pocock skill collection
 
@@ -461,6 +467,30 @@ with the first merge batch's spec mirrors.
   a vault carries what the *next* run needs in order not to relearn — the decisions and why, the
   traps, the environment quirks that cost an hour once. `vault-scribe` exists so recording those
   costs a Sonnet subagent's context instead of the orchestrator's.
+
+## Releases
+
+Versions follow SemVer and are tagged `vX.Y.Z`. Before 1.0.0, a minor release may change the rules or
+the installers' flags, and its `CHANGELOG.md` entry says what to do after updating. Each GitHub
+Release carries `install.sh` and `install.ps1` whose default `--ref` is that release's tag.
+
+To cut one:
+
+1. On a branch, add a `## vX.Y.Z — <date>` heading at the top of `CHANGELOG.md`, above the dated
+   entries it ships, with a summary under it: that section becomes the release notes. Merge it
+   through a pull request.
+2. Tag the merge commit on `main` with a lightweight tag and push the tag:
+
+   ```bash
+   git switch main && git pull
+   git tag vX.Y.Z
+   git push origin vX.Y.Z
+   ```
+
+`.github/workflows/release.yml` then runs CI and publishes the release as latest, with the notes and
+both stamped installers. It stops before publishing on an annotated tag (a shallow clone of one warns
+that it is not a commit), on a tag off `main`, and on a missing or empty `CHANGELOG.md` section.
+`bash .github/scripts/prepare-release.sh vX.Y.Z dist` previews the notes and installers locally.
 
 ## License
 

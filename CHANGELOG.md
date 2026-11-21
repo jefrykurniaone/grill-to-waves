@@ -1,7 +1,44 @@
 # Changelog
 
-What changed in the pipeline's rules and agent set, newest first. The repository carries no version
-tags, so entries are dated. Tiers are named by alias only, as everywhere else in this repository.
+What changed in the pipeline's rules and agent set, newest first. Releases are tagged `vX.Y.Z`: a
+`## vX.Y.Z — <date>` heading opens each one, its body becomes the release's notes on GitHub, and the
+dated entries under it, down to the previous release heading, are what that release ships. Tiers are
+named by alias only, as everywhere else in this repository.
+
+## v0.1.0 — 2026-11-21
+
+The first tagged release. It ships everything in `CHANGELOG.md` up to this release: the seven-stage
+`grill-to-waves` pipeline, `orchestrate`, `conduct`, `ship-it-to`, `daily-recap` and `jira-comment`,
+the fourteen executor, scout, clerk and scribe agents for Claude Code and Codex CLI, the statusline,
+and the two installers.
+
+Versions follow SemVer. Before 1.0.0, a minor release may change the rules or the installers' flags;
+its entry says what to do under *After updating*.
+
+### After updating
+
+Nothing to do for an installed copy. The README's one-liners now install the latest release; the
+`raw.githubusercontent.com/…/main/` one-liners still work and install `main` as it stands.
+
+### Added
+
+- **Installers attached to each release.** Every GitHub Release carries `install.sh` and
+  `install.ps1` whose `--ref` (`-Ref`) default is the release's own tag, so the installer and the
+  tree it clones always come from the same release. The one-liners fetch them from
+  `https://github.com/jefrykurniaone/grill-to-waves/releases/latest/download/`, or from
+  `…/releases/download/vX.Y.Z/` to pin one.
+- **`.github/workflows/release.yml`.** Pushing a lightweight `vX.Y.Z` tag on `main` runs CI, then
+  `.github/scripts/prepare-release.sh` takes the notes from the `## vX.Y.Z` section of
+  `CHANGELOG.md` and stamps the installers, and the release is published as latest. An annotated
+  tag, a tag off `main`, or a missing or empty section stops it before anything is published.
+- **`tests/test-release.sh`**, run by CI: the notes, the stamp, and each refusal.
+
+### Changed
+
+- **CI** runs on branch pushes and pull requests, and as the first job of a release; a tag push no
+  longer runs it twice.
+- **The installers' clone** without a local checkout passes `-c advice.detachedHead=false`, so a
+  tag ref no longer prints Git's detached-HEAD note.
 
 ## 2026-11-21 — Linked installs, and a Playwright browser that is there
 
