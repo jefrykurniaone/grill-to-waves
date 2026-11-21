@@ -364,8 +364,8 @@ box, then flip to **Visual** to check it.
   check, and an irreversible one waits for your go-ahead. Haiku runs only the locate scout and the
   clerk. `DEFAULTS.md` has the rules.
 - **[mattpocock/skills](https://github.com/mattpocock/skills)**, required — `grilling` and
-  `domain-modeling` for Stage 1, and `setup-matt-pocock-skills`, optional to run, for recording the
-  tracker before a run, on both hosts. The installer fetches them; see *The Matt Pocock skill collection* above.
+  `domain-modeling` for Stage 1, `code-review` for the review at the `/orchestrate` close, and
+  `setup-matt-pocock-skills`, optional to run, for recording the tracker before a run, on both hosts. The installer fetches them; see *The Matt Pocock skill collection* above.
 - **Playwright MCP**, optional, for runtime verification of `runtime: dev-server` tickets. Without it
   the walk falls back to scripted Playwright or plain HTTP, and says which it used.
   `--with-playwright-mcp` registers it; see *MCP servers*.

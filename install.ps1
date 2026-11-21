@@ -104,7 +104,7 @@ Set-StrictMode -Version Latest
 
 $Repo = 'https://github.com/jefrykurniaone/grill-to-waves.git'
 $Skills = @('grill-to-waves', 'orchestrate', 'conduct', 'ship-it-to', 'daily-recap', 'jira-comment')
-$RequiredMattPocockSkills = @('grilling', 'domain-modeling', 'setup-matt-pocock-skills')
+$RequiredMattPocockSkills = @('grilling', 'domain-modeling', 'setup-matt-pocock-skills', 'code-review')
 # Agent definitions this repo used to ship and no longer does. A copy left in the agent directory
 # would keep registering a tier the skills no longer dispatch, so the installer removes it.
 $RetiredAgents = @('executor-fable-five-one-medium', 'executor-fable-five-one-high', 'executor-fable-five-one-xhigh',
@@ -714,7 +714,8 @@ if ($doCodex) {
     Write-Note 'Codex dispatches executors with spawn_agent; the custom agents pin model and reasoning effort per tier.'
 }
 
-# The pipeline requires setup-matt-pocock-skills (Stage 0), grilling and domain-modeling (Stage 1).
+# The pipeline requires setup-matt-pocock-skills (Stage 0), grilling and domain-modeling (Stage 1),
+# and code-review (the /orchestrate close).
 if ($doClaude) {
     $currentProjectSkillsRoot = Join-Path (Get-Location).Path '.claude/skills'
     $missing = @($RequiredMattPocockSkills | Where-Object {
