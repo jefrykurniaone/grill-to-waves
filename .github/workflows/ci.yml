@@ -17,7 +17,7 @@ jobs:
       # The parity test needs a bash (Git Bash here); without one it must fail, not skip.
       G2W_REQUIRE_PARITY: '1'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: PSScriptAnalyzer on install.ps1
         shell: pwsh
@@ -44,7 +44,7 @@ jobs:
       # The parity test needs pwsh; without it the test must fail, not skip.
       G2W_REQUIRE_PARITY: '1'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: shellcheck
         run: shellcheck install.sh tests/test-install.sh tests/lib/guarded-install.sh tests/test-release.sh .github/scripts/prepare-release.sh
