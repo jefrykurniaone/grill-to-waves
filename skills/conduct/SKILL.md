@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 You are the **conductor** of a paired run: one run slug delivered in several repositories, each with
 its own working copy, tracker, map and `/orchestrate` session
-([../grill-to-waves/SESSIONS.md](../grill-to-waves/SESSIONS.md) §6). You start those sessions in their
+([../grill-to-waves/PAIRED.md](../grill-to-waves/PAIRED.md)). You start those sessions in their
 herdr panes in the order the lead map's *Run order across repositories* gives. Without `+ watch` you
 launch what is ready, report, and stop; under `+ watch` you also sleep until a session settles and
 start what that releases. Each orchestrator owns its own run: dispatch, verification, merges, its map
@@ -51,7 +51,7 @@ Done when all of them hold.
 ## Stage 1 — Read the run
 
 1. **The lead map**: its run slug, its *Paired runs* line and its *Run order across repositories*,
-   in the format of SESSIONS.md §6, each launch in a cell read with its `· borrows` suffix where it
+   in the format of PAIRED.md, each launch in a cell read with its `· borrows` suffix where it
    carries one. A lead map without the run order is a stop: say what is missing.
 2. **Every repository's map**, through that repository's own tracker, from inside that repository
    ([../grill-to-waves/TRACKERS.md](../grill-to-waves/TRACKERS.md)): its execution-progress section,
@@ -63,9 +63,9 @@ Done when all of them hold.
    table with no decision in it: where `clerk-haiku-medium` is installed, give it one brief per
    repository — run the tracker's list command from inside that repository, return each named
    ticket's state as printed, touch nothing in the tree — and read them yourself where it is not.
-   For every lender a launch borrows, read what the borrow check needs (SESSIONS.md §6): from its
+   For every lender a launch borrows, read what the borrow check needs (PAIRED.md): from its
    map, the cut, the recorded commit, the base and whether the map is open or closed; from its
-   working copy, the check's reads, run from your own folder as `git -C <folder>` — §6
+   working copy, the check's reads, run from your own folder as `git -C <folder>` — PAIRED.md
    writes `../<folder>`, the view from a sibling repository:
    `git --no-optional-locks -C <folder> status --porcelain`, `git -C <folder> worktree list`, its
    claim (below) and its `HEAD`, with `origin/<base>` where its map records no cut. Fetch nothing
@@ -77,7 +77,7 @@ Done when all of them hold.
    `git -C <folder> rev-parse --path-format=absolute --git-common-dir` prints, run from your own
    folder. An absent file is no claim; a file that is there and cannot be read is the table's
    unreadable one. Read every `working-copy-claim.<token>` file beside it too, a **move-aside
-   file** (`/orchestrate` Stage 1, *A move-aside file*): another session's take-over or release
+   file** (`/orchestrate`'s CLAIMS.md, *A move-aside file*): another session's take-over or release
    passes through that name for an instant, so only one that a second read still finds is
    evidence. One that a second read still finds and that holds a claim of this run is judged as a
    claim, beside the claim file and the claim line (step 4); any other is a leftover.
@@ -104,7 +104,7 @@ Done when all of them hold.
    relays from before a context clear are kept nowhere: ask for them again.
 
    Then judge each repository's claim — its file, its line and every move-aside file judged as a
-   claim (step 2) — by `/orchestrate` Stage 1's table and the rules under it (*A claim found*), as
+   claim (step 2) — by the table in `/orchestrate`'s CLAIMS.md and the rules under it (*A claim found*), as
    that repository's next launch's guard would, read-only and with your own pane reads: the pane
    list above, `herdr agent get <pane>` for the pane the claim names, and for `idle` or `done` its
    last outcome line (*Reading a session*, Stage 4). Read the pane a claim names only where the
@@ -116,7 +116,7 @@ Done when all of them hold.
    file*). A move-aside file judged stale stays a leftover for the owner to remove, since the
    launch's guard neither takes it over nor removes it. A claim is *of this run* when its `run:`
    is the run slug and its `map:` is that repository's map, the one its launch line names
-   (Stage 2), in the one form a claim writes it (`/orchestrate` Stage 1, *A claim found*): the
+   (Stage 2), in the one form a claim writes it (`/orchestrate`'s CLAIMS.md, *A claim found*): the
    map's reference as its tracker writes it (`#54`, or a key such as `ABC-12`), or the local map's
    path relative to that repository's root with no leading `./`, never prefixed by its folder.
    The row for a claim naming the guard's own pane, and the rule for one carrying its own token with
@@ -140,14 +140,15 @@ repository's pane and session, each repository's claim — the claim file's fiel
 every move-aside file judged as a claim with its fields, the pane each names with its server, and
 the table's verdict with the pane read behind it — and any leftover beside the file for the owner
 to remove, each repository occupied by a session outside the run order as Stage 2 says, the
-repositories without a pane, and what is ready — and stops. It creates, starts and sends nothing,
+repositories without a pane, and what is ready with the reply that launches it in this conversation
+(`watch`, `step <G>`), since a new `/conduct` loads this file again — and stops. It creates, starts and sends nothing,
 and takes, releases, renews, takes over and removes no claim.
 
 ## Stage 2 — Launches and their states
 
 The unit is the **launch**: one repository wave of one step, `<repository> · <wave> · <tickets>`,
 followed by `· borrows <folder>[, <folder>]` where its walk borrows another repository's working copy
-(SESSIONS.md §6). Its launch line is `/orchestrate map <that repository's map> + wave <k>`, with
+(PAIRED.md). Its launch line is `/orchestrate map <that repository's map> + wave <k>`, with
 the repository's own wave number, and `+ ceiling 5` appended when that map states an in-flight
 ceiling above five. A map's lower ceiling stands. A repository that needs more than five at once is
 launched by the user with its own `/orchestrate` line, outside this run's schedule. A launch is:
@@ -175,7 +176,7 @@ launched by the user with its own `/orchestrate` line, outside this run's schedu
   launch*), no other launch in flight, held or parked occupies a repository it occupies, no other
   repository's `borrowing` line holds one (below), no session outside the run order occupies one
   (*Occupied by a session outside the run order*, below), and, where it borrows, every lender
-  passes the borrow check (SESSIONS.md §6). That order inside one repository is read from the
+  passes the borrow check (PAIRED.md). That order inside one repository is read from the
   steps, so it holds even where a later step's *Released by* names only other repositories'
   tickets, which is all it names.
 
@@ -215,7 +216,7 @@ parked, and read it as let out of parking only on a yes.
 lender and the condition that failed, and where it is a claim, the claim's time, host, and pane
 with its server, and whether the claim file, the claim line or a move-aside file holds it. The
 second condition counts every move-aside file that a second read still finds as a claim standing,
-a leftover included (SESSIONS.md §6), and no guard removes one: a live holder's next guard or
+a leftover included (PAIRED.md), and no guard removes one: a live holder's next guard or
 ownership check restores its own as its claim file (`/orchestrate` Stage 1, *This conversation's
 own claim* and *The ownership check*), and any
 other stays until the owner removes it: for such a file the report says the borrower waits on the
@@ -232,7 +233,7 @@ reported as *A borrow that outlived its session* says, naming the launch that cl
 
 **A borrow that outlived its session.** While a map's execution progress carries `borrowing
 <folder> since <time>`, read from the map again at every recompute, `<folder>` is still lent
-whatever that map's session is doing (SESSIONS.md §6): the line holds it against every launch but
+whatever that map's session is doing (PAIRED.md): the line holds it against every launch but
 its own repository's — the lender's own, and any third repository's that borrows it. A launch of
 the map's own repository is what clears the line, in its orchestrator's Stage 1, so it is ready by
 the usual rule with the borrow check's first condition waived on `<folder>`. A map whose read
@@ -256,7 +257,7 @@ Every launch that occupies that repository — its own repository's next launch 
 borrows it — is not ready, and waits until the claim is gone or the table would take it over. A
 claim the table would take over leaves the launch ready by the usual rule, and that launch's own
 guard takes it over when it starts, or leaves it for the owner where it is a move-aside file
-(Stage 1); a lender's claim still fails its borrow check, stale or not (SESSIONS.md §6), and is
+(Stage 1); a lender's claim still fails its borrow check, stale or not (PAIRED.md), and is
 reported as *A lender that fails the borrow check* says. This decides readiness only: a launch
 already in flight, held or parked goes by its own state, and what keeps a second session out of a
 working copy is each launch's own guard, which runs whatever you decide (`/orchestrate` Stage 1,

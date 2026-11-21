@@ -114,14 +114,14 @@ labels** (a field, a component, a tag). Everything else in
 
 ## Across repositories
 
-A paired run ([SESSIONS.md](./SESSIONS.md) §6) writes trackers other than the working directory's
+A paired run ([PAIRED.md](./PAIRED.md)) writes trackers other than the working directory's
 and records blocking edges between them. Its repositories are sibling folders, each named by its
 folder.
 
 - **Name the other repository on every call**: `gh … -R <owner>/<repo>`,
   `glab … -R <group>/<project>`, and an `api` endpoint spelled out in full
   (`repos/<owner>/<repo>/…`, `projects/<url-encoded path>/…`), because `{owner}`, `{repo}`, `:id` and `:fullpath` resolve to the working directory's repository. A
-  local tracker is a path, `../<folder>/.scratch/<run-slug>/`, written only as SESSIONS.md §6
+  local tracker is a path, `../<folder>/.scratch/<run-slug>/`, written only as PAIRED.md
   allows.
 - **The blocking edge lives on the blocked ticket**, in the form its own tracker's frontier read
   counts:

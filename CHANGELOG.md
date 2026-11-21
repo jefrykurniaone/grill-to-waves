@@ -3,6 +3,50 @@
 What changed in the pipeline's rules and agent set, newest first. The repository carries no version
 tags, so entries are dated. Tiers are named by alias only, as everywhere else in this repository.
 
+## 2026-11-21 — Solo runs carry less, and a run's landing is checked
+
+A retro over the week's runs found three costs and two gaps. Every `/orchestrate` turn carried the
+paired-run, claim-judging and Codex-host protocol that a solo run never reaches, and every
+`/grill-to-waves` session read the whole paired-run format. A `+ check` followed by a fresh
+`/orchestrate … + all` loaded the 85 KB skill into one context twice. After a run's review request
+merged, nothing checked the deployed app or the quality analysis that runs only after a merge, and a
+security advisory a build printed was never filed. `/daily-recap` drafted in English for a team
+that writes in Indonesian.
+
+### After updating
+
+Run the installer again on both hosts (`./install.ps1 -Target both` or `./install.sh --target both`):
+the skill folders gained files, and the installer copies whole folders. For `+ landed` to read a
+SonarQube analysis, give the session a read-only `SONAR_TOKEN`; without one it reads the job's log.
+
+### Changed
+
+- **Progressive disclosure.** Material only one branch reaches moved behind a pointer that names the
+  branch, word for word:
+  - `skills/grill-to-waves/PAIRED.md` is the old SESSIONS.md §6, paired runs. SESSIONS.md keeps §1–§5
+    and a §6 stub pointing there; every `SESSIONS.md §6` reference now names PAIRED.md.
+  - `skills/orchestrate/CLAIMS.md`: the guard's table for a claim found, the one question it asks,
+    a move-aside file, and its residual risk. Read whenever the guard or `+ check` finds a claim
+    other than this conversation's own, or a move-aside file.
+  - `skills/orchestrate/BORROWING.md`: a borrowed working copy and a borrowed walk that died.
+  - `skills/orchestrate/HOSTS.md`: hosts without subagent dispatch.
+- **`/orchestrate`.**
+  - *Arguments*: **a reply carries the next argument.** A `+ check` report, and a stop whose remedy
+    the report proposes, end with the reply that runs it in the same conversation (`all`,
+    `wave <k>`, `landed`, `go`). A map with no `Integration branch:` line is now such a stop: it
+    proposes the line and an amendment, and writes both on `go`.
+  - **`+ landed`** (`skills/orchestrate/LANDED.md`): once the review request has merged, it reads the
+    merge commit, every job of its pipeline, the analysis behind a failed quality job, each issue
+    attributed to the run's code or not, and walks the deployed app with the walker. Failures are
+    filed and recorded on the map in a `landed:` entry. It writes no code and takes no claim.
+  - *Closing upward*, step 4: **findings outside the run's scope** — an advisory, a check already
+    failing on the base, a defect on a surface no ticket owns — are filed as their own items without
+    the run label and named in the review request's body. They stop nothing.
+- **`/conduct`.** Its `+ check` report ends with the reply that launches what is ready.
+- **`/daily-recap`.** A *Language* section: the language the user works in with this session, mixed
+  with English development terms the way the team writes; English, and a question, when neither
+  tells.
+
 ## 2026-11-21 — The close reviews the run before it pushes
 
 `/orchestrate` now runs the `code-review` skill at the close, after the gate and the walk and before

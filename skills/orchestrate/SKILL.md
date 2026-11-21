@@ -21,7 +21,8 @@ brief them, they work in their own worktrees and report back, and you verify, me
 runs it wave by wave; there is no second session to coordinate with. In a paired run each
 repository's session is exactly that, against its own map, and a blocker in another repository
 reaches it as a cross-run gate (Stage 1). [../grill-to-waves/SESSIONS.md](../grill-to-waves/SESSIONS.md) has
-the surfaces and collision the waves were built from, and the paired-run format (§6).
+the surfaces and collision the waves were built from;
+[../grill-to-waves/PAIRED.md](../grill-to-waves/PAIRED.md) has the paired-run format.
 
 **Two agent sessions never share one working copy**, in either shape. A second session found in this
 working copy is a stop, not a shape.
@@ -37,7 +38,16 @@ path under `.scratch/`.
 /orchestrate map <map> + all                 solo, every remaining wave in order, no stop between them
 /orchestrate map <map> + check               read-only preflight, writes nothing
 /orchestrate map <map> + ceiling <n>         the in-flight ceiling for this session, with any line here
+/orchestrate map <map> + landed              after its review request merged: check where the run landed
 ```
+
+`+ landed` follows [LANDED.md](LANDED.md) instead of the stages below.
+
+**A reply carries the next argument.** Where a turn ends by naming what to run next — the report of
+`+ check`, or a stop whose remedy the report proposes — its last line before the outcome line is the
+reply that runs it in this conversation: `all`, `wave <k>`, `landed`, or `go` for the proposed remedy.
+A reply naming an argument is that invocation, for the same map, since this file is already loaded;
+a new `/orchestrate` loads all of it again into the same context.
 
 ## Stage 0 — Resolve the tracker
 
@@ -58,8 +68,11 @@ before the close, so the remote carries none of it.
    who owns the steps after it (`Run closes at:`, `Steps after close owned by:`), the integration
    branch and its base (`Integration branch: <name>, cut from <base>`), what is out of scope, and any
    orchestrator-only checks pinned to a wave. Binding. A map with no `Integration branch:` line was
-   planned under the old model, which merged into the base branch and pushed every wave: stop, and
-   name the missing line. Its execution-progress section, the recorded commit among it
+   planned under the old model, which merged into the base branch and pushed every wave: stop, name
+   the missing line, and propose it — `Integration branch: <the branch prefix its tickets use>/<run
+   slug>, cut from <base>` — with a dated amendment to the map's *How this is executed* wherever that
+   still describes the old model. On the user's `go`, write both and run this stage again.
+   Its execution-progress section, the recorded commit among it
    (*The integration branch*), is the state the last wave left behind and is kept current by
    *Record, close, tear down*, so trust
    it over the log — and rewrite it when this wave ends. Its `claimed:` line, where it carries one,
@@ -182,39 +195,10 @@ this working copy itself, is another session and says yes: stop and report, beca
 database at once. An empty leftover directory under `.claude/worktrees/` is not a registered worktree,
 so read the list, never the filesystem.
 
-**A claim found** — a claim file, a claim line, or both — is judged by this table. A claim is *of
-this run* when its `run:` is this run's slug and its `map:` is this map's reference in the one
-form a claim writes it and every reader compares it: the map's reference as its tracker writes it
-(`#54`, or a key such as `ABC-12`), or the local map's path relative to the repository root with no
-leading `./` (`.scratch/<run-slug>/map.md`). Under herdr
-(`HERDR_ENV=1`), the pane a claim names is read only where the claim's server equals this session's
-server fingerprint (*The working-copy claim*, below), since a pane id means something only on its
-own herdr server. Read it read-only, with the herdr skill's read commands, as
-`/conduct` reads a session: `herdr pane list` in every workspace says whether the pane exists and
-what its cwd is, `herdr agent get <pane>` gives its agent's state, and for `idle` or `done` its last
-outcome line is read as `/conduct` Stage 4, *Reading a session*, reads it. A claim whose server
-differs from this session's fingerprint, a claim that names a pane without a server (one written
-before claims carried a server), and every claim where this session has no fingerprint are judged
-in the table's *pane unreadable* column.
-
-| Found | Under herdr, the pane read on this session's server | Outside herdr, or the pane unreadable: another server, a pane without a server, or no fingerprint here |
-|---|---|---|
-| No claim file, no claim line | take | take |
-| A claim file of another run or another map, or one that cannot be read | stop; report the file; the owner removes it, and its map's `claimed:` line where that map carries one | same |
-| A claim of this run naming this session's own pane, by its server and its pane both | stale: take over, name it in the report | — |
-| A claim of this run naming a pane that is gone or holds no agent | stale: take over | ask |
-| A claim of this run whose agent is `working` or `blocked` | live: stop, name the pane | ask |
-| A claim of this run, `idle` or `done`, its last outcome line the pause line | live: stop | ask |
-| A claim of this run, `idle` or `done`, any other last line or none | stale, its turn ended without release: take over | ask |
-| `unknown`, or a claim without a pane | ask | ask |
-| A claim line without a claim file | judged by the rows above by the line's server and pane where it names both; ask otherwise | ask |
-
-A pane counts as **gone** only where no pane whose cwd is this working copy's root or any path
-under it, other than this session's own pane, holds an agent that is `working`, `blocked`, or
-`idle` or `done` on the pause line. The cwd is compared with the root whole path component by whole path
-component, so a sibling folder whose name begins with the root's name never counts. A pane moved to
-another herdr workspace gets a new id, so its old id reads as gone while its session lives, and
-where such a pane exists the guard asks instead.
+**A claim found** — a claim file or a claim line other than this conversation's own claim (below),
+or a move-aside file beside the claim file — is judged by the table in [CLAIMS.md](CLAIMS.md), and
+where the guard asks about a claim it asks the question that file defines. Read it whenever the
+guard or `+ check` finds one, before acting on it. With nothing found, the guard takes the claim.
 
 **This conversation's own claim.** A claim carrying this conversation's own token, its latest
 take's, is read before the table. It is this session's own only where its pane equals this session's
@@ -237,42 +221,12 @@ it and first deletes the move-aside file as the ownership check does, only where
 finds it and it carries this conversation's own token; otherwise the guard keeps the move-aside
 file. Where the token is this conversation's but the panes differ — it names another pane, or names
 one where this session has none, or names none where this session has one — it is judged by the
-table's rows as any claim of this run is, its pane read under the rules above: a live reading means
+table's rows in CLAIMS.md as any claim of this run is, its pane read under the rules above: a live reading means
 this conversation is running in a second process, so stop, and name that pane; where the guard
 clears, take it over with a new token. Where the claim file and the claim line differ, in token or
 in pane, judge each, and the strictest verdict holds: a stop over a question, a question over a
 take-over or a renewal. Every other move-aside file of this run, one the guard does not restore, is
-judged beside them (*A move-aside file*, below).
-
-**The question is the guard's one question**, widened: it is asked only where the guard asks about
-a claim, and then covers the claim and the open tickets' worktrees above, and names the claim's
-time, host, and pane with its server, or that it names none or names a pane without a server.
-Confirmed: take the claim over, and the reconcile handles the worktrees as above. Not confirmed:
-stop. An answer this conversation already holds is not asked again; it covers the worktrees and the
-claim's token it named, and a claim with another token is a new question. Where the guard clears —
-nothing found, a stale claim, this conversation's own claim, or the user's confirmation — take the
-claim, take it over, or renew it, before anything else in this stage writes; where the guard
-cleared without a question, the open tickets' worktrees go to the reconcile without one (above). A
-take-over is named in the wave report, or in the turn's report where no wave runs; a renewal of
-this conversation's own claim is not. A stop of the guard's own takes nothing and cleans up
-nothing; a restore it made before the stop stays, its claim file holding what the move-aside file
-held.
-
-The guard sees every `/orchestrate` session in this working copy at every moment of its turn,
-whichever host runs it: by its registered worktrees while a wave is in flight, and by its claim from
-its guard to its outcome line. **Its residual risk** is what it cannot see, or cannot judge without
-asking: an agent session that runs no `/orchestrate`, such as the owner working by hand, which
-makes no worktree and takes no claim; a claim left by a session that died outside herdr, or written
-under another herdr server or on another machine, which it cannot tell stale, so it costs the next
-session one question; a terminal nested inside a herdr pane that neither renames the terminal
-program nor sets a multiplexer's marker, whose session reads the outer pane as its own pane; and
-the window between a take-over's read of the claim file and its move, in which a fresh claim
-another session has just written can be moved aside. The guard's restore, which comes before its
-judgment, adds a cost in liveness, never a second session: where a conversation whose release died
-mid-way is resumed after another session took a fresh claim, and its guard lands between that
-holder's move and its create in a renewal, the restore wins the create, the holder's create fails
-and it stops, and the restoring guard then stops on the holder's live claim line. Neither proceeds
-until the holder's next turn takes the restored claim over as stale, at the cost of one prompt.
+judged beside them ([CLAIMS.md](CLAIMS.md) *A move-aside file*).
 
 **The working-copy claim** is the record that one `/orchestrate` session is acting in this working
 copy. It is recorded twice, and the file is the authority and the only mutual exclusion:
@@ -367,21 +321,8 @@ stale claim line with this session's. Where the move finds no file, the read of 
 session took this working copy meanwhile: write a moved file's content back by the same exclusive
 create and delete the moved file — or, where that create fails too, keep the moved file — and stop.
 The read before the move narrows the window in which a take-over can move a fresh claim aside, and
-nothing on a plain file system closes it (*Its residual risk*, above). A claim line without a claim
+nothing on a plain file system closes it (CLAIMS.md *Its residual risk*). A claim line without a claim
 file is taken over by creating the file exclusively and replacing the line.
-
-**A move-aside file**, `working-copy-claim.<token>` beside the claim file, is the name a take-over
-or a release passes the claim file through, never a claim file itself; another session's take-over
-or release passes through that name for an instant, so only a file that a second read still finds
-is evidence. The guard and `+ check` read every such file, and `+ check` restores none. Where the
-guard finds no claim file, one that a second read still finds and that carries this conversation's
-own token, and its own pane by that paragraph's rule, is restored and renewed, not judged by the
-table (*This conversation's own claim*, above). Any other one that a second read still finds and
-that holds a claim of this run, one kept where the restore's create failed included, is judged by
-the table's rows beside the claim file and the claim line, and the strictest verdict holds: a stop over a question, a question over a take-over. One
-judged stale stays a leftover: the guard neither takes it over nor removes it, and reports it for
-the owner to remove. Any other such file that a second read still finds is a leftover, as a
-take-over's or a release's: the guard and `+ check` report it, and the owner removes it.
 
 **Lifecycle.** The claim is held while this launch is in flight, in `/conduct`'s sense: a turn that
 ends on `orchestrate: waiting on executors` keeps it. Every later turn that finds this
@@ -431,7 +372,7 @@ the report says that another session took this working copy.
 
 **Cross-run gates.** Where the map, its comments, or another open map says this run waits on another
 run's tickets — or, in a paired run, on another repository's
-([../grill-to-waves/SESSIONS.md](../grill-to-waves/SESSIONS.md) §6), read through that repository's
+([../grill-to-waves/PAIRED.md](../grill-to-waves/PAIRED.md)), read through that repository's
 own tracker as [../grill-to-waves/TRACKERS.md](../grill-to-waves/TRACKERS.md) *Across repositories*
 says — verify it by reading those tickets' states, never by trusting the prose that describes it.
 A blocker in another repository is released once it is merged onto that repository's integration
@@ -440,23 +381,8 @@ else of it: a walk that needs its running app uses its working copy only by borr
 (*The runtime walk*). An unsatisfied gate is a wait, not a failure: say what it waits on and stop.
 
 **A borrowed walk that died.** Where the execution progress carries `borrowing <folder> since
-<time>`, a walk against that repository's working copy died mid-way (*The runtime walk*, *A
-borrowed working copy*), and its walker's report died with it. Clean up once the single-session
-guard has cleared — it found no claim, a stale claim or this conversation's own claim, or the user
-confirmed there is no other session — and this session has taken the claim, taken it over or
-renewed it, because the
-walk may be a live session's, and before this stage ends on any other wait or stop, an unsatisfied
-gate included. A stop of the guard's own takes no claim, does no cleanup and leaves the line standing. In this
-order: check whether that repository's app still runs, by its runbook (its port or health URL);
-stop it the way the runbook says; re-read its tree as *The lender's tree after the walk* says (*The
-runtime walk*); report the walk's accounts and sentinel data as possibly left in its dev database;
-then remove the line. The line is what keeps that repository lent
-([../grill-to-waves/SESSIONS.md](../grill-to-waves/SESSIONS.md) §6, *A borrow that outlived its
-session*), so it goes only once the app is stopped, or was found not running, and the tree is
-re-read. An app that cannot be stopped, like a path that cannot be attributed, is a stop that
-leaves the line standing: its report names the app's port or health URL, or the path, the owner
-clears it and tells this session to go on, and this session, or the next one's Stage 1, resumes
-from the line. `+ check` reports the line and does none of this.
+<time>`, clean it up as [BORROWING.md](BORROWING.md) says, once the guard has cleared and before this
+stage ends on any other wait or stop. `+ check` reports the line and does none of it.
 
 **The tree preflight**, run before each wave's dispatch and again before each merge batch — not
 before every step. It begins with the ownership check (*The ownership check*, above): the claim
@@ -511,7 +437,8 @@ over nothing —
 what the preflight's other steps found — never that another session took this working copy, since
 `+ check` takes no claim and runs no ownership check — which of the run's own paths
 ([../grill-to-waves/SESSIONS.md](../grill-to-waves/SESSIONS.md) §4) are not yet ignored, cross-run gates with the tickets they wait on, and the
-line to run next. It also prints what will actually run: the model and effort of this session as the
+reply that runs the next step in this conversation (*Arguments*).
+It also prints what will actually run: the model and effort of this session as the
 host reports them, the advisor configured for this session if any, any environment variable that overrides an
 agent file ([../grill-to-waves/DEFAULTS.md](../grill-to-waves/DEFAULTS.md) *Hosts*), and every
 high-consequence ticket with the executor and the second verification it will get. It writes nothing.
@@ -818,40 +745,8 @@ context only to settle a single disputed measurement. Done when every criterion 
 measured value or a named failure.
 
 **A borrowed working copy.** In a paired run, a ticket whose `runtime:` carries `peer:<folder>`
-entries walks against each such repository's running app, in that repository's working copy, which
-this launch borrows ([../grill-to-waves/SESSIONS.md](../grill-to-waves/SESSIONS.md) §6). For each
-of them:
-
-1. **Before the walk**, run the borrow check on it
-   ([../grill-to-waves/SESSIONS.md](../grill-to-waves/SESSIONS.md) §6). A lender that fails is a
-   stop with a report naming the lender and the condition that failed. `/conduct`, or the user
-   starting this launch by hand, saw it pass when this launch went — but for a dead walk's
-   leftovers, which Stage 1 has cleaned up since — and occupancy has kept every scheduled session
-   out of it since, so the cause is outside the schedule: the owner clears it and tells this
-   session to go on.
-2. **Start its app** the way that repository's own steering file (`CLAUDE.md`, `AGENTS.md`) or
-   runbook says, run the walk, and stop the app once the walk returns, whatever it found. Before
-   the app starts, add `borrowing <folder> since <time>` to this map's execution progress, so a
-   session that dies mid-walk leaves the next one what to clean up (Stage 1); remove the line once
-   the app is stopped, the walk's sentinel data wiped and the lender's tree re-read (below).
-
-**The lender's tree after the walk.** Once its app is stopped, read
-`git -C ../<folder> status --porcelain` again; the borrow check found it empty. A path it shows now
-is restored only where it is provably the app's own rewrite, read first, the way executor leakage is
-read (*The tree preflight*, step 2): a tracked path with `git -C ../<folder> restore -- <path>`, an
-untracked one removed. Name every restored path in the wave report. Anything that cannot be
-attributed to the app is a stop with a report, never discarded unread.
-
-Write nothing to that repository's tracked tree but that restoring, its one exception. The walk
-brief says the same, without the exception: no checkout, no `git worktree add` — that repository's
-single-session guard would read it as another session — no install, no code generation, no
-migration, no seed. Data the walk writes into that repository's dev
-database follows the rules above: every account stays and is reported with its password, and other
-sentinel data is wiped, with the wipe proven. A need for another repository's app that no `peer:`
-entry declares, or an app that does not start at the commit the borrow check passed, is a stop
-with a report. For an undeclared need, the report names what to add before the launch runs again:
-the `peer:<folder>` entry on the ticket's `runtime:`, and the `· borrows <folder>` suffix on its launch
-in the lead map's run order ([../grill-to-waves/SESSIONS.md](../grill-to-waves/SESSIONS.md) §6).
+entries walks against each such repository's running app, borrowed as [BORROWING.md](BORROWING.md)
+says before, during and after the walk.
 
 ## Record, close, tear down
 
@@ -991,14 +886,19 @@ anything.
    way. Judgement calls (the smell baseline, scope notes) stop nothing; they go in the map's last
    log entry and the review request's body. The review's per-axis totals are recorded on the map's
    execution progress beside the gate.
+   Then **the findings outside the run's scope**, met anywhere in the run: a security advisory a
+   build, an install or an audit printed, a check that already failed on the base, a defect the walk
+   met on a surface no ticket owns. Each is filed as its own item, without the run label, and named
+   in the review request's body (step 6). They stop nothing.
 5. **Push the integration branch** where a remote exists, `git push -u origin <integration branch>`:
    the run's first push.
 6. **One review request to the base**, opened as a draft when `Run closes at:` is *draft review
    request opened* and ready for review otherwise. Its body is the execution record: every ticket
    with its merge commit, the gate result with the commit it ran on, the review's totals and its
    judgement calls, a summary of each Fable-tier
-   correctness argument, every check waived at step 4 with the owner's reason, and the steps handed
-   over past the close point with their owner. Post the walk's screenshots on it — every wave's,
+   correctness argument, every check waived at step 4 with the owner's reason, the findings filed
+   outside the run's scope, and the steps handed over past the close point with their owner.
+   Post the walk's screenshots on it — every wave's,
    from the ticket comments, and the close's own walk from step 4.
    [../grill-to-waves/TRACKERS.md](../grill-to-waves/TRACKERS.md) *Deliver* has the commands.
 7. **Wait to the close point**: the request open, for *draft review request opened* or *review
@@ -1043,7 +943,7 @@ background. `/conduct` reads that line to tell a pause from the end. The pause l
 session's working-copy claim, and the turn that follows renews it; before `orchestrate: done` or `orchestrate: stopped — …`, a stop
 that asks a question included, release it as the turn's last act (Stage 1, *The working-copy
 claim*). A stop of the guard's own releases nothing, a claim file it restored before the stop
-included (Stage 1, *The question is the guard's one question*), and neither does any other turn
+included (CLAIMS.md *The question is the guard's one question*), and neither does any other turn
 that holds no claim; a stop on a failed ownership check removes neither the claim file nor the
 claim line, and keeps any move-aside file.
 
@@ -1051,21 +951,13 @@ claim line, and keeps any move-aside file.
 taking what the base holds to staging or production is `/ship-it-to stg` or `/ship-it-to prd`, in
 its own session, and it reads the repository's promotion contract and the forge's protections rather
 than inheriting anything from this run. Name it in the report once the run's work has reached the
-base and is worth promoting; never promote from here. A map whose `Run closes at:` is
+base and is worth promoting; never promote from here.
+Once the review request has merged and the base's pipeline has deployed it, `+ landed` checks where it landed ([LANDED.md](LANDED.md)); name it in the report with the
+reply that runs it. A map whose `Run closes at:` is
 *deployed* closes once that session has reported the promotion; the closing session waits on that
 report.
 
 ## Hosts without subagent dispatch
 
-Where the host has no subagent tool — a Codex CLI too old to expose `spawn_agent`, a Codex
-configuration with agents disabled, or another agent CLI — everything above holds except the fan-out:
-the session **is** the executor, one ticket at a time, in the ticket's own worktree, and the walker
-too; the installed agent definitions are read as role briefs rather than dispatched. The in-flight
-ceiling is then 1, so a wave is executed serially in wave order. Verification does not become optional
-because the same session did the work — read the diff, run the gate, walk the runtime by the walk
-brief's own rules, and say in the report that executor, walker and verifier were the same context.
-
-Where the host does dispatch but its sub-agents share the parent's working directory (Codex), every
-executor brief names the worktree's absolute path and tells the executor to work only there; the
-worktree sits inside the repository (`.codex/worktrees/…` on Codex) precisely so a workspace-scoped
-sandbox can write to it.
+Where the host has no subagent tool, or its sub-agents share the parent's working directory
+(Codex), read [HOSTS.md](HOSTS.md) before Stage 1: it says what changes.

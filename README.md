@@ -38,10 +38,12 @@ than once per run, and its failure mode is a production deploy rather than a han
 | `GLOSSARY.md` | Canonical distinctions: executor tier and reasoning effort, base branch and integration branch. |
 | `CHANGELOG.md` | What changed in the pipeline's rules and agent set, by date, and what to do after updating. |
 | `skills/grill-to-waves/SKILL.md` | The seven-stage pipeline (Stage 0 tracker → Stage 6 stop). |
-| `skills/grill-to-waves/SESSIONS.md` | The solo and paired shapes, write surfaces, the collision rule that orders the waves, worktrees and the run's own ignored paths, the breach stop, and a paired run across repositories, borrowing included: its format and how it is planned. The protocol the skills share. |
+| `skills/grill-to-waves/SESSIONS.md` | The solo and paired shapes, write surfaces, the collision rule that orders the waves, worktrees and the run's own ignored paths, and the breach stop. The protocol the skills share. |
+| `skills/grill-to-waves/PAIRED.md` | A paired run across repositories, borrowing included: its format and how it is planned. Read only by a run that spans several repositories. |
 | `skills/grill-to-waves/TRACKERS.md` | The five tracker operations for GitHub (`gh`), GitLab (`glab`) and local markdown, and the blocking edges between repositories. |
 | `skills/grill-to-waves/DEFAULTS.md` | The session's model floor, the effort ladder, high-consequence tickets and the Fable tier, scouts and the clerk, and the junction-safe worktree teardown. |
 | `skills/orchestrate/SKILL.md` | The integration branch, wave dispatch, verification, merge gate, the close and closing upward. |
+| `skills/orchestrate/{CLAIMS,BORROWING,HOSTS,LANDED}.md` | Read only on their branch: judging a working-copy claim the guard finds, borrowing another repository's working copy for a walk, hosts without subagent dispatch, and `+ landed` — checking the merge, its pipeline and its quality analysis, and walking the deployed app once the run's review request has merged. |
 | `skills/conduct/SKILL.md` | The conductor of a paired run, inside herdr: reading the run order, the states of each launch, launching each repository's session, relaying decisions, and where it stops. Sized for one laptop: one tab split three ways, two sessions in flight, five executors in each, and a watcher only under `+ watch`. |
 | `skills/conduct/scripts/watch.*` | Read-only watcher, PowerShell and bash, started only under `+ watch`: one process waits until one of the run's herdr agents settles after a known state change, and waits through an orchestrator's pause by itself. |
 | `skills/ship-it-to/SKILL.md` | Promotion to staging or production: contract resolution, branch protections, the pivot, the gate on the pivot, authorship of what travels, the request body, and where the run stops. |
@@ -295,9 +297,12 @@ Codex the prefix is `$`):
 /orchestrate map <map> + check      # read-only preflight, writes nothing
 /orchestrate map <map>              # one session, wave by wave
 /orchestrate map <map> + all        # one session, every wave, no stop between
+/orchestrate map <map> + landed     # after its review request merged: the pipeline, the analysis, the deployed app
 ```
 
-Run those in a **new** session. `+ check` is the cheap way to see what a run would do.
+Run those in a **new** session. `+ check` is the cheap way to see what a run would do; its report
+ends with the reply that runs the next step in the same session (`all`, `wave <k>`), so the skill
+is not loaded into that context a second time.
 
 A paired run — one run across several repositories, one map in each, the lead map carrying the run
 order — is planned by one `/grill-to-waves` session in the lead repository, and driven from one herdr
@@ -356,7 +361,7 @@ box, then flip to **Visual** to check it.
 - **A host with subagent dispatch** for the parallel path — Claude Code's `Agent` tool, or Codex
   CLI's `spawn_agent` with the custom agents this repo installs. A host without one still runs the
   skills: the session executes tickets itself, one at a time, with the agent definitions read as
-  role briefs (see *Hosts without subagent dispatch* in `skills/orchestrate/SKILL.md`).
+  role briefs (see `skills/orchestrate/HOSTS.md`).
 - **An Opus-class session at `high`** is the floor the pipeline is written for, on both hosts: it
   plans, orchestrates and verifies. Fable is optional and used per ticket — as the executor of a
   high-consequence ticket that leaves a decision open, as that ticket's second verifier, and on
