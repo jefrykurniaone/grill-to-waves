@@ -315,7 +315,7 @@ hide_claude_attribution() {   # $1 settings file, $2 backup root
     'the attribution setting (no commit or pull request attribution)'
 }
 
-# The statusline renders  model | ctx% | 5h | 7d  from the hook JSON. The script is installed
+# The statusline renders  model | ctx tokens (%) | 5h | 7d  from the hook JSON. The script is installed
 # alongside the setting that points at it, and an existing statusLine is left alone.
 install_claude_statusline() {   # $1 source file, $2 user ~/.claude, $3 backup root
   local src="$1" home_dir="$2" backup_root="$3" dest="$2/statusline.js"

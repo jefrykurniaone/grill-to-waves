@@ -48,7 +48,7 @@ than once per run, and its failure mode is a production deploy rather than a han
 | `skills/daily-recap/SKILL.md` | The end-of-day recap: evidence collection, what never goes into a team message, the Done / Next / Blocker template. |
 | `skills/daily-recap/scripts/collect-evidence.*` | Read-only collector, PowerShell and bash: the day's commits per repository, and each Claude Code or Codex session's prompts and closing report. |
 | `skills/jira-comment/SKILL.md` | The ticket comment: which event it reports, when "deployed" and "ready for retest" may be written, the language rule, the Jira markup, the template. |
-| `statusline/statusline.js` | Claude Code statusline: `model │ ctx% │ 5h │ 7d`, each usage percentage coloured and carrying its reset time. Installed for Claude Code only. |
+| `statusline/statusline.js` | Claude Code statusline: `model │ ctx: 46k (23%) │ 5h │ 7d`: the context segment shows the tokens used and the used percentage, each usage percentage is coloured, and the 5h and 7d limits carry their reset time. Installed for Claude Code only. |
 | `agents/executor-fable-{high,xhigh}.md`, `agents/executor-{opus,sonnet}-{medium,high,xhigh}.md` | Eight ticket executors, one per tier/effort pairing the ladder uses. |
 | `agents/scout-{haiku-medium,sonnet-high,opus-medium,opus-high}.md` | Four read-only scouts: locate, sweep, focused judgment, broad analysis. |
 | `agents/clerk-haiku-medium.md` | The orchestrator's clerk: runs a gate command and condenses its output, reads the tracker, drafts records from given facts, copies a spec into its mirror. Decides, posts and commits nothing. |
