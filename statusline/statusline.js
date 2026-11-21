@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Custom Claude Code statusline
-// Layout: model │ ctx% │ 5h │ 7d
+// Layout: model │ ctx tokens (%) │ 5h │ 7d
 //
 // Reads the statusLine hook JSON from stdin. Every lookup is defensive: any
 // missing field (or absent rate_limits for non-subscribers) drops that segment
@@ -45,6 +45,40 @@ function limitSeg(label, lim) {
   return seg;
 }
 
+const THOUSAND = 1000;
+const MILLION = 1000000;
+
+function fmtTokens(n) {
+  if (n >= MILLION) return `${(n / MILLION).toFixed(1).replace(/\.0$/, '')}M`;
+  if (n >= THOUSAND) return `${Math.round(n / THOUSAND)}k`;
+  return `${n}`;
+}
+
+function usedPercentage(ctx) {
+  if (ctx.used_percentage != null) return ctx.used_percentage;
+  if (ctx.remaining_percentage != null) return 100 - ctx.remaining_percentage;
+  return null;
+}
+
+function usedTokens(ctx, pct) {
+  const u = ctx.current_usage;
+  if (u) {
+    return (u.input_tokens || 0) + (u.cache_creation_input_tokens || 0) + (u.cache_read_input_tokens || 0);
+  }
+  if (pct == null || !ctx.context_window_size) return null;
+  return Math.round((pct / 100) * ctx.context_window_size);
+}
+
+function contextSeg(ctx) {
+  if (!ctx) return null;
+  const pct = usedPercentage(ctx);
+  if (pct == null) return null;
+  const v = Math.max(0, Math.min(100, Math.round(pct)));
+  const tokens = usedTokens(ctx, pct);
+  if (tokens == null) return paint(pctColor(v), `ctx: ${v}%`);
+  return paint(pctColor(v), `ctx: ${fmtTokens(tokens)} (${v}%)`);
+}
+
 // --- main --------------------------------------------------------------------
 function render(data) {
   const segments = [];
@@ -57,14 +91,9 @@ function render(data) {
   const modelLabel = effort ? `${model} (${effort})` : model;
   segments.push(paint(DIM, modelLabel));
 
-  // ctx% — context window used percentage
-  let ctxUsed = data.context_window?.used_percentage;
-  const remaining = data.context_window?.remaining_percentage;
-  if (ctxUsed == null && remaining != null) ctxUsed = 100 - remaining;
-  if (ctxUsed != null) {
-    const v = Math.max(0, Math.min(100, Math.round(ctxUsed)));
-    segments.push(paint(pctColor(v), `ctx: ${v}%`));
-  }
+  // ctx — tokens used, plus used percentage
+  const ctxSeg = contextSeg(data.context_window);
+  if (ctxSeg) segments.push(ctxSeg);
 
   // 5h / 7d subscription rate limits (absent for non-subscribers)
   const s5 = limitSeg('5h', data.rate_limits?.five_hour);

@@ -339,7 +339,7 @@ function Hide-ClaudeAttribution([string]$SettingsPath, [string]$BackupRoot) {
         'the attribution setting (no commit or pull request attribution)'
 }
 
-# The statusline renders  model | ctx% | 5h | 7d  from the hook JSON. The script is installed
+# The statusline renders  model | ctx tokens (%) | 5h | 7d  from the hook JSON. The script is installed
 # alongside the settings that point at it, and an existing `statusLine` is left alone.
 function Install-ClaudeStatusLine([string]$Source, [string]$ClaudeUserHome, [string]$BackupRoot) {
     $dest = Join-Path $ClaudeUserHome 'statusline.js'
