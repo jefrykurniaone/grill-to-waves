@@ -32,6 +32,7 @@ $guard = Join-Path $PSScriptRoot 'lib/guarded-install.ps1'
 $bashGuard = Join-Path $PSScriptRoot 'lib/guarded-install.sh'
 $shell = (Get-Process -Id $PID).Path
 $onWindows = ($PSVersionTable.PSVersion.Major -lt 6) -or $IsWindows
+$onLinux = ($PSVersionTable.PSVersion.Major -ge 6) -and $IsLinux
 $realHome = $HOME
 $realCodexHome = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $HOME '.codex' }
 $utf8NoBom = New-Object System.Text.UTF8Encoding $false
@@ -48,6 +49,11 @@ $stubNames = @('gh', 'glab', 'claude', 'codex', 'npx', 'markitdown-mcp')
 $node = Get-Command node -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
 $defaultStubs = $null
 $allMcpFlags = @('-WithPlaywrightMcp', '-WithContext7Mcp', '-WithMarkitdownMcp')
+$scratchName = Split-Path $scratchRoot -Leaf
+$chromePresent = Join-Path $scratchRoot 'chrome-present'
+$flatpakChrome = 'app/com.google.Chrome/current/active/files/extra/chrome'
+$playwrightAdd = 'playwright -- npx -y @playwright/mcp@latest'
+$linkBoth = @('-Target', 'both', '-SkipMattPocock', '-Link')
 
 $results = @{ passed = 0; failed = 0; skipped = 0 }
 $skipReason = $null
@@ -107,8 +113,11 @@ function New-ScratchHome([string]$Name) {
 
 # Run install.ps1 through the guard. -Environment sets more variables for the run, or replaces the
 # default PATH, which puts the stand-ins first. Calls holds what the stand-ins logged, one per line.
-function Invoke-Installer([string]$ScratchHome, [string[]]$Arguments, [hashtable]$Environment = @{}) {
-    $variables = @{ USERPROFILE = $ScratchHome; HOME = $ScratchHome; CODEX_HOME = (Join-Path $ScratchHome '.codex') }
+function Invoke-Installer([string]$ScratchHome, [string[]]$Arguments, [hashtable]$Environment = @{}, [string]$InstallerPath = $installer) {
+    $variables = @{
+        USERPROFILE = $ScratchHome; HOME = $ScratchHome; CODEX_HOME = (Join-Path $ScratchHome '.codex')
+        G2W_CHROME_ROOT = $chromePresent
+    }
     if ($defaultStubs) {
         $variables.PATH = $defaultStubs + $pathSeparator + $env:PATH
         $variables.G2W_STUB_LOG = $stubLog
@@ -120,7 +129,7 @@ function Invoke-Installer([string]$ScratchHome, [string[]]$Arguments, [hashtable
     $preference = $ErrorActionPreference
     $shellArguments = @('-NoProfile', '-NonInteractive')
     if ($onWindows) { $shellArguments += @('-ExecutionPolicy', 'Bypass') }
-    $shellArguments += @('-File', $guard, '-ScratchHome', $ScratchHome, '-Installer', $installer)
+    $shellArguments += @('-File', $guard, '-ScratchHome', $ScratchHome, '-Installer', $InstallerPath)
     try {
         foreach ($key in $variables.Keys) { [System.Environment]::SetEnvironmentVariable($key, $variables[$key]) }
         # Windows PowerShell 5.1 turns a native command's stderr into terminating errors under Stop.
@@ -274,7 +283,7 @@ function Get-InstalledManifest([string]$HomeDir) {
 }
 
 function Get-StatusLines([string]$Output) {
-    return , @($Output -split "`r?`n" | Where-Object { $_ -match '^    (identical|differs|not installed)\s{2,}\S' })
+    return , @($Output -split "`r?`n" | Where-Object { $_ -match '^    (identical|linked|differs|not installed)\s{2,}\S' })
 }
 
 function Get-MatchCount([string]$Text, [string]$Pattern) {
@@ -284,6 +293,90 @@ function Get-MatchCount([string]$Text, [string]$Pattern) {
 function Test-Link([string]$Path) {
     $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
     return [bool]($item -and ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint))
+}
+
+function Remove-TestLink([string]$Path) {
+    $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
+    if (-not $item) { return }
+    if ($onWindows) { $item.Delete() }
+    else { [System.IO.File]::Delete($item.FullName) }
+}
+
+function Get-SourceRelativeTarget([string]$Path) {
+    $target = [string](@((Get-Item -LiteralPath $Path -Force).Target)[0])
+    $at = $target.IndexOf($scratchName, [System.StringComparison]::OrdinalIgnoreCase)
+    if ($at -lt 0) { return $target }
+    return $target.Substring($at + $scratchName.Length).Replace('\', '/')
+}
+
+function Get-InstalledLinks([string]$HomeDir) {
+    $lines = New-Object System.Collections.Generic.List[string]
+    foreach ($relative in @('.claude/skills', '.claude/agents', '.codex/agents', '.agents/skills')) {
+        $dir = Join-Path $HomeDir $relative
+        if (-not (Test-Path -LiteralPath $dir -PathType Container)) { continue }
+        foreach ($item in @(Get-ChildItem -LiteralPath $dir -Force)) {
+            if (Test-Link $item.FullName) { $lines.Add("$relative/$($item.Name) -> $(Get-SourceRelativeTarget $item.FullName)") }
+        }
+    }
+    $statusline = Join-Path $HomeDir '.claude/statusline.js'
+    if (Test-Link $statusline) { $lines.Add(".claude/statusline.js -> $(Get-SourceRelativeTarget $statusline)") }
+    $sorted = [string[]]$lines.ToArray()
+    [System.Array]::Sort($sorted, [System.StringComparer]::Ordinal)
+    return , $sorted
+}
+
+function Get-ExpectedLinks([bool]$WithCodex) {
+    $lines = @($skills | ForEach-Object { ".claude/skills/$_ -> /source/skills/$_" })
+    $lines += @($claudeAgents | ForEach-Object { ".claude/agents/$_ -> /source/agents/$_" })
+    $lines += '.claude/statusline.js -> /source/statusline/statusline.js'
+    if ($WithCodex) { $lines += @($codexAgents | ForEach-Object { ".codex/agents/$_ -> /source/agents/codex/$_" }) }
+    $sorted = [string[]]$lines
+    [System.Array]::Sort($sorted, [System.StringComparer]::Ordinal)
+    return , $sorted
+}
+
+function Get-ReplacedBackups([string]$HomeDir) {
+    $backups = Join-Path $HomeDir '.claude/backups'
+    if (-not (Test-Path -LiteralPath $backups)) { return , @() }
+    return , @(Get-ChildItem -LiteralPath $backups -Force | Where-Object { $_.Name -notlike 'settings.json-*' } | ForEach-Object Name)
+}
+
+function New-EmptyFile([string]$Path) {
+    New-Item -ItemType Directory -Force -Path (Split-Path $Path -Parent) | Out-Null
+    [System.IO.File]::WriteAllText($Path, '', $utf8NoBom)
+}
+
+function Get-PlaywrightExpectation([string]$Scenario, [string]$Root, [string]$HomeDir) {
+    $chrome = "$Root/opt/google/chrome/chrome"
+    switch ($Scenario) {
+        'opt' { return @{ Arguments = ''; Note = '' } }
+        'system' { $arguments = "--executable-path $Root/var/lib/flatpak/$flatpakChrome" }
+        'user' { $arguments = "--executable-path $HomeDir/.local/share/flatpak/$flatpakChrome" }
+        default {
+            $note = "no Chrome at $chrome or in a Flatpak, so playwright runs Playwright's Chromium (--browser chromium). Install it once:  npx playwright install chromium"
+            return @{ Arguments = '--browser chromium'; Note = $note }
+        }
+    }
+    return @{ Arguments = $arguments; Note = "$chrome is missing, so playwright runs the Flatpak Chrome:  $arguments" }
+}
+
+function Assert-PlaywrightScenario([string]$Scenario, [string]$Stubs) {
+    $root = Join-Path $scratchRoot "chrome-$Scenario"
+    $scratch = New-ScratchHome "playwright-$Scenario"
+    New-Item -ItemType Directory -Force -Path $root | Out-Null
+    if ($Scenario -eq 'opt') { New-EmptyFile "$root/opt/google/chrome/chrome" }
+    if (@('opt', 'system') -contains $Scenario) { New-EmptyFile "$root/var/lib/flatpak/$flatpakChrome" }
+    if (@('opt', 'system', 'user') -contains $Scenario) { New-EmptyFile "$scratch/.local/share/flatpak/$flatpakChrome" }
+    $expected = Get-PlaywrightExpectation $Scenario $root $scratch
+    $environment = @{ PATH = $Stubs + $pathSeparator + $defaultStubs + $pathSeparator + $env:PATH; G2W_CHROME_ROOT = $root }
+    $run = Invoke-Installer $scratch @('-Target', 'both', '-SkipMattPocock', '-WithPlaywrightMcp') $environment
+    Assert-Succeeded $run "install.ps1 ($Scenario)"
+    $extra = if ($expected.Arguments) { ' ' + $expected.Arguments } else { '' }
+    foreach ($call in @("claude mcp add --scope user $playwrightAdd$extra", "codex mcp add $playwrightAdd$extra")) {
+        Assert-True ($run.Calls -ccontains $call) "install.ps1 ($Scenario) did not run '$call':`n$($run.Calls -join "`n")"
+    }
+    if ($expected.Note) { Assert-OutputLines $run.Output @($expected.Note) }
+    else { Assert-True ($run.Output -notmatch "Playwright's browser") "install.ps1 ($Scenario) printed a browser note although Chrome is in place:`n$($run.Output)" }
 }
 
 function New-DirectoryLink([string]$Path, [string]$TargetPath) {
@@ -337,8 +430,7 @@ function Remove-Scratch([string]$Path) {
     $links = @(Get-ChildItem -LiteralPath $Path -Recurse -Force -Attributes ReparsePoint -ErrorAction SilentlyContinue |
             Sort-Object { $_.FullName.Length } -Descending)
     foreach ($link in $links) {
-        $item = Get-Item -LiteralPath $link.FullName -Force -ErrorAction SilentlyContinue
-        if ($item) { $item.Delete() }
+        Remove-TestLink $link.FullName
     }
     [System.IO.Directory]::Delete($Path, $true)
 }
@@ -352,6 +444,7 @@ foreach ($name in @('install.ps1', 'install.sh', 'skills', 'agents', 'statusline
     Copy-Item -LiteralPath (Join-Path $repoRoot $name) -Destination (Join-Path $source $name) -Recurse
 }
 $defaultStubs = New-StubDirectory 'stubs' @('gh', 'glab', 'claude', 'codex')
+New-EmptyFile (Join-Path $chromePresent 'opt/google/chrome/chrome')
 $skills = @(Get-ChildItem -LiteralPath (Join-Path $source 'skills') -Directory |
         Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'SKILL.md') } | ForEach-Object Name)
 $claudeAgents = @(Get-ChildItem -LiteralPath (Join-Path $source 'agents') -Filter '*.md' -File | ForEach-Object Name)
@@ -548,7 +641,7 @@ try {
         $lines = Get-StatusLines $clean.Output
         Assert-Equal $expectedStatusCount $lines.Count "wrong number of status lines:`n$($clean.Output)"
         Assert-Equal 0 (@($lines | Where-Object { $_ -notmatch '^    identical      \S+$' }).Count) "a fresh install is not identical:`n$($clean.Output)"
-        Assert-True ($clean.Output -match "==> Status: $expectedStatusCount identical, 0 differs, 0 not installed\.") "wrong summary:`n$($clean.Output)"
+        Assert-True ($clean.Output -match "==> Status: $expectedStatusCount identical, 0 linked, 0 differs, 0 not installed\.") "wrong summary:`n$($clean.Output)"
         Assert-SameLines $installed (Get-HomeFileMap $scratch) '-Status changed the installed tree'
 
         # A private variant, an extra file, a changed agent and a deleted agent.
@@ -566,7 +659,7 @@ try {
         Assert-True ($parts[0] -match ('(?m)^    differs        agents/' + [regex]::Escape($claudeAgents[0]) + '\r?$')) "changed agent not reported as differs:`n$($drift.Output)"
         Assert-True ($parts[1] -match '(?m)^    differs        skills/ship-it-to  \(extra\.txt\)\r?$') "Codex ship-it-to not reported as differs:`n$($drift.Output)"
         Assert-True ($parts[1] -match ('(?m)^    not installed  agents/' + [regex]::Escape($codexAgents[0]) + '\r?$')) "deleted agent not reported as not installed:`n$($drift.Output)"
-        Assert-True ($drift.Output -match "==> Status: $($expectedStatusCount - 4) identical, 3 differs, 1 not installed\.") "wrong summary:`n$($drift.Output)"
+        Assert-True ($drift.Output -match "==> Status: $($expectedStatusCount - 4) identical, 0 linked, 3 differs, 1 not installed\.") "wrong summary:`n$($drift.Output)"
         Assert-SameLines $changed (Get-HomeFileMap $scratch) '-Status changed a tree that differs'
     }
 
@@ -670,6 +763,112 @@ try {
             Assert-Equal 0 (@($lines | Where-Object { $_ -notmatch '^    identical      \S+$' }).Count) "status across installers is not identical:`n$($cross.Output)"
         }
         Assert-SameLines (Get-StatusLines $crossPs1.Output) (Get-StatusLines $crossSh.Output) 'the two status reports differ'
+    }
+
+    Test-Case 'link mode: -Link links every skill, agent and statusline.js to the checkout; a second run keeps them' {
+        $scratch = New-ScratchHome 'link-mode'
+        $sourceBefore = Get-FileMap $source
+        $run = Invoke-Installer $scratch $linkBoth
+        Assert-Succeeded $run 'install.ps1 -Link'
+        Assert-SameLines (Get-ExpectedLinks $true) (Get-InstalledLinks $scratch) 'the links are not the checkout''s'
+        foreach ($skill in $skills) {
+            Assert-True (-not (Test-Link (Join-Path $scratch ".agents/skills/$skill"))) "Codex $skill is a link, so it was not rewritten"
+            Assert-True (Test-Path -LiteralPath (Join-Path $scratch ".agents/skills/$skill/SKILL.md")) "Codex $skill was not installed"
+        }
+        $orchestrate = [System.IO.File]::ReadAllText((Join-Path $scratch '.agents/skills/orchestrate/SKILL.md'), $utf8NoBom)
+        Assert-True ($orchestrate.Contains('$grill-to-waves')) 'Codex orchestrate was not rewritten'
+        Assert-Equal '' ((Get-ReplacedBackups $scratch) -join ', ') 'a link install into an empty home made a backup'
+        Assert-OutputLines $run.Output @('Codex skills are copied, not linked: the installer rewrites them for Codex.')
+
+        $links = Get-InstalledLinks $scratch
+        $again = Invoke-Installer $scratch $linkBoth
+        Assert-Succeeded $again 'a second install.ps1 -Link'
+        Assert-Equal ((Get-ExpectedLinks $true).Count) (Get-MatchCount $again.Output '(?m)^    already linked ') "a second run did not leave every link alone:`n$($again.Output)"
+        Assert-Equal 0 (Get-MatchCount $again.Output '(?m)^    (linked .* -> |unlinked )') "a second run replaced a link:`n$($again.Output)"
+        Assert-Equal '' ((Get-ReplacedBackups $scratch) -join ', ') 'a second run backed up a link'
+        Assert-SameLines $links (Get-InstalledLinks $scratch) 'a second run changed the links'
+        Assert-SameLines $sourceBefore (Get-FileMap $source) 'the install wrote into the checkout'
+    }
+
+    foreach ($noBackup in @($false, $true)) {
+        $variant = if ($noBackup) { 'with -NoBackup, without a backup' } else { 'moved to backups first' }
+        Test-Case "link mode: -Link replaces an existing copy ($variant)" {
+            $scratch = New-ScratchHome "link-over-copy-$noBackup"
+            Assert-Succeeded (Invoke-Installer $scratch @('-Target', 'claude', '-SkipMattPocock')) 'the copy install'
+            [System.IO.File]::WriteAllText((Join-Path $scratch '.claude/skills/orchestrate/PRIVATE.md'), "a private note`n", $utf8NoBom)
+            $arguments = @('-Target', 'claude', '-SkipMattPocock', '-Link')
+            if ($noBackup) { $arguments += '-NoBackup' }
+            $run = Invoke-Installer $scratch $arguments
+            Assert-Succeeded $run 'install.ps1 -Link over a copy'
+            Assert-SameLines (Get-ExpectedLinks $false) (Get-InstalledLinks $scratch) 'the copies were not replaced by links'
+            Assert-True (-not (Test-Path -LiteralPath (Join-Path $source 'skills/orchestrate/PRIVATE.md'))) 'the replaced copy was merged into the checkout'
+            $replaced = (Get-ExpectedLinks $false).Count
+            if ($noBackup) {
+                Assert-Equal $replaced (Get-MatchCount $run.Output '(?m)^    replacing .* \(no backup\)\r?$') "expected $replaced replacements:`n$($run.Output)"
+                Assert-Equal '' ((Get-ReplacedBackups $scratch) -join ', ') '-NoBackup made a backup'
+                return
+            }
+            Assert-Equal $replaced (Get-MatchCount $run.Output '(?m)^    backed up existing copy to ') "expected $replaced backups:`n$($run.Output)"
+            $backups = Join-Path $scratch '.claude/backups'
+            $kept = @(Get-ChildItem -LiteralPath $backups -Directory -Filter 'orchestrate-*')
+            Assert-Equal 1 $kept.Count 'expected one backup of orchestrate'
+            Assert-True (Test-Path -LiteralPath (Join-Path $kept[0].FullName 'PRIVATE.md')) 'the backup of orchestrate lost the private file'
+            Assert-Equal 1 (@(Get-ChildItem -LiteralPath $backups -Filter "$($claudeAgents[0])-*").Count) 'the agent copy was not backed up'
+            Assert-Equal 1 (@(Get-ChildItem -LiteralPath $backups -Filter 'statusline.js-*').Count) 'statusline.js was not backed up'
+        }
+    }
+
+    Test-Case 'link mode: -Status reports a link to the checkout as linked, a link elsewhere as differs' {
+        $scratch = New-ScratchHome 'link-status'
+        Assert-Succeeded (Invoke-Installer $scratch $linkBoth) 'install.ps1 -Link'
+        $linked = $skills.Count + $claudeAgents.Count + $codexAgents.Count
+        $run = Invoke-Installer $scratch @('-Status', '-Target', 'both')
+        Assert-Succeeded $run '-Status after a link install'
+        $lines = Get-StatusLines $run.Output
+        Assert-Equal $expectedStatusCount $lines.Count "wrong number of status lines:`n$($run.Output)"
+        Assert-Equal $linked (@($lines | Where-Object { $_ -match '^    linked         \S+$' }).Count) "expected $linked linked lines:`n$($run.Output)"
+        Assert-True ($run.Output -match "==> Status: $($skills.Count) identical, $linked linked, 0 differs, 0 not installed\.") "wrong summary:`n$($run.Output)"
+
+        $elsewhere = Join-Path $scratch ".claude/agents/$($claudeAgents[0])"
+        Remove-TestLink $elsewhere
+        New-Item -ItemType SymbolicLink -Path $elsewhere -Value ([System.IO.Path]::GetFullPath((Join-Path $source "agents/$($claudeAgents[1])"))) | Out-Null
+        $run = Invoke-Installer $scratch @('-Status', '-Target', 'both')
+        Assert-Succeeded $run '-Status with a link elsewhere'
+        Assert-True ($run.Output -match ('(?m)^    differs        agents/' + [regex]::Escape($claudeAgents[0]) + '  \(links elsewhere\)\r?$')) "a link elsewhere was not reported as differs:`n$($run.Output)"
+        Assert-True ($run.Output -match "==> Status: $($skills.Count) identical, $($linked - 1) linked, 1 differs, 0 not installed\.") "wrong summary:`n$($run.Output)"
+    }
+
+    Test-Case 'link mode: an install without -Link replaces the links with copies and leaves the checkout alone' {
+        $scratch = New-ScratchHome 'link-back'
+        $sourceBefore = Get-FileMap $source
+        Assert-Succeeded (Invoke-Installer $scratch $linkBoth) 'install.ps1 -Link'
+        $run = Invoke-Installer $scratch @('-Target', 'both', '-SkipMattPocock')
+        Assert-Succeeded $run 'a copy install over links'
+        Assert-Equal '' ((Get-InstalledLinks $scratch) -join ', ') 'links were left'
+        Assert-Equal ((Get-ExpectedLinks $true).Count) (Get-MatchCount $run.Output '(?m)^    unlinked ') "expected every link to be unlinked:`n$($run.Output)"
+        Assert-SameLines $sourceBefore (Get-FileMap $source) 'the copy install wrote into the checkout through a link'
+        $status = Invoke-Installer $scratch @('-Status', '-Target', 'both')
+        Assert-Succeeded $status '-Status'
+        Assert-True ($status.Output -match "==> Status: $expectedStatusCount identical, 0 linked, 0 differs, 0 not installed\.") "the copies are not the checkout's:`n$($status.Output)"
+    }
+
+    Test-Case 'link mode: -Link without a local checkout stops before any change' {
+        $scratch = New-ScratchHome 'link-no-checkout'
+        $lone = Join-Path $scratchRoot 'lone'
+        New-Item -ItemType Directory -Force -Path $lone | Out-Null
+        Copy-Item -LiteralPath $installer -Destination $lone
+        $run = Invoke-Installer $scratch @('-Target', 'both', '-Link') @{} (Join-Path $lone 'install.ps1')
+        Assert-True ($run.ExitCode -ne 0) "install.ps1 -Link without a checkout succeeded:`n$($run.Output)"
+        $squeezed = $run.Output -replace '[\s|+]', ''
+        Assert-True ($squeezed -match '-Linklinkstheinstalledcopiestoalocalcheckout\.Runitfromaclone\.') "no refusal:`n$($run.Output)"
+        Assert-Equal '.g2w-scratch' ((Get-HomeEntries $scratch) -join ', ') 'install.ps1 -Link without a checkout wrote to the home'
+    }
+
+    Test-Case 'playwright: Chrome in /opt as is, else a Flatpak Chrome, else Playwright''s Chromium' {
+        if (-not $node) { $script:skipReason = 'no node found to run the CLI stand-ins'; return }
+        if (-not $onLinux) { $script:skipReason = 'the Chrome lookup runs on Linux only'; return }
+        $stubs = New-StubDirectory 'stubs-playwright' @('claude', 'codex', 'npx')
+        foreach ($scenario in @('opt', 'system', 'user', 'none')) { Assert-PlaywrightScenario $scenario $stubs }
     }
 }
 finally {

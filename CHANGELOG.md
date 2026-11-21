@@ -3,6 +3,58 @@
 What changed in the pipeline's rules and agent set, newest first. The repository carries no version
 tags, so entries are dated. Tiers are named by alias only, as everywhere else in this repository.
 
+## 2026-11-21 — Linked installs, and a Playwright browser that is there
+
+The installers take `--link` (`-Link`): from a clone, every skill folder, agent file and
+`statusline.js` they would copy becomes a symbolic link to the clone's own, so an edit made to an
+installed skill lands in the clone's working tree instead of drifting from it. On Linux,
+`--with-playwright-mcp` now registers Playwright with a browser that exists: Chrome where Playwright
+looks for it, else a Flatpak Chrome, else Playwright's own Chromium.
+
+### After updating
+
+To keep editing the installed skills in place, run the installer from your clone with `--link` on
+each machine (`./install.sh --target both --link` or `./install.ps1 -Target both -Link`); it backs
+up the copies it replaces. On Windows that needs Developer Mode with PowerShell 7, or an elevated
+shell. Without `--link`, run it again as usual.
+
+On Linux without `/opt/google/chrome/chrome`, a `playwright` server registered earlier still points
+at the missing Chrome, and the installer keeps a server it already has. Remove it
+(`claude mcp remove playwright -s user`, `codex mcp remove playwright`) and run the installer again
+with `--with-playwright-mcp`. With `--browser chromium` in the note, run
+`npx playwright install chromium` once.
+
+### Added
+
+- **`--link` / `-Link`** (`install.sh`, `install.ps1`). Valid only from a local checkout: run
+  through `curl … | bash` or `irm … | iex` it stops with one line before changing anything. A
+  target that already links to the checkout is left alone (`already linked`); anything else there is
+  backed up or, with `--no-backup`, removed, as a replaced copy is, then replaced by the link. Codex
+  skills stay copies, since the installer rewrites them for Codex; Codex agent files are linked. The
+  Matt Pocock skills, `settings.json` and the MCP servers are unchanged, and `--project` composes.
+  Windows gets symbolic links only, never junctions (*Worktree teardown — the junction trap* in
+  `DEFAULTS.md`); both installers create a probe link before anything else and stop, naming
+  Developer Mode, when the system refuses it.
+- **`linked`**, a fourth `--status` state: a symbolic link that resolves to the checkout's own copy.
+  A link to anywhere else reports `differs (links elsewhere)`. The summary line counts it.
+- **Tests** in `tests/test-install.sh` and `tests/test-install.ps1`: a link install and its re-run,
+  the backup (and `--no-backup`) of an existing copy, `--status` reporting `linked`, a copy install
+  replacing the links without touching the checkout, the refusal without a checkout, and the three
+  Playwright browser choices. The bash suite also runs `install.ps1` for both when `pwsh` is there,
+  under `G2W_REQUIRE_PARITY`.
+
+### Changed
+
+- **`--with-playwright-mcp` on Linux**, for both hosts. With `/opt/google/chrome/chrome` present the
+  arguments are as before. Otherwise the first Flatpak Chrome that exists,
+  `/var/lib/flatpak/app/com.google.Chrome/current/active/files/extra/chrome` then the same path under
+  `~/.local/share/flatpak`, is passed as `--executable-path <path>`; with neither, the server gets
+  `--browser chromium` and the installer says to run `npx playwright install chromium` once. Either
+  way it prints which it chose. macOS and Windows are unchanged. `G2W_CHROME_ROOT` moves the system
+  paths under another root for the tests.
+- **An install without `--link` over a link** now unlinks an agent file or `statusline.js` before it
+  copies, as it already did a skill folder, so it never writes through a link into its target.
+
 ## 2026-11-21 — Solo runs carry less, and a run's landing is checked
 
 A retro over the week's runs found three costs and two gaps. Every `/orchestrate` turn carried the

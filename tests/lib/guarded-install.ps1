@@ -23,6 +23,7 @@ param(
     [switch]$NoBackup,
     [switch]$SkipMattPocock,
     [switch]$Status,
+    [switch]$Link,
     [switch]$WithPlaywrightMcp,
     [switch]$WithContext7Mcp,
     [switch]$WithMarkitdownMcp

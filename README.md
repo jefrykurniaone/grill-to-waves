@@ -95,7 +95,8 @@ cd grill-to-waves
 | `--ref REF` (`-Ref`) | Branch, tag or commit to fetch when running without a local checkout. |
 | `--skip-mattpocock` (`-SkipMattPocock`) | Do not fetch the Matt Pocock skill collection — offline, or where it is installed some other way. |
 | `--mattpocock-exclude "NAME NAME"` (`-MattPocockExclude NAME,NAME`) | Matt Pocock skills to leave out. Default: `pr`. |
-| `--status` (`-Status`) | Install nothing; report each installed skill and agent as `identical`, `differs` or `not installed`. See *Status and tests*. |
+| `--status` (`-Status`) | Install nothing; report each installed skill and agent as `identical`, `linked`, `differs` or `not installed`. See *Status and tests*. |
+| `--link` (`-Link`) | From a clone only: install symbolic links to the clone's skill folders, agent files and `statusline.js` instead of copies. See *Linking to a clone*. |
 | `--with-playwright-mcp` (`-WithPlaywrightMcp`) | Register the Playwright MCP server on each chosen host. See *MCP servers*. |
 | `--with-context7-mcp` (`-WithContext7Mcp`) | Register the Context7 MCP server on each chosen host. |
 | `--with-markitdown-mcp` (`-WithMarkitdownMcp`) | Register the markitdown MCP server on each chosen host. |
@@ -135,6 +136,32 @@ falls back to local Markdown under `.scratch/`.
 
 Restart the session afterwards so the host re-reads its skill and agent directories.
 
+### Linking to a clone
+
+To work on the skills themselves, install from your clone with `--link` (`-Link`):
+
+```bash
+./install.sh --target both --link          # or  ./install.ps1 -Target both -Link
+```
+
+Every skill folder, agent file and `statusline.js` the installer would copy becomes a symbolic link
+to the clone's own, by absolute path. An edit made to an installed skill, in any session, lands in
+the clone's working tree and shows in `git status`, ready for a pull request — no copying back by
+hand.
+
+- A target that already links to the clone is left alone, so a second run changes nothing. Anything
+  else there is backed up first, as any replaced copy is (`--no-backup` skips that).
+- Codex skills stay copies: the installer rewrites their text for Codex, and a link cannot carry the
+  rewrite. Codex agent files are linked.
+- The Matt Pocock skills, `settings.json` and the MCP servers are installed as without `--link`, and
+  `--project` works the same way.
+- An install without `--link` later replaces the links with copies and leaves the clone untouched.
+- It needs a clone: run through `curl … | bash` or `irm … | iex`, it stops before changing anything.
+- The links are symbolic links, never junctions: a recursive delete follows a junction and empties
+  its target (*Worktree teardown — the junction trap* in `skills/grill-to-waves/DEFAULTS.md`). On
+  Windows a symbolic link needs Developer Mode with PowerShell 7, or an elevated shell; without
+  either, the installer says so and stops before changing anything.
+
 ### MCP servers
 
 The installer registers none unless asked. Each flag registers one server on every host you chose,
@@ -158,6 +185,14 @@ are yours, not the repository's:
 - Codex runs Context7's local package because `codex mcp add` with Context7's URL starts a browser
   OAuth login and waits for it. Both forms work without an API key, at a lower rate limit. The
   installer never writes a key: add your own to the host's configuration if you have one.
+- On Linux, Playwright's default browser is Chrome at `/opt/google/chrome/chrome`. Where that is
+  missing — on an immutable distribution such as Bazzite, Chrome is a Flatpak — the installer adds
+  `--executable-path` with the Flatpak Chrome
+  (`/var/lib/flatpak/app/com.google.Chrome/current/active/files/extra/chrome`, then the same path
+  under `~/.local/share/flatpak`), and otherwise `--browser chromium`, saying to run
+  `npx playwright install chromium` once. It says which it chose. macOS and Windows get the plain
+  arguments. A `playwright` server registered earlier is kept as it is: remove it first to pick up
+  the browser.
 - `npx` downloads a package the first time it starts it, which can outlast the host's MCP startup
   timeout. If the server shows as failed on that first start, start the session again, or raise the
   timeout (`MCP_TIMEOUT` for Claude Code, `startup_timeout_sec` under the server in
@@ -167,7 +202,9 @@ are yours, not the repository's:
 ### Status and tests
 
 From a clone, `--status` (`-Status`) installs nothing and reports how the installed copies relate to
-the checkout — each skill folder and agent file as `identical`, `differs` or `not installed`:
+the checkout — each skill folder and agent file as `identical`, `linked`, `differs` or
+`not installed`. `linked` is a symbolic link to the checkout's own copy, as `--link` leaves it; a
+link to anywhere else `differs`:
 
 ```bash
 ./install.sh --status --target both        # or  ./install.ps1 -Status -Target both
@@ -183,7 +220,10 @@ without `--status`.
 The installers are tested from `tests/`. Every run installs into a scratch directory under the
 system temp path and checks at the end that the real `~/.claude`, `~/.agents` and `~/.codex` are
 untouched. `gh`, `glab`, `claude` and `codex` are stand-ins throughout (`tests/lib/stub-cli.js`, run
-with `node`), so no test signs in to a forge or registers an MCP server:
+with `node`), so no test signs in to a forge or registers an MCP server. `G2W_CHROME_ROOT` moves the
+installers' Chrome lookup (`/opt/google/chrome`, `/var/lib/flatpak`) under a scratch root, so the
+Playwright test covers each browser choice without a real Chrome, and no other test depends on the
+machine's browser:
 
 ```
 pwsh -NoProfile -File tests/test-install.ps1           # install.ps1 under PowerShell 7
@@ -194,7 +234,9 @@ pwsh -NoProfile -File tests/check-docs.ps1             # no Claude model named w
 
 The parity test runs both installers and compares the trees, so the PowerShell suite needs a bash
 (Git Bash, or a WSL distribution named in `G2W_WSL_DISTRO`) and the bash suite needs `pwsh`; without
-one that test is skipped, or fails when `G2W_REQUIRE_PARITY=1`. CI (`.github/workflows/ci.yml`) runs
+one that test is skipped, or fails when `G2W_REQUIRE_PARITY=1`. The bash suite also runs
+`install.ps1` for `--link` and the Playwright browser choice when `pwsh` is there, under the same
+rule, so CI covers `install.ps1` on Linux too. CI (`.github/workflows/ci.yml`) runs
 all of it on push and pull request, with PSScriptAnalyzer and shellcheck.
 
 ### The Matt Pocock skill collection

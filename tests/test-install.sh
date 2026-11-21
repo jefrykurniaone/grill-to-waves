@@ -27,6 +27,9 @@ INSTALLED_PATHS=(.claude/skills .claude/agents .claude/statusline.js .agents/ski
 SKIP_CODE=77
 STUB_NAMES=(gh glab claude codex npx markitdown-mcp)
 ALL_MCP_FLAGS=(--with-playwright-mcp --with-context7-mcp --with-markitdown-mcp)
+FLATPAK_CHROME="app/com.google.Chrome/current/active/files/extra/chrome"
+PLAYWRIGHT_ADD="playwright -- npx -y @playwright/mcp@latest"
+LINK_BOTH=(--target both --skip-mattpocock --link)
 NODE="$(command -v node || true)"
 export G2W_STUB_LOG="$SCRATCH_ROOT/stub-calls.log"
 
@@ -109,6 +112,14 @@ path_without() {          # $1 directory to fill, then the programs to leave out
 
 stub_calls() { if [ -f "$G2W_STUB_LOG" ]; then cat "$G2W_STUB_LOG"; fi; }
 
+touch_path() { mkdir -p "$(dirname "$1")"; : > "$1"; }
+
+has_pwsh() {
+  command -v pwsh >/dev/null 2>&1 && return 0
+  [ "${G2W_REQUIRE_PARITY:-0}" != 1 ] || fail "G2W_REQUIRE_PARITY is 1 and no pwsh was found to run install.ps1."
+  return 1
+}
+
 run_ps1_installer() {     # $1 scratch home, then install.ps1 arguments
   local scratch="$1"
   shift
@@ -127,7 +138,32 @@ file_map() {              # $1 directory; one line per file and link under it, i
   ) | LC_ALL=C sort
 }
 
-status_lines() { printf '%s\n' "$1" | grep -E '^    (identical|differs|not installed) {2,}[^ ]' || true; }
+installed_links() {
+  local path
+  for path in "$1"/.claude/skills/* "$1"/.claude/agents/* "$1"/.codex/agents/* "$1"/.agents/skills/* "$1/.claude/statusline.js"; do
+    if [ -L "$path" ]; then printf '%s -> %s\n' "${path#"$1"/}" "$(readlink "$path")"; fi
+  done | LC_ALL=C sort
+}
+
+expected_links() {
+  local name
+  {
+    for name in "${SKILLS[@]}"; do printf '.claude/skills/%s -> %s\n' "$name" "$SOURCE/skills/$name"; done
+    for name in "${CLAUDE_AGENTS[@]}"; do printf '.claude/agents/%s -> %s\n' "$name" "$SOURCE/agents/$name"; done
+    printf '.claude/statusline.js -> %s\n' "$SOURCE/statusline/statusline.js"
+    if [ "$1" = both ]; then
+      for name in "${CODEX_AGENTS[@]}"; do printf '.codex/agents/%s -> %s\n' "$name" "$SOURCE/agents/codex/$name"; done
+    fi
+  } | LC_ALL=C sort
+}
+
+replaced_backups() {
+  if [ -d "$1/.claude/backups" ]; then find "$1/.claude/backups" -mindepth 1 -maxdepth 1 ! -name 'settings.json-*'; fi
+}
+
+count_lines() { printf '%s\n' "$1" | grep -cE -- "$2" || true; }
+
+status_lines() { printf '%s\n' "$1" | grep -E '^    (identical|linked|differs|not installed) {2,}[^ ]' || true; }
 
 # Everything an install could write in the real home. find does not follow links, so a linked
 # skill folder is recorded as a link. The backups are compared by entry name: the installer only
@@ -335,7 +371,7 @@ case_status() {
   lines="$(status_lines "$out")"
   [ "$(printf '%s\n' "$lines" | wc -l | tr -d ' ')" = "$EXPECTED_STATUS_COUNT" ] || fail "wrong number of status lines: $out"
   [ -z "$(printf '%s\n' "$lines" | grep -vE '^    identical      [^ ]+$' || true)" ] || fail "a fresh install is not identical: $out"
-  has_line "$out" "==> Status: $EXPECTED_STATUS_COUNT identical, 0 differs, 0 not installed." || fail "wrong summary: $out"
+  has_line "$out" "==> Status: $EXPECTED_STATUS_COUNT identical, 0 linked, 0 differs, 0 not installed." || fail "wrong summary: $out"
   [ "$installed" = "$(file_map "$scratch")" ] || fail "--status changed the installed tree"
 
   # A private variant, an extra file, a changed agent and a deleted agent.
@@ -352,7 +388,7 @@ case_status() {
   has_line "$claude" "    differs        agents/${CLAUDE_AGENTS[0]}" || fail "changed agent not reported as differs: $out"
   has_line "$codex" '    differs        skills/ship-it-to  (extra.txt)' || fail "Codex ship-it-to not reported as differs: $out"
   has_line "$codex" "    not installed  agents/${CODEX_AGENTS[0]}" || fail "deleted agent not reported as not installed: $out"
-  has_line "$out" "==> Status: $((EXPECTED_STATUS_COUNT - 4)) identical, 3 differs, 1 not installed." || fail "wrong summary: $out"
+  has_line "$out" "==> Status: $((EXPECTED_STATUS_COUNT - 4)) identical, 0 linked, 3 differs, 1 not installed." || fail "wrong summary: $out"
   [ "$changed" = "$(file_map "$scratch")" ] || fail "--status changed a tree that differs"
 }
 
@@ -459,6 +495,177 @@ case_parity() {
   [ "$(status_lines "$cross_sh")" = "$(status_lines "$cross_ps1" | tr -d '\r')" ] || fail "the two status reports differ"
 }
 
+case_link_mode_install() {
+  local scratch out links source_before skill
+  scratch="$(new_scratch_home link-mode)"
+  source_before="$(file_map "$SOURCE")"
+  out="$(run_installer "$scratch" "${LINK_BOTH[@]}")" || fail "install.sh --link exited $?: $out"
+  [ "$(installed_links "$scratch")" = "$(expected_links both)" ] || fail "the links are not the checkout's: $(installed_links "$scratch")"
+  for skill in "${SKILLS[@]}"; do
+    [ ! -L "$scratch/.agents/skills/$skill" ] || fail "Codex $skill is a link, so it was not rewritten"
+    [ -f "$scratch/.agents/skills/$skill/SKILL.md" ] || fail "Codex $skill was not installed"
+  done
+  grep -qF "\$grill-to-waves" "$scratch/.agents/skills/orchestrate/SKILL.md" || fail "Codex orchestrate was not rewritten"
+  [ ! -L "$scratch/.claude/settings.json" ] || fail "settings.json is a link"
+  [ -z "$(replaced_backups "$scratch")" ] || fail "a link install into an empty home made a backup: $(replaced_backups "$scratch")"
+  has_line "$out" '    Codex skills are copied, not linked: the installer rewrites them for Codex.' || fail "no note about the Codex copies: $out"
+
+  links="$(installed_links "$scratch")"
+  out="$(run_installer "$scratch" "${LINK_BOTH[@]}")" || fail "a second install.sh --link exited $?: $out"
+  [ "$(count_lines "$out" '^    already linked ')" = "$(expected_links both | wc -l | tr -d ' ')" ] || fail "a second run did not leave every link alone: $out"
+  if contains "$out" '^    (linked .* -> |unlinked )'; then fail "a second run replaced a link: $out"; fi
+  [ -z "$(replaced_backups "$scratch")" ] || fail "a second run backed up a link: $(replaced_backups "$scratch")"
+  [ "$links" = "$(installed_links "$scratch")" ] || fail "a second run changed the links"
+  [ "$source_before" = "$(file_map "$SOURCE")" ] || fail "the install wrote into the checkout"
+}
+
+copy_then_link() {
+  local scratch="$1" out
+  shift
+  out="$(run_installer "$scratch" --target claude --skip-mattpocock)" || fail "the copy install exited $?: $out"
+  echo "a private note" > "$scratch/.claude/skills/orchestrate/PRIVATE.md"
+  out="$(run_installer "$scratch" --target claude --skip-mattpocock --link "$@")" || fail "install.sh --link over a copy exited $?: $out"
+  [ "$(installed_links "$scratch")" = "$(expected_links claude)" ] || fail "the copies were not replaced by links: $(installed_links "$scratch")"
+  [ ! -e "$SOURCE/skills/orchestrate/PRIVATE.md" ] || fail "the replaced copy was merged into the checkout"
+  printf '%s' "$out"
+}
+
+case_link_mode_backup() {
+  local scratch out kept replaced
+  scratch="$(new_scratch_home link-over-copy)"
+  out="$(copy_then_link "$scratch")" || exit 1
+  replaced="$(expected_links claude | wc -l | tr -d ' ')"
+  [ "$(count_lines "$out" '^    backed up existing copy to ')" = "$replaced" ] || fail "expected $replaced backups: $out"
+  kept="$(find "$scratch/.claude/backups" -mindepth 1 -maxdepth 1 -type d -name 'orchestrate-*')"
+  [ -f "$kept/PRIVATE.md" ] || fail "the backup of orchestrate lost the private file: $kept"
+  [ "$(find "$scratch/.claude/backups" -name "${CLAUDE_AGENTS[0]}-*" | wc -l | tr -d ' ')" = 1 ] || fail "the agent copy was not backed up"
+  [ "$(find "$scratch/.claude/backups" -name 'statusline.js-*' | wc -l | tr -d ' ')" = 1 ] || fail "statusline.js was not backed up"
+}
+
+case_link_mode_no_backup() {
+  local scratch out replaced
+  scratch="$(new_scratch_home link-over-copy-no-backup)"
+  out="$(copy_then_link "$scratch" --no-backup)" || exit 1
+  replaced="$(expected_links claude | wc -l | tr -d ' ')"
+  [ "$(count_lines "$out" '^    replacing .* \(no backup\)$')" = "$replaced" ] || fail "expected $replaced replacements: $out"
+  [ -z "$(replaced_backups "$scratch")" ] || fail "--no-backup made a backup: $(replaced_backups "$scratch")"
+}
+
+case_link_mode_status() {
+  local scratch out lines linked elsewhere
+  scratch="$(new_scratch_home link-status)"
+  out="$(run_installer "$scratch" "${LINK_BOTH[@]}")" || fail "install.sh --link exited $?: $out"
+  linked=$((${#SKILLS[@]} + ${#CLAUDE_AGENTS[@]} + ${#CODEX_AGENTS[@]}))
+  out="$(run_installer "$scratch" --status --target both)" || fail "--status after a link install exited $?: $out"
+  lines="$(status_lines "$out")"
+  [ "$(printf '%s\n' "$lines" | wc -l | tr -d ' ')" = "$EXPECTED_STATUS_COUNT" ] || fail "wrong number of status lines: $out"
+  [ "$(count_lines "$lines" '^    linked         [^ ]+$')" = "$linked" ] || fail "expected $linked linked lines: $out"
+  has_line "$out" "==> Status: ${#SKILLS[@]} identical, $linked linked, 0 differs, 0 not installed." || fail "wrong summary: $out"
+
+  elsewhere="$scratch/.claude/agents/${CLAUDE_AGENTS[0]}"
+  rm "$elsewhere"
+  ln -s "$SOURCE/agents/${CLAUDE_AGENTS[1]}" "$elsewhere"
+  out="$(run_installer "$scratch" --status --target both)" || fail "--status with a link elsewhere exited $?: $out"
+  has_line "$out" "    differs        agents/${CLAUDE_AGENTS[0]}  (links elsewhere)" || fail "a link elsewhere was not reported as differs: $out"
+  has_line "$out" "==> Status: ${#SKILLS[@]} identical, $((linked - 1)) linked, 1 differs, 0 not installed." || fail "wrong summary: $out"
+}
+
+case_link_mode_back_to_copies() {
+  local scratch out source_before
+  scratch="$(new_scratch_home link-back)"
+  source_before="$(file_map "$SOURCE")"
+  out="$(run_installer "$scratch" "${LINK_BOTH[@]}")" || fail "install.sh --link exited $?: $out"
+  out="$(run_installer "$scratch" --target both --skip-mattpocock)" || fail "a copy install over links exited $?: $out"
+  [ -z "$(installed_links "$scratch")" ] || fail "links were left: $(installed_links "$scratch")"
+  [ "$(count_lines "$out" '^    unlinked ')" = "$(expected_links both | wc -l | tr -d ' ')" ] || fail "expected every link to be unlinked: $out"
+  [ "$source_before" = "$(file_map "$SOURCE")" ] || fail "the copy install wrote into the checkout through a link"
+  out="$(run_installer "$scratch" --status --target both)" || fail "--status exited $?: $out"
+  has_line "$out" "==> Status: $EXPECTED_STATUS_COUNT identical, 0 linked, 0 differs, 0 not installed." || fail "the copies are not the checkout's: $out"
+}
+
+case_link_mode_needs_checkout() {
+  local scratch lone="$SCRATCH_ROOT/lone" out code=0
+  scratch="$(new_scratch_home link-no-checkout)"
+  mkdir -p "$lone"
+  cp "$SOURCE/install.sh" "$lone/"
+  out="$(bash "$HERE/lib/guarded-install.sh" "$scratch" "$lone/install.sh" --target both --link 2>&1)" || code=$?
+  [ "$code" = 2 ] || fail "install.sh --link without a checkout exited $code: $out"
+  has_line "$out" '--link links the installed copies to a local checkout. Run it from a clone.' || fail "no refusal: $out"
+  [ "$(ls -A "$scratch")" = .g2w-scratch ] || fail "install.sh --link without a checkout wrote to the home"
+}
+
+case_link_mode_parity() {
+  local from_sh from_ps1 out source_before
+  if ! has_pwsh; then skip "no pwsh found to run install.ps1"; fi
+  from_sh="$(new_scratch_home link-parity-sh)"
+  from_ps1="$(new_scratch_home link-parity-ps1)"
+  source_before="$(file_map "$SOURCE")"
+  out="$(run_installer "$from_sh" "${LINK_BOTH[@]}")" || fail "install.sh --link exited $?: $out"
+  out="$(run_ps1_installer "$from_ps1" -Target both -SkipMattPocock -Link)" || fail "install.ps1 -Link exited $?: $out"
+  [ "$(installed_links "$from_ps1")" = "$(expected_links both)" ] || fail "install.ps1 -Link made other links: $(installed_links "$from_ps1")"
+  out="$(run_ps1_installer "$from_ps1" -Target both -SkipMattPocock -Link)" || fail "a second install.ps1 -Link exited $?: $out"
+  [ "$(count_lines "$out" '^    already linked ')" = "$(expected_links both | wc -l | tr -d ' ')" ] || fail "a second install.ps1 -Link did not leave every link alone: $out"
+
+  out="$(run_ps1_installer "$from_sh" -Status -Target both)" || fail "install.ps1 -Status on the install.sh links exited $?: $out"
+  has_line "$out" "==> Status: ${#SKILLS[@]} identical, $((EXPECTED_STATUS_COUNT - ${#SKILLS[@]})) linked, 0 differs, 0 not installed." || fail "install.ps1 -Status disagrees: $out"
+  out="$(run_installer "$from_ps1" --status --target both)" || fail "install.sh --status on the install.ps1 links exited $?: $out"
+  has_line "$out" "==> Status: ${#SKILLS[@]} identical, $((EXPECTED_STATUS_COUNT - ${#SKILLS[@]})) linked, 0 differs, 0 not installed." || fail "install.sh --status disagrees: $out"
+
+  out="$(run_ps1_installer "$from_ps1" -Target both -SkipMattPocock)" || fail "an install.ps1 copy install over links exited $?: $out"
+  [ -z "$(installed_links "$from_ps1")" ] || fail "install.ps1 left links: $(installed_links "$from_ps1")"
+  [ "$source_before" = "$(file_map "$SOURCE")" ] || fail "an installer wrote into the checkout"
+}
+
+playwright_expectation() {
+  local chrome="$2/opt/google/chrome/chrome"
+  case "$1" in
+    opt) PLAYWRIGHT_ARGS=""; PLAYWRIGHT_NOTE="" ;;
+    system) PLAYWRIGHT_ARGS="--executable-path $2/var/lib/flatpak/$FLATPAK_CHROME" ;;
+    user) PLAYWRIGHT_ARGS="--executable-path $3/.local/share/flatpak/$FLATPAK_CHROME" ;;
+    *) PLAYWRIGHT_ARGS="--browser chromium"
+       PLAYWRIGHT_NOTE="no Chrome at $chrome or in a Flatpak, so playwright runs Playwright's Chromium (--browser chromium). Install it once:  npx playwright install chromium" ;;
+  esac
+  case "$1" in system|user) PLAYWRIGHT_NOTE="$chrome is missing, so playwright runs the Flatpak Chrome:  $PLAYWRIGHT_ARGS" ;; esac
+}
+
+playwright_scenario() {
+  local root="$SCRATCH_ROOT/chrome-$1-$2" scratch out calls extra
+  scratch="$(new_scratch_home "playwright-$1-$2")"
+  mkdir -p "$root"
+  case "$1" in opt) touch_path "$root/opt/google/chrome/chrome" ;; esac
+  case "$1" in opt|system) touch_path "$root/var/lib/flatpak/$FLATPAK_CHROME" ;; esac
+  case "$1" in opt|system|user) touch_path "$scratch/.local/share/flatpak/$FLATPAK_CHROME" ;; esac
+  playwright_expectation "$1" "$root" "$scratch"
+  export G2W_CHROME_ROOT="$root"
+  rm -f "$G2W_STUB_LOG"
+  if [ "$2" = sh ]; then
+    out="$(run_installer "$scratch" --target both --skip-mattpocock --with-playwright-mcp)" || fail "install.sh ($1) exited $?: $out"
+  else
+    out="$(run_ps1_installer "$scratch" -Target both -SkipMattPocock -WithPlaywrightMcp)" || fail "install.ps1 ($1) exited $?: $out"
+  fi
+  calls="$(stub_calls)"
+  extra="${PLAYWRIGHT_ARGS:+ $PLAYWRIGHT_ARGS}"
+  has_line "$calls" "claude mcp add --scope user $PLAYWRIGHT_ADD$extra" || fail "install.$2 ($1) registered the wrong playwright for Claude Code: $calls"
+  has_line "$calls" "codex mcp add $PLAYWRIGHT_ADD$extra" || fail "install.$2 ($1) registered the wrong playwright for Codex CLI: $calls"
+  if [ -n "$PLAYWRIGHT_NOTE" ]; then
+    has_line "$out" "    $PLAYWRIGHT_NOTE" || fail "install.$2 ($1) printed no line '$PLAYWRIGHT_NOTE': $out"
+  elif contains "$out" "Playwright's browser"; then
+    fail "install.$2 ($1) printed a browser note although Chrome is in place: $out"
+  fi
+}
+
+case_playwright_chrome() {
+  local stubs installers=(sh) installer scenario
+  [ -n "$NODE" ] || skip "no node found to run the CLI stand-ins"
+  [ "$(uname -s)" = Linux ] || skip "the Chrome lookup runs on Linux only"
+  if has_pwsh; then installers+=(ps1); fi
+  stubs="$(new_stub_dir stubs-playwright claude codex npx)"
+  export PATH="$stubs:$PATH"
+  for installer in "${installers[@]}"; do
+    for scenario in opt system user none; do playwright_scenario "$scenario" "$installer"; done
+  done
+}
+
 case_real_home() {
   diff "$SCRATCH_ROOT/real-home.before" <(real_home_fingerprint) || fail "the real home under $REAL_HOME changed during the run"
 }
@@ -475,6 +682,8 @@ cp "$REPO/install.sh" "$REPO/install.ps1" "$SOURCE/"
 cp -R "$REPO/skills" "$REPO/agents" "$REPO/statusline" "$SOURCE/"
 DEFAULT_STUBS="$(new_stub_dir stubs gh glab claude codex)"
 export PATH="$DEFAULT_STUBS:$PATH"
+export G2W_CHROME_ROOT="$SCRATCH_ROOT/chrome-present"
+touch_path "$G2W_CHROME_ROOT/opt/google/chrome/chrome"
 
 SKILLS=()
 for path in "$SOURCE"/skills/*/SKILL.md; do SKILLS+=("$(basename "$(dirname "$path")")"); done
@@ -495,6 +704,14 @@ run_case "status: not installed, then identical, then differs, and it never writ
 run_case "forge CLIs and MCP servers: reported, registered through the host CLIs, an existing name kept" case_forge_and_mcp
 run_case "forge CLIs and MCP servers: what is not on PATH is reported, and a server the host has is kept" case_forge_and_mcp_missing
 run_case "parity: install.sh and install.ps1 produce the same tree for --target both" case_parity
+run_case "link mode: --link links every skill, agent and statusline.js to the checkout; a second run keeps them" case_link_mode_install
+run_case "link mode: --link moves an existing copy to backups first" case_link_mode_backup
+run_case "link mode: --link with --no-backup replaces an existing copy without a backup" case_link_mode_no_backup
+run_case "link mode: --status reports a link to the checkout as linked, a link elsewhere as differs" case_link_mode_status
+run_case "link mode: an install without --link replaces the links with copies and leaves the checkout alone" case_link_mode_back_to_copies
+run_case "link mode: --link without a local checkout stops before any change" case_link_mode_needs_checkout
+run_case "link mode parity: install.ps1 -Link makes the same links, and each status reads the other's" case_link_mode_parity
+run_case "playwright: Chrome in /opt as is, else a Flatpak Chrome, else Playwright's Chromium" case_playwright_chrome
 run_case "real home: ~/.claude, ~/.agents and ~/.codex are what they were before the run" case_real_home
 
 echo "$PASSED passed, $FAILED failed, $SKIPPED skipped"
