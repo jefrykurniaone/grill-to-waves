@@ -19,8 +19,8 @@ surfaces and the blocking edges into the wave order those sessions execute.
 
 Two agent sessions never share one working copy: a second session in the same tree contends on the
 tree, the dev server and the dev database at once. The protocol both skills share — surfaces,
-collision, worktrees, paired runs — is [SESSIONS.md](./SESSIONS.md); per-tracker mechanics are
-[TRACKERS.md](./TRACKERS.md). This file points at them rather than restating them.
+collision, worktrees — is [SESSIONS.md](./SESSIONS.md), and a run across several repositories adds
+[PAIRED.md](./PAIRED.md); per-tracker mechanics are [TRACKERS.md](./TRACKERS.md). This file points at them rather than restating them.
 
 This session runs on the frontier tier at `high` or above. Model and effort assignment follows
 [DEFAULTS.md](./DEFAULTS.md), which travels with this skill; a
@@ -48,7 +48,7 @@ Then make sure the repo carries the labels `meta:orchestration`, `ready-for-agen
 
 **Work that lands in more than one repository is a paired run**, planned by this one session from
 the lead repository. This stage then runs once per repository, and every later stage changes as
-[SESSIONS.md](./SESSIONS.md) §6 *Planning a paired run* says: read it before going on.
+[PAIRED.md](./PAIRED.md) *Planning a paired run* says: read it before going on.
 
 Done when: every repository's tracker is named and carries the label vocabulary.
 
@@ -77,7 +77,7 @@ Pick a run slug and create `run:<slug>` (description: "Belongs to delivery run <
 Before writing, sketch the seams the work will be tested at — existing seams first, the highest seam
 possible, ideally one, each with a one-line note on what it catches and what it misses — and confirm
 them with the user. Then write each spec on this template, opening it with the as-of line — in a
-paired run followed by its `Paired specs` line ([SESSIONS.md](./SESSIONS.md) §6) — and publish it
+paired run followed by its `Paired specs` line ([PAIRED.md](./PAIRED.md)) — and publish it
 with `ready-for-agent`, `run:<slug>` and its own `spec:<slug>` label (description: "Belongs to spec <ref> - <title>"). No
 file paths and no code in a spec; those belong to tickets. The exception is a prototype snippet that
 encodes a decision more precisely than prose (a state machine, a schema, a type shape), trimmed to
@@ -190,7 +190,7 @@ executor: the surface to open, the role to sign in as, the property to measure, 
 must hold. A criterion an executor cannot satisfy and a walk cannot check is not a
 criterion. In a paired run, a walk that needs another repository's running app declares it on the
 same line, one `peer:<folder>` entry per repository (`runtime: dev-server, peer:payments-service`):
-the launch then borrows that working copy (SESSIONS.md §2 and §6), and an undeclared need stops the
+the launch then borrows that working copy (SESSIONS.md §2 and PAIRED.md), and an undeclared need stops the
 walk.
 
 Label every ticket `ready-for-agent`, `run:<slug>`, its spec's `spec:<slug>`, its `executor:` and
@@ -286,7 +286,7 @@ from Stage 4: `Run closes at:`, `Steps after close owned by:`, and beside them
 
 **A paired run** — work that lands in more than one repository — has one map per repository, each in
 that repository's own tracker, and the lead map also carries the *Paired runs* line and the *Run order
-across repositories* section, all as SESSIONS.md §6 says.
+across repositories* section, all as PAIRED.md says.
 
 Done when: the map item exists and every
 ticket appears in exactly one wave.
@@ -316,7 +316,7 @@ step's *Released by* names only other repositories' tickets, unless the owner ch
 without one whose open tickets wait on them (`/conduct` Stage 2, *A parked launch*). A borrowing
 launch also waits until every lender passes the borrow check, and a lender
 stays lent after its borrower's session died mid-walk, until that borrower is started again and has
-cleaned up ([SESSIONS.md](./SESSIONS.md) §6, *A borrow that outlived its session*):
+cleaned up ([PAIRED.md](./PAIRED.md), *A borrow that outlived its session*):
 
 ```
 billing-service    /orchestrate map <its map> + check
