@@ -1,0 +1,51 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    name: CI
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    name: Publish the GitHub Release
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: The tag is lightweight and on main
+        run: |
+          if [ -n "$(git ls-remote --tags origin "refs/tags/$TAG^{}")" ]; then
+            echo "::error::$TAG is an annotated tag, and a shallow clone of one warns that it is not a commit. Delete it and push a lightweight tag: git tag $TAG <commit>"
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::$TAG points at a commit that is not on main."
+            exit 1
+          fi
+
+      - name: Release notes and installers
+        run: bash .github/scripts/prepare-release.sh "$TAG" dist
+
+      - name: Publish
+        run: >-
+          gh release create "$TAG" dist/install.sh dist/install.ps1
+          --verify-tag --latest --title "$TAG" --notes-file dist/notes.md

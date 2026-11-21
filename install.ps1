@@ -83,7 +83,7 @@ own Chromium through --browser chromium (install it once with  npx playwright in
 .EXAMPLE
 ./install.ps1 -Target claude -Project D:\WORK\PROJECT\my-repo
 .EXAMPLE
-irm https://raw.githubusercontent.com/jefrykurniaone/grill-to-waves/main/install.ps1 | iex
+irm https://github.com/jefrykurniaone/grill-to-waves/releases/latest/download/install.ps1 | iex
 #>
 [CmdletBinding()]
 param(
@@ -200,7 +200,7 @@ else {
     }
     $sourceRoot = Join-Path ([System.IO.Path]::GetTempPath()) "grill-to-waves-$Stamp"
     Write-Step "Source: cloning $Repo ($Ref) to $sourceRoot"
-    git clone --quiet --depth 1 --branch $Ref $Repo $sourceRoot
+    git -c advice.detachedHead=false clone --quiet --depth 1 --branch $Ref $Repo $sourceRoot
     if ($LASTEXITCODE -ne 0) { throw "git clone failed with exit code $LASTEXITCODE." }
 }
 
