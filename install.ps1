@@ -32,7 +32,7 @@ Both hosts, into the same skills directory as above:
 MCP servers, only the ones asked for, registered on each chosen host through its own CLI
 (`claude mcp add --scope user`, `codex mcp add`) at user scope, even with -Project. A server the
 host already has under that name is kept.
-  -WithPlaywrightMcp   playwright   npx -y @playwright/mcp@latest
+  -WithPlaywrightMcp   playwright   npx -y @playwright/mcp@latest (on Linux, see below)
   -WithContext7Mcp     context7     https://mcp.context7.com/mcp on Claude Code,
                                     npx -y @upstash/context7-mcp on Codex
   -WithMarkitdownMcp   markitdown   the markitdown-mcp program found on PATH
@@ -50,11 +50,25 @@ Any directory it is about to replace is first moved to <backups>/<name>-<timesta
 -NoBackup is given. Backups: ~/.claude/backups for Claude Code, ~/.codex/backups for Codex.
 
 -Status installs nothing. From a local checkout it lists every skill folder and agent file the
-installer would install for the chosen target as `identical`, `differs` or `not installed`,
-comparing byte for byte against what an install would write (for Codex, the rewritten skill text).
-It reads no network and writes no file, leaves the Matt Pocock collection and the MCP servers out,
-lists gh and glab as installed or not without asking either whether it is signed in, and exits 0
-whatever it finds: a copy that differs may be a private variant kept on purpose.
+installer would install for the chosen target as `identical`, `linked`, `differs` or
+`not installed`, comparing byte for byte against what an install would write (for Codex, the
+rewritten skill text); `linked` is a symbolic link to the checkout's own copy, and a link to
+anywhere else `differs`. It reads no network and writes no file, leaves the Matt Pocock collection
+and the MCP servers out, lists gh and glab as installed or not without asking either whether it is
+signed in, and exits 0 whatever it finds: a copy that differs may be a private variant kept on
+purpose.
+
+-Link, from a local checkout only, installs symbolic links instead of copies: each skill folder,
+agent file and statusline.js the installer would copy becomes a link to the checkout's own, so an
+edit made in the installed copy lands in the clone and shows in `git status`. A target that already
+links there is left alone; anything else there is backed up (removed with -NoBackup) first. Codex
+skills are still copied, since the installer rewrites them for Codex. Links are symbolic links,
+never junctions. Without a checkout, or where Windows refuses a symbolic link (no Developer Mode, or
+Windows PowerShell 5.1 without elevation), it stops before any change.
+
+On Linux, -WithPlaywrightMcp points the server at a browser that is there: Chrome at
+/opt/google/chrome/chrome as is, else a Flatpak Chrome through --executable-path, else Playwright's
+own Chromium through --browser chromium (install it once with  npx playwright install chromium).
 
 .EXAMPLE
 ./install.ps1
@@ -62,6 +76,8 @@ whatever it finds: a copy that differs may be a private variant kept on purpose.
 ./install.ps1 -Status -Target both
 .EXAMPLE
 ./install.ps1 -Target codex
+.EXAMPLE
+./install.ps1 -Target both -Link
 .EXAMPLE
 ./install.ps1 -Target both -WithPlaywrightMcp -WithContext7Mcp -WithMarkitdownMcp
 .EXAMPLE
@@ -93,6 +109,9 @@ param(
     # Install nothing: report how the installed copies relate to this checkout. Read-only, offline.
     [switch]$Status,
 
+    # Install symbolic links to this checkout instead of copies.
+    [switch]$Link,
+
     # Register the Playwright, Context7 or markitdown MCP server on each chosen host.
     [switch]$WithPlaywrightMcp,
     [switch]$WithContext7Mcp,
@@ -121,6 +140,12 @@ $McpPrerequisites = @{
 $Stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $Utf8NoBom = New-Object System.Text.UTF8Encoding $false
 $OnWindows = ($PSVersionTable.PSVersion.Major -lt 6) -or $IsWindows
+$OnLinux = ($PSVersionTable.PSVersion.Major -ge 6) -and $IsLinux
+$chromeRoot = if ($env:G2W_CHROME_ROOT) { $env:G2W_CHROME_ROOT } else { '' }
+$ChromeDefault = "$chromeRoot/opt/google/chrome/chrome"
+$FlatpakChrome = 'app/com.google.Chrome/current/active/files/extra/chrome'
+$ChromeFlatpaks = @("$chromeRoot/var/lib/flatpak/$FlatpakChrome", "$HOME/.local/share/flatpak/$FlatpakChrome")
+$playwrightBrowserArguments = @()
 
 function Write-Step([string]$Message) { Write-Host "==> $Message" }
 function Write-Note([string]$Message) { Write-Host "    $Message" }
@@ -167,6 +192,9 @@ else {
     if ($Status) {
         throw '-Status compares the installed copies against a local checkout. Run it from a clone.'
     }
+    if ($Link) {
+        throw '-Link links the installed copies to a local checkout. Run it from a clone.'
+    }
     if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
         throw 'git is required to fetch the skills when the script runs without a local checkout.'
     }
@@ -212,30 +240,91 @@ $codexAgentsDir = if ($projectRoot) { Join-Path $projectRoot '.codex/agents' } e
 $codexBackups = Join-Path $codexHome 'backups'
 
 # --- 3. Helpers ---------------------------------------------------------------------------------
+function Test-IsLink([string]$Path) {
+    $item = Get-Item -LiteralPath $Path -Force -ErrorAction SilentlyContinue
+    if (-not $item -or -not ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint)) { return $false }
+    return @('SymbolicLink', 'Junction') -contains $item.LinkType
+}
+
+function Remove-Link([string]$Path) {
+    if ($OnWindows) { (Get-Item -LiteralPath $Path -Force).Delete() }
+    else { [System.IO.File]::Delete($Path) }
+}
+
+function Test-SamePath([string]$Left, [string]$Right) {
+    $a = [System.IO.Path]::GetFullPath($Left).TrimEnd('\', '/')
+    $b = [System.IO.Path]::GetFullPath($Right).TrimEnd('\', '/')
+    if ($OnWindows) { return $a -eq $b }
+    return $a -ceq $b
+}
+
+function Test-LinkTo([string]$Path, [string]$Source) {
+    if (-not (Test-IsLink $Path)) { return $false }
+    $target = [string](@((Get-Item -LiteralPath $Path -Force).Target)[0])
+    if (-not $target) { return $false }
+    if ($target.StartsWith('\\?\')) { $target = $target.Substring(4) }
+    return Test-SamePath ([System.IO.Path]::Combine((Split-Path $Path -Parent), $target)) $Source
+}
+
 # A destination that is a junction or symlink - an `npx skills` install links <agent>/skills/<name>
 # to ~/.agents/skills/<name> - is unlinked, never followed: a recursive delete through it would
 # empty the link's target.
-function Install-Directory([string]$From, [string]$To, [string]$BackupRoot) {
-    $existing = Get-Item -LiteralPath $To -Force -ErrorAction SilentlyContinue
-    if ($existing -and ($existing.Attributes -band [System.IO.FileAttributes]::ReparsePoint)) {
-        $existing.Delete()
+function Move-ExistingItem([string]$To, [string]$BackupRoot) {
+    if (Test-IsLink $To) {
+        Remove-Link $To
         Write-Note "unlinked $To"
     }
-    if (Test-Path $To) {
-        if ($NoBackup) {
-            Write-Note "replacing $To (no backup)"
-        }
-        else {
-            $backup = Join-Path $BackupRoot ("{0}-{1}" -f (Split-Path $To -Leaf), $Stamp)
-            New-Item -ItemType Directory -Force -Path $BackupRoot | Out-Null
-            Move-Item -LiteralPath $To -Destination $backup
-            Write-Note "backed up existing copy to $backup"
-        }
-        if (Test-Path $To) { Remove-Item -LiteralPath $To -Recurse -Force }
+    if (-not (Test-Path -LiteralPath $To)) { return }
+    if ($NoBackup) {
+        Write-Note "replacing $To (no backup)"
     }
+    else {
+        $backup = Join-Path $BackupRoot ("{0}-{1}" -f (Split-Path $To -Leaf), $Stamp)
+        New-Item -ItemType Directory -Force -Path $BackupRoot | Out-Null
+        Move-Item -LiteralPath $To -Destination $backup
+        Write-Note "backed up existing copy to $backup"
+    }
+    if (Test-Path -LiteralPath $To) { Remove-Item -LiteralPath $To -Recurse -Force }
+}
+
+function Install-Directory([string]$From, [string]$To, [string]$BackupRoot) {
+    Move-ExistingItem $To $BackupRoot
     New-Item -ItemType Directory -Force -Path (Split-Path $To -Parent) | Out-Null
     Copy-Item -LiteralPath $From -Destination $To -Recurse
     Write-Note "installed $To"
+}
+
+function New-SourceLink([string]$From, [string]$To, [string]$BackupRoot) {
+    if (Test-LinkTo $To $From) {
+        Write-Note "already linked $To"
+        return
+    }
+    Move-ExistingItem $To $BackupRoot
+    $target = [System.IO.Path]::GetFullPath($From)
+    New-Item -ItemType Directory -Force -Path (Split-Path $To -Parent) | Out-Null
+    New-Item -ItemType SymbolicLink -Path $To -Value $target | Out-Null
+    Write-Note "linked $To -> $target"
+}
+
+function Install-DirectoryOrLink([string]$From, [string]$To, [string]$BackupRoot) {
+    if ($Link) { New-SourceLink $From $To $BackupRoot }
+    else { Install-Directory $From $To $BackupRoot }
+}
+
+function Install-FileOrLink([string]$From, [string]$To, [string]$BackupRoot) {
+    if ($Link) { New-SourceLink $From $To $BackupRoot }
+    else { Install-File $From $To $BackupRoot }
+}
+
+function Assert-SymbolicLinkSupport {
+    $probe = Join-Path ([System.IO.Path]::GetTempPath()) "g2w-link-probe-$Stamp-$PID"
+    try {
+        New-Item -ItemType SymbolicLink -Path $probe -Value (Join-Path $sourceRoot 'skills') -ErrorAction Stop | Out-Null
+    }
+    catch {
+        throw "-Link needs symbolic links, and this system refused one ($($_.Exception.Message)). Turn on Developer Mode (Settings > System > For developers) and run the installer under PowerShell 7, or run it elevated."
+    }
+    Remove-Link $probe
 }
 
 # The latest release of the Matt Pocock collection: the tag GitHub names as latest, or the highest
@@ -269,7 +358,11 @@ function Install-MattPocockSkills([string]$SkillsRoot, [string]$BackupRoot) {
 }
 
 function Install-File([string]$From, [string]$To, [string]$BackupRoot) {
-    if ((Test-Path $To) -and -not $NoBackup) {
+    if (Test-IsLink $To) {
+        Remove-Link $To
+        Write-Note "unlinked $To"
+    }
+    elseif ((Test-Path $To) -and -not $NoBackup) {
         New-Item -ItemType Directory -Force -Path $BackupRoot | Out-Null
         Copy-Item -LiteralPath $To -Destination (Join-Path $BackupRoot ("{0}-{1}" -f (Split-Path $To -Leaf), $Stamp))
     }
@@ -343,8 +436,13 @@ function Hide-ClaudeAttribution([string]$SettingsPath, [string]$BackupRoot) {
 # alongside the settings that point at it, and an existing `statusLine` is left alone.
 function Install-ClaudeStatusLine([string]$Source, [string]$ClaudeUserHome, [string]$BackupRoot) {
     $dest = Join-Path $ClaudeUserHome 'statusline.js'
-    Install-File $Source $dest $BackupRoot
-    Write-Note "installed $dest"
+    if ($Link) {
+        New-SourceLink $Source $dest $BackupRoot
+    }
+    else {
+        Install-File $Source $dest $BackupRoot
+        Write-Note "installed $dest"
+    }
 
     $script = $dest.Replace('\', '/')
     $nodeCmd = Get-Command node -ErrorAction SilentlyContinue
@@ -404,9 +502,17 @@ function Get-RelativeFiles([string]$Root) {
             ForEach-Object { $_.FullName.Substring($prefix).Replace('\', '/') })
 }
 
-# `identical`, `not installed`, or `differs` with the files that are changed, missing or extra.
-# Codex rewrites the Markdown at the top of a skill folder and nothing below it.
+function Get-LinkStatus([string]$From, [string]$To) {
+    if (-not (Test-IsLink $To)) { return $null }
+    if (Test-LinkTo $To $From) { return 'linked' }
+    return 'differs (links elsewhere)'
+}
+
+# `identical`, `linked`, `not installed`, or `differs` with the files that are changed, missing or
+# extra. Codex rewrites the Markdown at the top of a skill folder and nothing below it.
 function Get-DirectoryStatus([string]$From, [string]$To, [bool]$ForCodex) {
+    $linkStatus = Get-LinkStatus $From $To
+    if ($linkStatus) { return $linkStatus }
     if (-not (Test-Path -LiteralPath $To -PathType Container)) { return 'not installed' }
     $expected = Get-RelativeFiles $From
     $installed = Get-RelativeFiles $To
@@ -426,6 +532,8 @@ function Get-DirectoryStatus([string]$From, [string]$To, [bool]$ForCodex) {
 }
 
 function Get-FileStatus([string]$From, [string]$To) {
+    $linkStatus = Get-LinkStatus $From $To
+    if ($linkStatus) { return $linkStatus }
     if (-not (Test-Path -LiteralPath $To -PathType Leaf)) { return 'not installed' }
     if (Test-InstalledFile $From $To $false) { return 'identical' }
     return 'differs'
@@ -495,12 +603,27 @@ function Write-ForgeCliReport([bool]$CheckSignIn) {
     Write-Note "WARNING: neither gh nor glab is installed, so the pipeline falls back to local Markdown under .scratch/. Install the one your remote needs:  $hint"
 }
 
+function Get-PlaywrightBrowserArguments {
+    if (-not $OnLinux -or (Test-Path -LiteralPath $ChromeDefault)) { return @() }
+    Write-Step "MCP servers: Playwright's browser"
+    foreach ($path in $ChromeFlatpaks) {
+        if (-not (Test-Path -LiteralPath $path)) { continue }
+        Write-Note "$ChromeDefault is missing, so playwright runs the Flatpak Chrome:  --executable-path $path"
+        return @('--executable-path', $path)
+    }
+    Write-Note "no Chrome at $ChromeDefault or in a Flatpak, so playwright runs Playwright's Chromium (--browser chromium). Install it once:  npx playwright install chromium"
+    return @('--browser', 'chromium')
+}
+
 # What `<host> mcp add` takes for one server, and the program that server runs. Context7 is its
 # remote server on Claude Code. Codex starts a browser OAuth login the moment it adds that URL and
 # waits on it, so on Codex Context7 runs as its local package instead.
 function Get-McpServerSpec([string]$Server, [string]$McpHost) {
     switch ($Server) {
-        'playwright' { return @{ Needs = 'npx'; Arguments = @('playwright', '--', 'npx', '-y', '@playwright/mcp@latest') } }
+        'playwright' {
+            $arguments = @('playwright', '--', 'npx', '-y', '@playwright/mcp@latest') + $playwrightBrowserArguments
+            return @{ Needs = 'npx'; Arguments = $arguments }
+        }
         'context7' {
             if ($McpHost -eq 'claude') { return @{ Needs = $null; Arguments = @('--transport', 'http', 'context7', $Context7Url) } }
             return @{ Needs = 'npx'; Arguments = @('context7', '--', 'npx', '-y', '@upstash/context7-mcp') }
@@ -547,7 +670,7 @@ function Register-McpServer([string]$Server, [string]$McpHost) {
 # --- 4. Status ----------------------------------------------------------------------------------
 # Compare, report and stop. Nothing below this section runs, so nothing is fetched or written.
 if ($Status) {
-    $statusCounts = @{ 'identical' = 0; 'differs' = 0; 'not installed' = 0 }
+    $statusCounts = @{ 'identical' = 0; 'linked' = 0; 'differs' = 0; 'not installed' = 0 }
     if ($doClaude) {
         Write-Step "Status: Claude Code -> $claudeHome"
         foreach ($skill in $Skills) {
@@ -568,10 +691,13 @@ if ($Status) {
     }
     Write-Step 'Status: forge CLIs (installed or not; an install also checks the sign-in)'
     Write-ForgeCliReport $false
-    Write-Step "Status: $($statusCounts['identical']) identical, $($statusCounts['differs']) differs, $($statusCounts['not installed']) not installed."
+    Write-Step "Status: $($statusCounts['identical']) identical, $($statusCounts['linked']) linked, $($statusCounts['differs']) differs, $($statusCounts['not installed']) not installed."
     Write-Note 'Nothing was changed. A copy that differs stays as it is until the installer runs without -Status.'
     return
 }
+
+if ($Link) { Assert-SymbolicLinkSupport }
+$placed = if ($Link) { 'linked' } else { 'installed' }
 
 # --- 5. Fetch the Matt Pocock collection ---------------------------------------------------------
 # Straight from its GitHub repository, at the latest release, before anything is installed - so a
@@ -620,15 +746,15 @@ if ($doClaude) {
     Write-Step "Claude Code -> $claudeHome"
     $backups = Join-Path $claudeHome 'backups'
     foreach ($skill in $Skills) {
-        Install-Directory (Join-Path $sourceRoot "skills/$skill") (Join-Path $claudeHome "skills/$skill") $backups
+        Install-DirectoryOrLink (Join-Path $sourceRoot "skills/$skill") (Join-Path $claudeHome "skills/$skill") $backups
     }
     if (-not $SkipMattPocock) { Install-MattPocockSkills (Join-Path $claudeHome 'skills') $backups }
     $agentsDir = Join-Path $claudeHome 'agents'
     $agents = Get-ChildItem (Join-Path $sourceRoot 'agents') -Filter '*.md' -File
     foreach ($agent in $agents) {
-        Install-File $agent.FullName (Join-Path $agentsDir $agent.Name) $backups
+        Install-FileOrLink $agent.FullName (Join-Path $agentsDir $agent.Name) $backups
     }
-    Write-Note "installed $($agents.Count) agent definitions into $agentsDir"
+    Write-Note "$placed $($agents.Count) agent definitions into $agentsDir"
     Remove-RetiredAgents $agentsDir 'md' $backups
     # User scope even with -Project: attribution is a per-person preference, not a repository's.
     $userClaudeHome = Join-Path $HOME '.claude'
@@ -648,13 +774,14 @@ if ($doCodex) {
         }
         Write-Note "rewrote $skill for Codex (`$-mentions and .codex/ paths)"
     }
+    if ($Link) { Write-Note 'Codex skills are copied, not linked: the installer rewrites them for Codex.' }
     if (-not $SkipMattPocock) { Install-MattPocockSkills $codexSkillsRoot $codexBackups }
 
     $agents = Get-ChildItem (Join-Path $sourceRoot 'agents/codex') -Filter '*.toml' -File
     foreach ($agent in $agents) {
-        Install-File $agent.FullName (Join-Path $codexAgentsDir $agent.Name) $codexBackups
+        Install-FileOrLink $agent.FullName (Join-Path $codexAgentsDir $agent.Name) $codexBackups
     }
-    Write-Note "installed $($agents.Count) custom agent definitions into $codexAgentsDir"
+    Write-Note "$placed $($agents.Count) custom agent definitions into $codexAgentsDir"
     Remove-RetiredAgents $codexAgentsDir 'toml' $codexBackups
 
     # A copy under the legacy root would register a second skill with the same name.
@@ -688,6 +815,7 @@ $mcpServers = @(
     if ($WithMarkitdownMcp) { 'markitdown' }
 )
 if ($mcpServers.Count -gt 0) {
+    if ($WithPlaywrightMcp) { $playwrightBrowserArguments = @(Get-PlaywrightBrowserArguments) }
     if ($doClaude) {
         Write-Step 'MCP servers -> Claude Code (user scope)'
         foreach ($server in $mcpServers) { Register-McpServer $server 'claude' }

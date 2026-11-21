@@ -30,7 +30,7 @@
 # MCP servers, only the ones asked for, registered on each chosen host through its own CLI
 # (claude mcp add --scope user, codex mcp add) at user scope, even with --project. A server the
 # host already has under that name is kept.
-#   --with-playwright-mcp   playwright   npx -y @playwright/mcp@latest
+#   --with-playwright-mcp   playwright   npx -y @playwright/mcp@latest (on Linux, see below)
 #   --with-context7-mcp     context7     https://mcp.context7.com/mcp on Claude Code,
 #                                        npx -y @upstash/context7-mcp on Codex
 #   --with-markitdown-mcp   markitdown   the markitdown-mcp program found on PATH
@@ -45,15 +45,27 @@
 # agents/openai.yaml (allow_implicit_invocation: false), shipped in the repo.
 #
 # --status installs nothing. From a local checkout it lists every skill folder and agent file the
-# installer would install for the chosen target as identical, differs or not installed, comparing
-# byte for byte against what an install would write (for Codex, the rewritten skill text). It reads
+# installer would install for the chosen target as identical, linked, differs or not installed,
+# comparing byte for byte against what an install would write (for Codex, the rewritten skill text);
+# linked is a symbolic link to the checkout's own copy, and a link to anywhere else differs. It reads
 # no network and writes no file, leaves the Matt Pocock collection and the MCP servers out, lists
 # gh and glab as installed or not without asking either whether it is signed in, and exits 0
 # whatever it finds: a copy that differs may be a private variant kept on purpose.
 #
+# --link, from a local checkout only, installs symbolic links instead of copies: each skill folder,
+# agent file and statusline.js the installer would copy becomes a link to the checkout's own, so an
+# edit made in the installed copy lands in the clone and shows in git status. A target that already
+# links there is left alone; anything else there is backed up (removed with --no-backup) first. Codex
+# skills are still copied, since the installer rewrites them for Codex. Without a checkout, or where
+# the system refuses a symbolic link (Windows without Developer Mode), it stops before any change.
+#
+# On Linux, --with-playwright-mcp points the server at a browser that is there: Chrome at
+# /opt/google/chrome/chrome as is, else a Flatpak Chrome through --executable-path, else Playwright's
+# own Chromium through --browser chromium (install it once with  npx playwright install chromium).
+#
 # Usage:
 #   ./install.sh [--target claude|codex|both|auto] [--project PATH] [--no-backup] [--ref REF]
-#                [--skip-mattpocock] [--mattpocock-exclude "NAME NAME"] [--status]
+#                [--skip-mattpocock] [--mattpocock-exclude "NAME NAME"] [--status] [--link]
 #                [--with-playwright-mcp] [--with-context7-mcp] [--with-markitdown-mcp]
 #   curl -fsSL https://raw.githubusercontent.com/jefrykurniaone/grill-to-waves/main/install.sh | bash
 set -euo pipefail
@@ -83,6 +95,12 @@ WITH_PLAYWRIGHT_MCP=0
 WITH_CONTEXT7_MCP=0
 WITH_MARKITDOWN_MCP=0
 CONTEXT7_URL="https://mcp.context7.com/mcp"
+LINK=0
+CHROME_ROOT="${G2W_CHROME_ROOT:-}"
+CHROME_DEFAULT="$CHROME_ROOT/opt/google/chrome/chrome"
+FLATPAK_CHROME="app/com.google.Chrome/current/active/files/extra/chrome"
+CHROME_FLATPAKS=("$CHROME_ROOT/var/lib/flatpak/$FLATPAK_CHROME" "$HOME/.local/share/flatpak/$FLATPAK_CHROME")
+PLAYWRIGHT_BROWSER_ARGS=()
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -94,10 +112,11 @@ while [ $# -gt 0 ]; do
     --mattpocock-exclude) [ $# -ge 2 ] || { echo "--mattpocock-exclude needs a value" >&2; exit 2; }
                           MATTPOCOCK_EXCLUDE="${2//,/ }"; shift 2 ;;
     --status) STATUS=1; shift ;;
+    --link) LINK=1; shift ;;
     --with-playwright-mcp) WITH_PLAYWRIGHT_MCP=1; shift ;;
     --with-context7-mcp) WITH_CONTEXT7_MCP=1; shift ;;
     --with-markitdown-mcp) WITH_MARKITDOWN_MCP=1; shift ;;
-    -h|--help) sed -n '2,56p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,70p' "$0"; exit 0 ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done
@@ -138,6 +157,7 @@ if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/skills/grill-to-waves/SKILL.md" ]; 
   step "Source: local checkout at $SRC"
 else
   [ "$STATUS" = 0 ] || { echo "--status compares the installed copies against a local checkout. Run it from a clone." >&2; exit 2; }
+  [ "$LINK" = 0 ] || { echo "--link links the installed copies to a local checkout. Run it from a clone." >&2; exit 2; }
   command -v git >/dev/null 2>&1 || { echo "git is required when running without a local checkout." >&2; exit 1; }
   SRC="$(mktemp -d)/grill-to-waves"
   step "Source: cloning $REPO ($REF) to $SRC"
@@ -183,25 +203,66 @@ CODEX_BACKUPS="$CODEX_HOME/backups"
 # A destination that is a symlink - an `npx skills` install links <agent>/skills/<name> to
 # ~/.agents/skills/<name> - is unlinked, never followed: a recursive delete through it would empty
 # the link's target.
-install_dir() {           # $1 from, $2 to, $3 backup root
-  local from="$1" to="$2" backup_root="$3"
+set_aside() {
+  local to="$1" backup_root="$2"
   if [ -L "$to" ]; then
     rm "$to"
     note "unlinked $to"
   fi
-  if [ -e "$to" ]; then
-    if [ "$NO_BACKUP" = 1 ]; then
-      note "replacing $to (no backup)"
-    else
-      mkdir -p "$backup_root"
-      mv "$to" "$backup_root/$(basename "$to")-$STAMP"
-      note "backed up existing copy to $backup_root/$(basename "$to")-$STAMP"
-    fi
-    rm -rf "$to"
+  [ -e "$to" ] || return 0
+  if [ "$NO_BACKUP" = 1 ]; then
+    note "replacing $to (no backup)"
+  else
+    mkdir -p "$backup_root"
+    mv "$to" "$backup_root/$(basename "$to")-$STAMP"
+    note "backed up existing copy to $backup_root/$(basename "$to")-$STAMP"
   fi
+  rm -rf "$to"
+}
+
+install_dir() {           # $1 from, $2 to, $3 backup root
+  local from="$1" to="$2"
+  set_aside "$to" "$3"
   mkdir -p "$(dirname "$to")"
   cp -R "$from" "$to"
   note "installed $to"
+}
+
+is_link_to() {
+  [ -L "$1" ] && [ "$1" -ef "$2" ]
+}
+
+link_path() {
+  local from="$1" to="$2"
+  if is_link_to "$to" "$from"; then
+    note "already linked $to"
+    return
+  fi
+  set_aside "$to" "$3"
+  mkdir -p "$(dirname "$to")"
+  ln -s "$from" "$to"
+  note "linked $to -> $from"
+}
+
+place_dir() {
+  if [ "$LINK" = 1 ]; then link_path "$@"; else install_dir "$@"; fi
+}
+
+place_file() {
+  if [ "$LINK" = 1 ]; then link_path "$@"; else install_file "$@"; fi
+}
+
+require_symlinks() {
+  local probe
+  export MSYS="${MSYS:+$MSYS }winsymlinks:nativestrict"
+  probe="$(mktemp -d)"
+  if ln -s "$SRC/skills" "$probe/link" 2>/dev/null && [ -L "$probe/link" ]; then
+    rm -rf "$probe"
+    return
+  fi
+  rm -rf "$probe"
+  echo "--link needs symbolic links, and this system refused one. On Windows, turn on Developer Mode (Settings > System > For developers), then run the installer again." >&2
+  exit 1
 }
 
 # The latest release of the Matt Pocock collection: the tag GitHub names as latest, or the highest
@@ -232,7 +293,10 @@ install_mattpocock_skills() {   # $1 skills root, $2 backup root
 
 install_file() {          # $1 from, $2 to, $3 backup root
   local from="$1" to="$2" backup_root="$3"
-  if [ -f "$to" ] && [ "$NO_BACKUP" != 1 ]; then
+  if [ -L "$to" ]; then
+    rm "$to"
+    note "unlinked $to"
+  elif [ -f "$to" ] && [ "$NO_BACKUP" != 1 ]; then
     mkdir -p "$backup_root"
     cp "$to" "$backup_root/$(basename "$to")-$STAMP"
   fi
@@ -319,8 +383,12 @@ hide_claude_attribution() {   # $1 settings file, $2 backup root
 # alongside the setting that points at it, and an existing statusLine is left alone.
 install_claude_statusline() {   # $1 source file, $2 user ~/.claude, $3 backup root
   local src="$1" home_dir="$2" backup_root="$3" dest="$2/statusline.js"
-  install_file "$src" "$dest" "$backup_root"
-  note "installed $dest"
+  if [ "$LINK" = 1 ]; then
+    link_path "$src" "$dest" "$backup_root"
+  else
+    install_file "$src" "$dest" "$backup_root"
+    note "installed $dest"
+  fi
   if ! node -e '' >/dev/null 2>&1; then
     note "WARNING: node was not found on PATH; $dest is installed but settings.json is untouched."
     return
@@ -350,10 +418,11 @@ codexify_skill_file() {   # $1 file
   mv "$tmp" "$f"
 }
 
-# Print identical, not installed, or differs with the files that are changed, missing or extra.
-# Codex rewrites the Markdown at the top of a skill folder and nothing below it.
+# Print identical, linked, not installed, or differs with the files that are changed, missing or
+# extra. Codex rewrites the Markdown at the top of a skill folder and nothing below it.
 dir_status() {            # $1 from, $2 to, $3 "codex" to compare against the rewritten text
   local from="$1" to="$2" mode="${3:-}" file same changed=""
+  link_status "$from" "$to" && return
   [ -d "$to" ] || { printf 'not installed'; return; }
   while IFS= read -r file; do
     same=1
@@ -369,8 +438,14 @@ dir_status() {            # $1 from, $2 to, $3 "codex" to compare against the re
   if [ -z "$changed" ]; then printf 'identical'; else printf 'differs (%s)' "$changed"; fi
 }
 
+link_status() {
+  [ -L "$2" ] || return 1
+  if [ "$2" -ef "$1" ]; then printf 'linked'; else printf 'differs (links elsewhere)'; fi
+}
+
 file_status() {           # $1 from, $2 to
-  if [ ! -f "$2" ]; then printf 'not installed'
+  if link_status "$1" "$2"; then return
+  elif [ ! -f "$2" ]; then printf 'not installed'
   elif cmp -s "$1" "$2"; then printf 'identical'
   else printf 'differs'
   fi
@@ -378,12 +453,14 @@ file_status() {           # $1 from, $2 to
 
 # One status line: the state in a fixed column, then the item, then the files behind a `differs`.
 STATUS_IDENTICAL=0
+STATUS_LINKED=0
 STATUS_DIFFERS=0
 STATUS_NOT_INSTALLED=0
 report_status() {         # $1 state, $2 item
   local state="$1" detail=""
   case "$state" in
     identical) STATUS_IDENTICAL=$((STATUS_IDENTICAL + 1)) ;;
+    linked) STATUS_LINKED=$((STATUS_LINKED + 1)) ;;
     'not installed') STATUS_NOT_INSTALLED=$((STATUS_NOT_INSTALLED + 1)) ;;
     differs*) STATUS_DIFFERS=$((STATUS_DIFFERS + 1))
               [ "$state" = differs ] || detail="  ${state#differs }"
@@ -425,7 +502,9 @@ report_forge_clis() {     # $1 1 to ask each CLI whether it is signed in, 0 to s
 mcp_server_spec() {       # $1 server, $2 host (claude or codex)
   MCP_NEEDS=""
   case "$1" in
-    playwright) MCP_NEEDS=npx; MCP_ARGS=(playwright -- npx -y @playwright/mcp@latest) ;;
+    playwright) MCP_NEEDS=npx
+                MCP_ARGS=(playwright -- npx -y @playwright/mcp@latest)
+                if [ "${#PLAYWRIGHT_BROWSER_ARGS[@]}" -gt 0 ]; then MCP_ARGS+=("${PLAYWRIGHT_BROWSER_ARGS[@]}"); fi ;;
     context7)
       if [ "$2" = claude ]; then MCP_ARGS=(--transport http context7 "$CONTEXT7_URL")
       else MCP_NEEDS=npx; MCP_ARGS=(context7 -- npx -y @upstash/context7-mcp)
@@ -433,6 +512,21 @@ mcp_server_spec() {       # $1 server, $2 host (claude or codex)
     *) MCP_NEEDS=markitdown-mcp
        MCP_ARGS=(markitdown -- "$(command -v markitdown-mcp || printf 'markitdown-mcp')") ;;
   esac
+}
+
+choose_playwright_browser() {
+  local path
+  [ "$(uname -s)" = Linux ] || return 0
+  [ ! -e "$CHROME_DEFAULT" ] || return 0
+  step "MCP servers: Playwright's browser"
+  for path in "${CHROME_FLATPAKS[@]}"; do
+    [ -e "$path" ] || continue
+    PLAYWRIGHT_BROWSER_ARGS=(--executable-path "$path")
+    note "$CHROME_DEFAULT is missing, so playwright runs the Flatpak Chrome:  --executable-path $path"
+    return 0
+  done
+  PLAYWRIGHT_BROWSER_ARGS=(--browser chromium)
+  note "no Chrome at $CHROME_DEFAULT or in a Flatpak, so playwright runs Playwright's Chromium (--browser chromium). Install it once:  npx playwright install chromium"
 }
 
 mcp_prerequisite() {      # $1 program; prints what to do when it is not on PATH
@@ -498,10 +592,14 @@ if [ "$STATUS" = 1 ]; then
   fi
   step "Status: forge CLIs (installed or not; an install also checks the sign-in)"
   report_forge_clis 0
-  step "Status: $STATUS_IDENTICAL identical, $STATUS_DIFFERS differs, $STATUS_NOT_INSTALLED not installed."
+  step "Status: $STATUS_IDENTICAL identical, $STATUS_LINKED linked, $STATUS_DIFFERS differs, $STATUS_NOT_INSTALLED not installed."
   note "Nothing was changed. A copy that differs stays as it is until the installer runs without --status."
   exit 0
 fi
+
+[ "$LINK" = 0 ] || require_symlinks
+PLACED="installed"
+[ "$LINK" = 0 ] || PLACED="linked"
 
 # --- 5. Fetch the Matt Pocock collection --------------------------------------------------------
 # Straight from its GitHub repository, at the latest release, before anything is installed - so a
@@ -539,15 +637,15 @@ fi
 if [ "$DO_CLAUDE" = 1 ]; then
   step "Claude Code -> $CLAUDE_HOME"
   for skill in "${SKILLS[@]}"; do
-    install_dir "$SRC/skills/$skill" "$CLAUDE_HOME/skills/$skill" "$CLAUDE_HOME/backups"
+    place_dir "$SRC/skills/$skill" "$CLAUDE_HOME/skills/$skill" "$CLAUDE_HOME/backups"
   done
   [ "$SKIP_MATTPOCOCK" = 1 ] || install_mattpocock_skills "$CLAUDE_HOME/skills" "$CLAUDE_HOME/backups"
   count=0
   for agent in "$SRC"/agents/*.md; do
-    install_file "$agent" "$CLAUDE_HOME/agents/$(basename "$agent")" "$CLAUDE_HOME/backups"
+    place_file "$agent" "$CLAUDE_HOME/agents/$(basename "$agent")" "$CLAUDE_HOME/backups"
     count=$((count + 1))
   done
-  note "installed $count agent definitions into $CLAUDE_HOME/agents"
+  note "$PLACED $count agent definitions into $CLAUDE_HOME/agents"
   retire_agents "$CLAUDE_HOME/agents" md "$CLAUDE_HOME/backups"
   # User scope even with --project: attribution is a per-person preference, not a repository's.
   hide_claude_attribution "$HOME/.claude/settings.json" "$HOME/.claude/backups"
@@ -564,14 +662,15 @@ if [ "$DO_CODEX" = 1 ]; then
     for f in "$dest"/*.md; do codexify_skill_file "$f"; done
     note "rewrote $skill for Codex (\$-mentions and .codex/ paths)"
   done
+  [ "$LINK" = 0 ] || note "Codex skills are copied, not linked: the installer rewrites them for Codex."
   [ "$SKIP_MATTPOCOCK" = 1 ] || install_mattpocock_skills "$CODEX_SKILLS_ROOT" "$CODEX_BACKUPS"
 
   count=0
   for agent in "$SRC"/agents/codex/*.toml; do
-    install_file "$agent" "$CODEX_AGENTS_DIR/$(basename "$agent")" "$CODEX_BACKUPS"
+    place_file "$agent" "$CODEX_AGENTS_DIR/$(basename "$agent")" "$CODEX_BACKUPS"
     count=$((count + 1))
   done
-  note "installed $count custom agent definitions into $CODEX_AGENTS_DIR"
+  note "$PLACED $count custom agent definitions into $CODEX_AGENTS_DIR"
   retire_agents "$CODEX_AGENTS_DIR" toml "$CODEX_BACKUPS"
 
   # A copy under the legacy root would register a second skill with the same name.
@@ -602,6 +701,7 @@ MCP_SERVERS=()
 [ "$WITH_CONTEXT7_MCP" = 0 ] || MCP_SERVERS+=(context7)
 [ "$WITH_MARKITDOWN_MCP" = 0 ] || MCP_SERVERS+=(markitdown)
 if [ "${#MCP_SERVERS[@]}" -gt 0 ]; then
+  [ "$WITH_PLAYWRIGHT_MCP" = 0 ] || choose_playwright_browser
   if [ "$DO_CLAUDE" = 1 ]; then
     step "MCP servers -> Claude Code (user scope)"
     for server in "${MCP_SERVERS[@]}"; do register_mcp_server "$server" claude; done
