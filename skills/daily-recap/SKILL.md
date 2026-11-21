@@ -46,8 +46,7 @@ held, a pipeline run included.
 
 ## Rules
 
-- **Plain business language**, in the language the team's channel uses. Short bullets, one line
-  each. No headings beyond the three sections, no sub-bullets, no closing summary.
+- **Plain business language**, in the language *Language* settles. Short bullets, one line each. No headings beyond the three sections, no sub-bullets, no closing summary.
 - **Nothing that exists only on this machine.** No file paths, commit hashes, branch names, local
   ticket or issue numbers, wave or run names, model or agent names. A shared merge request may be
   mentioned as "MR open, waiting for review", without its number, unless the user asks for it.
@@ -60,6 +59,15 @@ held, a pipeline run included.
 - **Done** is 3 to 7 bullets, **Next** 2 to 4, **Blocker** the real ones or `None`.
 - A blocker says what is stuck and what would unblock it, including a personal one — a usage limit,
   a licence, an access request.
+
+## Language
+
+- **The language the user works in with you**: the one their messages to you are written in, or
+  the one this session is set to respond in. They post the recap where they write the same way.
+- **A recap in a language other than English is mixed, the way the team's developers write**: its
+  sentences in that language, standard development terms in English. In Indonesian: "MR sudah
+  dibuka, menunggu review", "deploy ke dev", "fix validasi di rules".
+- **When neither settles it**, draft in English and ask for the language in step 5's one line.
 
 ## Template
 
