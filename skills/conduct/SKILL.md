@@ -141,7 +141,9 @@ every move-aside file judged as a claim with its fields, the pane each names wit
 the table's verdict with the pane read behind it — and any leftover beside the file for the owner
 to remove, each repository occupied by a session outside the run order as Stage 2 says, the
 repositories without a pane, and what is ready with the reply that launches it in this conversation
-(`watch`, `step <G>`), since a new `/conduct` loads this file again — and stops. It creates, starts and sends nothing,
+(`watch` or `step <G>`, with the `+ tabs`, `+ bypass` or `+ sessions <n>` the check was given) —
+and stops. A reply naming an argument is that invocation, for the same lead map, from Stage 0,
+since a new `/conduct` loads this file into the same context again. It creates, starts and sends nothing,
 and takes, releases, renews, takes over and removes no claim.
 
 ## Stage 2 — Launches and their states

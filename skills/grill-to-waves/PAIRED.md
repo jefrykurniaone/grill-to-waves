@@ -43,8 +43,8 @@ of the maps, the **lead map**, also carries what crosses them:
   rule:** the launch occupies each working copy it borrows for its whole duration, as it occupies
   its own, so no session of that repository runs meanwhile and the borrower's session is the only
   one there; its walk uses that working copy only while the lender passes the borrow check below,
-  and writes nothing to its tracked tree but the one restoring `/orchestrate` *The runtime walk*
-  names. `/orchestrate` *The runtime walk* has the walk's procedure, and `/conduct` Stage 2
+  and writes nothing to its tracked tree but the one restoring `/orchestrate`'s BORROWING.md
+  names. `/orchestrate` *The runtime walk* and its BORROWING.md have the walk's procedure, and `/conduct` Stage 2
   when a launch is ready. A dependent uses another repository's working copy only by borrowing it.
 
   **The borrow check** says whether a lender is somewhere a walk can use. `/conduct` runs it when
@@ -110,11 +110,11 @@ of the maps, the **lead map**, also carries what crosses them:
     restores and which fails the second condition meanwhile.
 
   **A borrow that outlived its session.** A borrower's map carries `borrowing <folder> since <time>`
-  from before it starts a lender's app until that walk's leftovers are dealt with (`/orchestrate`
-  *The runtime walk*). While the line stands the lender is still lent, whatever became of the
+  from before it starts a lender's app until that walk's leftovers are dealt with (`/orchestrate`'s
+  BORROWING.md). While the line stands the lender is still lent, whatever became of the
   borrower's session: its app may be running there and its dev database may hold the walk's data.
   No session of the lender starts, and no other launch borrows it, until the line is gone, which
-  is the work of the next session of the borrower's repository (`/orchestrate` Stage 1, *A
+  is the work of the next session of the borrower's repository (`/orchestrate`'s BORROWING.md, *A
   borrowed walk that died*). For that session's launch alone, whoever starts it waives the check's
   first condition on that lender, because the app's own rewrites are what its cleanup restores. The
   other two still hold, since a registered worktree, a claim or a moved `HEAD` is no walk's

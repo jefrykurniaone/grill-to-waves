@@ -11,7 +11,7 @@ are [../grill-to-waves/PAIRED.md](../grill-to-waves/PAIRED.md).
 guard has cleared — it found no claim, a stale claim or this conversation's own claim, or the user
 confirmed there is no other session — and this session has taken the claim, taken it over or
 renewed it, because the
-walk may be a live session's, and before this stage ends on any other wait or stop, an unsatisfied
+walk may be a live session's, and before SKILL.md Stage 1 ends on any other wait or stop, an unsatisfied
 gate included. A stop of the guard's own takes no claim, does no cleanup and leaves the line standing. In this
 order: check whether that repository's app still runs, by its runbook (its port or health URL);
 stop it the way the runbook says; re-read its tree as *The lender's tree after the walk* says (below); report the walk's accounts and sentinel data as possibly left in its dev database;

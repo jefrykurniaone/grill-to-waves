@@ -42,7 +42,8 @@ where such a pane exists the guard asks instead.
 **The question is the guard's one question**, widened: it is asked only where the guard asks about
 a claim, and then covers the claim and the open tickets' worktrees (SKILL.md Stage 1, *The single-session guard*), and names the claim's
 time, host, and pane with its server, or that it names none or names a pane without a server.
-Confirmed: take the claim over, and the reconcile handles the worktrees as above. Not confirmed:
+Confirmed: take the claim over, and the reconcile handles the worktrees as SKILL.md Stage 1, *Reconcile before dispatching anything*,
+says. Not confirmed:
 stop. An answer this conversation already holds is not asked again; it covers the worktrees and the
 claim's token it named, and a claim with another token is a new question. Where the guard clears —
 nothing found, a stale claim, this conversation's own claim, or the user's confirmation — take the

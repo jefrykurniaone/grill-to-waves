@@ -37,12 +37,12 @@ nothing to the working copy and the code, so it takes no claim and runs no tree 
    measured value or a named failure.
 
 6. **File and record.** A failure attributed to this run's code — a red job, a quality issue, a
-   failed walk row — is filed as its own item under the run label, for a follow-up run or the
-   owner's waiver. Everything else is filed as a finding outside the run's scope, without the run
-   label. Then post one `landed:` entry on the map's log: the merge commit, every job with its
-   status, the analysis result with each issue's attribution, the walk's table with its screenshots,
-   and the items filed. A map still open because its close point is *merged* closes now, as
-   [SKILL.md](SKILL.md) *Closing upward* step 8 says.
+   failed walk row — is filed as its own item that links the map and the merge commit, for a
+   follow-up run or the owner's waiver. Everything else is filed as a finding outside the run's
+   scope. Neither carries the run label, so neither reopens the run or holds up a map's close. Then
+   post one `landed:` entry on the map's log: the merge commit, every job with its status, the
+   analysis result with each issue's attribution, the walk's table with its screenshots, and the
+   items filed. The map's state is left as it is: a map still open waits on its own close step.
 
 7. **Report** the same facts in a few lines, the items filed with their numbers, and end on the
    outcome line: `orchestrate: done` when nothing failed, `orchestrate: stopped — <what failed>`

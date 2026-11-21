@@ -170,7 +170,8 @@ non-quiescent tree that cannot be cleaned, or a second agent session found in th
 by its registered worktree, or by a working-copy claim its guard reads as live or the user does not
 confirm stale, whether the claim file, the claim line or a move-aside file holds it (`/orchestrate`
 Stage 1, *The single-session guard*). What the guard cannot see, or cannot judge without asking,
-is the residual risk [PAIRED.md](./PAIRED.md) states.
+is the residual risk `/orchestrate`'s CLAIMS.md states (*Its residual risk*), and for a lender in a
+paired run, [PAIRED.md](./PAIRED.md).
 
 ## 6. Paired runs
 

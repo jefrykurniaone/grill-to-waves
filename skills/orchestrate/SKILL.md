@@ -47,7 +47,8 @@ path under `.scratch/`.
 `+ check`, or a stop whose remedy the report proposes — its last line before the outcome line is the
 reply that runs it in this conversation: `all`, `wave <k>`, `landed`, or `go` for the proposed remedy.
 A reply naming an argument is that invocation, for the same map, since this file is already loaded;
-a new `/orchestrate` loads all of it again into the same context.
+a new `/orchestrate` loads all of it again into the same context. After `+ check` it starts fresh,
+Stage 1 in full with the reconcile, since `+ check` left no step to resume from.
 
 ## Stage 0 — Resolve the tracker
 
@@ -71,7 +72,9 @@ before the close, so the remote carries none of it.
    planned under the old model, which merged into the base branch and pushed every wave: stop, name
    the missing line, and propose it — `Integration branch: <the branch prefix its tickets use>/<run
    slug>, cut from <base>` — with a dated amendment to the map's *How this is executed* wherever that
-   still describes the old model. On the user's `go`, write both and run this stage again.
+   still describes the old model. `+ check` reports the same proposal. On the user's `go`, this
+   stage runs again as a writing session — the guard takes the claim first — then writes both, and
+   goes on as the reply names, the next unstarted wave where it names none.
    Its execution-progress section, the recorded commit among it
    (*The integration branch*), is the state the last wave left behind and is kept current by
    *Record, close, tear down*, so trust
@@ -221,7 +224,7 @@ it and first deletes the move-aside file as the ownership check does, only where
 finds it and it carries this conversation's own token; otherwise the guard keeps the move-aside
 file. Where the token is this conversation's but the panes differ — it names another pane, or names
 one where this session has none, or names none where this session has one — it is judged by the
-table's rows in CLAIMS.md as any claim of this run is, its pane read under the rules above: a live reading means
+table's rows in CLAIMS.md as any claim of this run is, its pane read under the rules in CLAIMS.md: a live reading means
 this conversation is running in a second process, so stop, and name that pane; where the guard
 clears, take it over with a new token. Where the claim file and the claim line differ, in token or
 in pane, judge each, and the strictest verdict holds: a stop over a question, a question over a
@@ -746,7 +749,8 @@ measured value or a named failure.
 
 **A borrowed working copy.** In a paired run, a ticket whose `runtime:` carries `peer:<folder>`
 entries walks against each such repository's running app, borrowed as [BORROWING.md](BORROWING.md)
-says before, during and after the walk.
+says before, during and after the walk. A walk that needs another repository's app that no `peer:`
+entry declares is a stop, and BORROWING.md says what its report names.
 
 ## Record, close, tear down
 
@@ -886,10 +890,10 @@ anything.
    way. Judgement calls (the smell baseline, scope notes) stop nothing; they go in the map's last
    log entry and the review request's body. The review's per-axis totals are recorded on the map's
    execution progress beside the gate.
-   Then **the findings outside the run's scope**, met anywhere in the run: a security advisory a
-   build, an install or an audit printed, a check that already failed on the base, a defect the walk
-   met on a surface no ticket owns. Each is filed as its own item, without the run label, and named
-   in the review request's body (step 6). They stop nothing.
+   Then **the findings outside the run's scope** that no rule above has already filed or stopped
+   on: a security advisory a build, an install or an audit printed, a warning the gate prints and
+   passes, a defect the walk met on a surface no ticket owns. Each is filed as its own item, without
+   the run label, and named in the review request's body (step 6). They stop nothing.
 5. **Push the integration branch** where a remote exists, `git push -u origin <integration branch>`:
    the run's first push.
 6. **One review request to the base**, opened as a draft when `Run closes at:` is *draft review

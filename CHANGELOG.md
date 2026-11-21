@@ -38,10 +38,12 @@ SonarQube analysis, give the session a read-only `SONAR_TOKEN`; without one it r
   - **`+ landed`** (`skills/orchestrate/LANDED.md`): once the review request has merged, it reads the
     merge commit, every job of its pipeline, the analysis behind a failed quality job, each issue
     attributed to the run's code or not, and walks the deployed app with the walker. Failures are
-    filed and recorded on the map in a `landed:` entry. It writes no code and takes no claim.
-  - *Closing upward*, step 4: **findings outside the run's scope** — an advisory, a check already
-    failing on the base, a defect on a surface no ticket owns — are filed as their own items without
-    the run label and named in the review request's body. They stop nothing.
+    filed without the run label, linking the map and the merge commit, and recorded on the map in a
+    `landed:` entry. It writes no code, takes no claim, and leaves the map's state as it is.
+  - *Closing upward*, step 4: **findings outside the run's scope** that no other rule filed or
+    stopped on — an advisory, a warning the gate prints and passes, a defect on a surface no ticket
+    owns — are filed as their own items without the run label and named in the review request's
+    body. They stop nothing.
 - **`/conduct`.** Its `+ check` report ends with the reply that launches what is ready.
 - **`/daily-recap`.** A *Language* section: the language the user works in with this session, mixed
   with English development terms the way the team writes; English, and a question, when neither
