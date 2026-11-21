@@ -949,9 +949,9 @@ A spec another open map is still executing stays open, and the record says so.
 line hands to someone else, is outside the close condition, and the record names it as handed over
 to its owner, never as waited on; zero open non-ticket items under it other than the specs and the
 map (a mislabelled item is resolved or re-labelled first); every spec closed with its record; every
-orchestrator-only item pinned to the close done, runtime verification included, or waived by the
-owner (step 4); the completion gate green on `HEAD` — a recorded gate run stands when `HEAD` is the
-commit it ran on and `git status --porcelain` is empty, and is run again only otherwise; the mirror
+orchestrator-only item pinned to the close done, runtime verification and the code review included,
+or waived by the owner (step 4); the completion gate green on `HEAD` — a recorded gate run stands
+when `HEAD` is the commit it ran on and `git status --porcelain` is empty, and is run again only otherwise; the mirror
 pass from `/grill-to-waves` Stage 2 run over every spec this run produced, on the integration branch
 and before the final sync and the gate — the delivery notes written on the spec item, each mirror
 regenerated from it (the copy is a clerk chore; the delivery notes are yours); the walk's
@@ -984,11 +984,19 @@ anything.
    wave, or waives the check for this run. A waiver is recorded on the map's execution progress,
    `waived: <check> — <the owner's reason>`, and in the review request's body (step 6), and the
    close goes on at step 5.
+   Then **the review**: the `code-review` skill on `HEAD` against `origin/<base>`, with this run's
+   specs as its spec source, once the walk is done. A hard violation of a documented standard, or a
+   spec requirement missing or wrong, takes the same road as a failed check: filed as its own item,
+   a stop before the push, then a ticket added as a wave or the owner's waiver, recorded the same
+   way. Judgement calls (the smell baseline, scope notes) stop nothing; they go in the map's last
+   log entry and the review request's body. The review's per-axis totals are recorded on the map's
+   execution progress beside the gate.
 5. **Push the integration branch** where a remote exists, `git push -u origin <integration branch>`:
    the run's first push.
 6. **One review request to the base**, opened as a draft when `Run closes at:` is *draft review
    request opened* and ready for review otherwise. Its body is the execution record: every ticket
-   with its merge commit, the gate result with the commit it ran on, a summary of each Fable-tier
+   with its merge commit, the gate result with the commit it ran on, the review's totals and its
+   judgement calls, a summary of each Fable-tier
    correctness argument, every check waived at step 4 with the owner's reason, and the steps handed
    over past the close point with their owner. Post the walk's screenshots on it — every wave's,
    from the ticket comments, and the close's own walk from step 4.

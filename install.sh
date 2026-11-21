@@ -60,7 +60,7 @@ set -euo pipefail
 
 REPO="https://github.com/jefrykurniaone/grill-to-waves.git"
 SKILLS=(grill-to-waves orchestrate conduct ship-it-to daily-recap jira-comment)
-REQUIRED_MATTPOCOCK_SKILLS=(grilling domain-modeling setup-matt-pocock-skills)
+REQUIRED_MATTPOCOCK_SKILLS=(grilling domain-modeling setup-matt-pocock-skills code-review)
 # Agent definitions this repo used to ship and no longer does. A copy left in the agent directory
 # would keep registering a tier the skills no longer dispatch, so the installer removes it.
 RETIRED_AGENTS=(executor-fable-five-one-medium executor-fable-five-one-high executor-fable-five-one-xhigh
@@ -624,7 +624,8 @@ step "Done."
 [ "$DO_CODEX" = 1 ] && note "Codex CLI: once a fix has moved, draft its ticket comment with  \$jira-comment"
 [ "$DO_CODEX" = 1 ] && note "Codex dispatches executors with spawn_agent; the custom agents pin model and reasoning effort per tier."
 
-# The pipeline requires setup-matt-pocock-skills (Stage 0), grilling and domain-modeling (Stage 1).
+# The pipeline requires setup-matt-pocock-skills (Stage 0), grilling and domain-modeling (Stage 1),
+# and code-review (the /orchestrate close).
 if [ "$DO_CLAUDE" = 1 ]; then
   missing=""
   for s in "${REQUIRED_MATTPOCOCK_SKILLS[@]}"; do

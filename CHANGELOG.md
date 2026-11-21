@@ -3,6 +3,34 @@
 What changed in the pipeline's rules and agent set, newest first. The repository carries no version
 tags, so entries are dated. Tiers are named by alias only, as everywhere else in this repository.
 
+## 2026-11-21 — The close reviews the run before it pushes
+
+`/orchestrate` now runs the `code-review` skill at the close, after the gate and the walk and before
+the integration branch is pushed. Its Standards axis holds the diff to the repository's documented
+standards, its Spec axis to the run's specs. A hard finding stops the push the way a failed close
+check does; judgement calls are only recorded.
+
+### After updating
+
+Run the installer again on both hosts (`./install.ps1 -Target both` or `./install.sh --target both`).
+It fetches `code-review` with the rest of the Matt Pocock collection; an install with
+`--skip-mattpocock` needs `code-review` present already, and the installer now warns when it is not.
+
+### Changed
+
+- **`/orchestrate`.**
+  - *Closing upward*, step 4: after the walk, **the review** runs the `code-review` skill on `HEAD`
+    against `origin/<base>`, with the run's specs as its spec source. A hard violation of a
+    documented standard, or a spec requirement missing or wrong, is filed as its own item and stops
+    the close before the push (step 5), then becomes a ticket in a new wave or is waived by the
+    owner, recorded like a waived check. Judgement calls (the smell baseline, scope notes) go in the
+    map's last log entry and the review request's body, and stop nothing.
+  - The map's close condition includes the review, its per-axis totals are recorded on the map's
+    execution progress beside the gate, and the review request's body (step 6) carries the totals
+    and the judgement calls.
+- **Installers.** `code-review` joins the required Matt Pocock skills (`install.sh`, `install.ps1`,
+  README *Requirements*).
+
 ## 2026-11-18 — The claim names its server, and a held claim is renewed
 
 A working-copy claim now names its pane together with its herdr server, so a pane id is read only
